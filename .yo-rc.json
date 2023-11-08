@@ -1,0 +1,21 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "14.19.1",
+    "sdksVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.4.1"
+    },
+    "version": "1.16.1",
+    "libraryName": "uct-module-achat",
+    "libraryId": "782b49c9-7159-443e-8259-28160a61a71b",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "uct-module-achat",
+    "solutionShortDescription": "uct-module-achat description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}

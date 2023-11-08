@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "uct-module-achat-client-side-solution",
+    "id": "782b49c9-7159-443e-8259-28160a61a71b",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.16.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "uct-module-achat description"
+      },
+      "longDescription": {
+        "default": "uct-module-achat description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "uct-module-achat Feature",
+        "description": "The feature that activates elements of the uct-module-achat solution.",
+        "id": "7faa3b78-97a3-4b07-afd7-d65a818800a8",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/uct-module-achat.sppkg"
+  }
+}

@@ -8,8 +8,15 @@ import { DatePicker, IDatePickerStrings } from 'office-ui-fabric-react/lib/DateP
 import { TextField } from 'office-ui-fabric-react/lib/TextField';
 // import SweetAlert2 from 'react-sweetalert2';
 // var img = require('../../../image/UCT_image.png');
+import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists/web";
+import "@pnp/sp/items";
+import "@pnp/sp/attachments";
+import "@pnp/sp/site-users/web";
+// import { Web } from '@pnp/sp/webs';
 import { mergeStyleSets } from 'office-ui-fabric-react/lib/Styling';
 import {
   Fabric,
@@ -70,15 +77,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   // State variables of webpart 
   public state = {
-    AllFamille : [] as any ,
-    FamilleSelected: [] as any,
-    SousFamilleSelected : [] as any ,
-    ArticleSelected: [] as any,
-    BeneficiareSelected : [] as any ,
-    Comment: "",
-    quantity: "",
-    price: "" ,
-    DateSouhaite: new Date(),
 
     formData : [{
       FamilleSelected: [] as any,
@@ -89,8 +87,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       quantity: "",
       price: "" ,
       DateSouhaite: new Date() ,
+      fileData: "" as any,
+      fileName: "",
     }],
-
 
     ID: 0,
     userUPN: "",
@@ -98,7 +97,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     userName: "",
     userEmail: "",
     JobTitle: "",
-    btnSubmitDisable: true,
+
     file: "" as null,
     loadingFile: false,
     fileName: "",
@@ -142,9 +141,23 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   private onSelectionChanged(ev: React.FormEvent<HTMLDivElement>, item: IDropdownOption): void { }
 
 
-  public initImage() {
-    this.setState({ file: null });
+  public initImage(index: any) {
+    const updatedFormData = [...this.state.formData];
+    updatedFormData[index-1].fileData = null
+    updatedFormData[index-1].fileName = null
+    this.setState({
+      formData: updatedFormData
+    });
     (document.getElementById('uploadFile') as HTMLInputElement).value = "";
+  }
+
+  private handleChangeQuantity = (event:any, index: any) => {
+    console.log(index)
+    const updatedFormData = [...this.state.formData];
+    updatedFormData[index-1].quantity = event.target.value
+    this.setState({
+      formData: updatedFormData
+    });
   }
 
 
@@ -153,9 +166,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     var encodedFileName = btoa(content.target.files[0].name.split('.').slice(0, -1).join('.')) + '.' + extention;
 
     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
-    this.setState({ fileName: content.target.files[0].name });
-    this.setState({ file: newFile });
 
+    const updatedFormData = [...this.state.formData];
+    updatedFormData[this.state.counterProducts - 1].fileName = content.target.files[0].name
+    updatedFormData[this.state.counterProducts - 1].fileData = newFile
+    console.log(updatedFormData)
+
+    this.setState({
+      formData: updatedFormData
+    });
   }
 
 
@@ -171,17 +190,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         <span>{option.text} </span>
       </div>
     );
-  }
-
-
-  
-  private handleChangeQuantity = (event:any, index: any) => {
-    console.log(index)
-    const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].quantity = event.target.value
-    this.setState({
-      formData: updatedFormData
-    });
   }
 
 
@@ -275,6 +283,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       quantity:"",
       price:"",
       DateSouhaite: new Date(),
+      fileData: "" as null,
+      fileName: "",
     };
 
     const updatedFormData = [...this.state.formData];
@@ -289,18 +299,68 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  // private disabledSubmitButton = () => {
-  //   var testValidation = true 
-  //   const formData = this.state.formData
-  //   const allPropertiesNotNullOrEmpty = formData.filter((obj) =>
-  //     Object.values(obj).every(
-  //       (value) =>
-  //         value !== null && (typeof value !== 'string' || value.trim() !== '')
-  //     )
-  //   ).length === formData.length;
+  private disabledSubmitButton = () => {
+    return this.state.formData.some(formData => (
+      formData.FamilleSelected.length === 0 ||
+      formData.SousFamilleSelected.length === 0 ||
+      formData.ArticleSelected.length === 0 ||
+      formData.BeneficiareSelected.length === 0 ||
+      formData.quantity.length === 0 ||
+      formData.price.length === 0 ||
+      formData.Comment.length === 0
+    ));
+  }
 
-  //   console.log(allPropertiesNotNullOrEmpty);
+  // private SendArticleToSharepointList = (data: any) => {
+    
   // }
+
+  // // Function to read file info
+  // public readFile = (file: any) => {
+  //   return new Promise((resolve, reject) => {
+  //     const reader = new FileReader();
+  //     reader.onloadend = () => resolve(reader.result);
+  //     reader.onerror = reject;
+  //     reader.readAsArrayBuffer(file);
+  //   });
+  // };
+
+
+
+  // private attachFileToItem = async (itemId: any, file: any) => {
+  //   try {
+  //     const fileContent: any = await this.readFile(file); // Implement the file reading logic
+  //     const fileName = file.name;
+  //     const response = await Web(this.props.url).lists.getByTitle("les demandes").items.getById(itemId).attachmentFiles.add(fileName,fileContent);
+  //     console.log("File attached to item successfully:", response);
+  //   } catch (error) {
+  //     console.log("Error attaching file to item:", error);
+  //   }
+  // };
+
+
+
+  private submitFormData = async () => {
+    const disabledSubmit = this.disabledSubmitButton();
+    if (!disabledSubmit) {
+      const data = this.state.formData;
+      const newArticles = data.map(Article => ({
+        "Demandeur": "Demandeur Data",
+        "DelaiLivraisionSouhait_x00e9_": Article.DateSouhaite,
+        "DescriptionTechnique": Article.Comment,
+        "Ecole": "Ecole Data",
+        "FamilleProduit": Article.FamilleSelected,
+        "Prix": Article.price,
+        "Produit": Article.ArticleSelected,
+        "Quantit_x00e9_": Article.quantity,
+        "StatusApprobateur1": "En cours",
+        "StatusApprobateur2": "En cours",
+        "StatusApprobateur3": "En cours",
+      }));
+      console.log(newArticles);
+    }
+  }
+  
 
 
 
@@ -363,6 +423,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const controlClass = mergeStyleSets({
       TextField: { backgroundColor: "white", }
     });
+
+    const disabledSubmit = this.disabledSubmitButton()
 
 
 
@@ -551,8 +613,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     <label htmlFor="uploadFile" className={stylescustom.btn}>Choisir un élément</label>
                     <input type="file" id="uploadFile" style={{ display: 'none' }}
                       accept=".jpg, .jpeg, .png , .pdf , .doc ,.docx"
-                      onChange={(e) => { this.addFile(e); this.setState({ errors: { ...this.state.errors, file: "" } }); }} />
-                    {this.state.file && <span style={{ marginLeft: 10, fontSize: 14 }}>{this.state.fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(); }}>&#10006;</span></span>}
+                      onChange={(e) => { 
+                        this.addFile(e); 
+                        this.setState({ errors: { ...this.state.errors, file: "" } });}} 
+                      />
+                    {this.state.formData[index - 1].fileData && <span style={{ marginLeft: 10, fontSize: 14 }}>{this.state.formData[index - 1].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(index); }}>&#10006;</span></span>}
                     <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400, display: 'block' }}>
                       {this.state.errors.file !== "" ? this.state.errors.file : ""}
                     </span>
@@ -594,7 +659,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               {this.state.loadingFile ? <Spinner size={SpinnerSize.large} className={stylescustom.spinner} /> : ""}
               {/* <button disabled={this.state.btnSubmitDisable || this.state.loadingFile} onClick={() => this.SaveData()} className={stylescustom.btn}>soumettre la demande</button> */}
               <button className={stylescustom.btn2} onClick={() => this.addArticle()}>AJOUTER UNE AUTRE ARTICLE</button>
-              <button disabled={this.state.btnSubmitDisable || this.state.loadingFile} className={stylescustom.btn}>soumettre la demande</button>
+              <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.submitFormData()}>soumettre la demande</button>
             </div>
 
             

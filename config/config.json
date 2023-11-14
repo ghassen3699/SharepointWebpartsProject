@@ -9,11 +9,29 @@
           "manifest": "./src/webparts/formulaireDemandeur/FormulaireDemandeurWebPart.manifest.json"
         }
       ]
+    },
+    "dashboard-demandeur-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/dashboardDemandeur/DashboardDemandeurWebPart.js",
+          "manifest": "./src/webparts/dashboardDemandeur/DashboardDemandeurWebPart.manifest.json"
+        }
+      ]
+    },
+    "demandeur-dashboard-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/demandeurDashboard/DemandeurDashboardWebPart.js",
+          "manifest": "./src/webparts/demandeurDashboard/DemandeurDashboardWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
   "localizedResources": {
     "FormulaireDemandeurWebPartStrings": "lib/webparts/formulaireDemandeur/loc/{locale}.js",
-    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
+    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js",
+    "DashboardDemandeurWebPartStrings": "lib/webparts/dashboardDemandeur/loc/{locale}.js",
+    "DemandeurDashboardWebPartStrings": "lib/webparts/demandeurDashboard/loc/{locale}.js"
   }
 }

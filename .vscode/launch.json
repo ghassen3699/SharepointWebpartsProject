@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "Hosted workbench",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
-      "url": "https://enter-your-SharePoint-site/_layouts/workbench.aspx",
+      "url": "https://x2r2q.sharepoint.com/sites/UCTtest/_layouts/workbench.aspx",
       "webRoot": "${workspaceRoot}",
       "sourceMaps": true,
       "sourceMapPathOverrides": {

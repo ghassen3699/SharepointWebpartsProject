@@ -6,8 +6,8 @@ import { Icon } from 'office-ui-fabric-react/lib/Icon';
 import { Spinner, SpinnerSize } from 'office-ui-fabric-react/lib/Spinner';
 import { DatePicker, IDatePickerStrings } from 'office-ui-fabric-react/lib/DatePicker';
 import { TextField } from 'office-ui-fabric-react/lib/TextField';
-// import SweetAlert2 from 'react-sweetalert2';
-// var img = require('../../../image/UCT_image.png');
+import SweetAlert2 from 'react-sweetalert2';
+var img = require('../../../image/UCT_image.png');
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
@@ -663,16 +663,16 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             </div>
 
             
-            {/* <SweetAlert2
+            <SweetAlert2
               show={true} title="Demande de congé" text="Demande envoyée"
               imageUrl={img}
               confirmButtonColor='#7D2935'
               onConfirm={() => window.open(this.props.url + "/SitePages/Tableau-de-bord-utilisateur-des-demandes-de-congé.aspx", "_self")}
-              imageWidth="200"
-              imageHeight="200"
+              imageWidth="150"
+              imageHeight="150"
             />
 
-            <SweetAlert2
+            {/* <SweetAlert2
               show={true} title="Demande de congé" text="Votre solde de congé est insuffisant"
               imageUrl={img}
               confirmButtonColor='#7D2935'

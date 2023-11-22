@@ -25,6 +25,14 @@
           "manifest": "./src/webparts/demandeurDashboard/DemandeurDashboardWebPart.manifest.json"
         }
       ]
+    },
+    "approbateur-dashboard-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/approbateurDashboard/ApprobateurDashboardWebPart.js",
+          "manifest": "./src/webparts/approbateurDashboard/ApprobateurDashboardWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
@@ -32,6 +40,7 @@
     "FormulaireDemandeurWebPartStrings": "lib/webparts/formulaireDemandeur/loc/{locale}.js",
     "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js",
     "DashboardDemandeurWebPartStrings": "lib/webparts/dashboardDemandeur/loc/{locale}.js",
-    "DemandeurDashboardWebPartStrings": "lib/webparts/demandeurDashboard/loc/{locale}.js"
+    "DemandeurDashboardWebPartStrings": "lib/webparts/demandeurDashboard/loc/{locale}.js",
+    "ApprobateurDashboardWebPartStrings": "lib/webparts/approbateurDashboard/loc/{locale}.js"
   }
 }

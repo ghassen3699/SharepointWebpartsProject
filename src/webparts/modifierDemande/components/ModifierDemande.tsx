@@ -1,6 +1,7 @@
 import * as React from 'react';
-import stylescustom from './FormulaireDemandeur.module.scss';
-import { IFormulaireDemandeurProps } from './IFormulaireDemandeurProps';
+import stylescustom from './ModifierDemande.module.scss';
+import { IModifierDemandeProps } from './IModifierDemandeProps';
+import { escape } from '@microsoft/sp-lodash-subset';
 import { Dropdown, IDropdownOption, IDropdownProps, IDropdownStyles } from 'office-ui-fabric-react/lib/Dropdown';
 import { Icon } from 'office-ui-fabric-react/lib/Icon';
 import { Spinner, SpinnerSize } from 'office-ui-fabric-react/lib/Spinner';
@@ -18,7 +19,6 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/items";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
-// import { Web } from '@pnp/sp/webs';
 import { mergeStyleSets } from 'office-ui-fabric-react/lib/Styling';
 import {
   Fabric,
@@ -77,9 +77,7 @@ export const FormatDateERP = (date: any): string => {
   return year + '-' + month + '-' + day;
 };
 
-
-
-export default class FormulaireDemandeur extends React.Component<IFormulaireDemandeurProps, {}> {
+export default class ModifierDemande extends React.Component<IModifierDemandeProps, {}> {
 
   // State variables of webpart 
   public state = {
@@ -123,6 +121,64 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   // private dropdownOptionsListSousFamille: { key: string, text: string, data: any }[] = [];
   // private dropdownOptionsRefArticles: { key: string, text: string, data: any }[] = [];
   // private dropdownOptionsBeneficiaire: { key: string, text: string, data: any }[] = [];
+
+  private getFamilleProduit = () => {
+    var listFamilleProduit = [{
+      key: "FamilleID1",
+      text: "Famille 1",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "FamilleID2",
+      text: "Famille 2",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    }]
+    return listFamilleProduit
+  }
+
+  private getSousFamilleProduit = () => {
+    var listSousFamilleProduit = [{
+      key: "SOUSFamilleID1",
+      text: "SOUSFamilleID1 1",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "SOUSFamilleID2",
+      text: "SOUSFamilleID2 2",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    }]
+    return listSousFamilleProduit
+  }
+
+
+  private getArticle = () => {
+    var listProduit = [{
+      key: "ArticleID1",
+      text: "Article 1",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "ArticleID2",
+      text: "Article 2",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    }]
+    return listProduit
+  }
+
+
+  private getBeneficaire = () => {
+    var listBenef = [{
+      key: "BenefID1",
+      text: "BenefID1 1",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "BenefID2",
+      text: "BenefID2 2",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    }]
+    return listBenef
+  }
 
   
 
@@ -221,7 +277,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   private handleChangeFamilleDropdown = (event:any, index:any) => {
-    console.log(event)
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].FamilleSelected = [event]
     this.setState({
@@ -256,13 +311,13 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     });
   }
 
-  private handleChangeDateSouhaite = (date:any, index: any) => {
-    const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].DateSouhaite = new Date(date)
-    this.setState({
-      formData: updatedFormData
-    });
-  }
+  // private handleChangeDateSouhaite = (date:any, index: any) => {
+  //   const updatedFormData = [...this.state.formData];
+  //   updatedFormData[index-1].DateSouhaite = new Date(date)
+  //   this.setState({
+  //     formData: updatedFormData
+  //   });
+  // }
 
 
 
@@ -315,10 +370,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     ));
   }
 
-  // private SendArticleToSharepointList = (data: any) => {
-    
-  // }
-
   // // Function to read file info
   // public readFile = (file: any) => {
   //   return new Promise((resolve, reject) => {
@@ -343,72 +394,18 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   // };
 
 
-  private getFamilleProduit = () => {
-    var listFamilleProduit = [{
-      key: "FamilleID1",
-      text: "Famille 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "FamilleID2",
-      text: "Famille 2",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listFamilleProduit
-  }
-
-  private getSousFamilleProduit = () => {
-    var listSousFamilleProduit = [{
-      key: "SOUSFamilleID1",
-      text: "SOUSFamilleID1 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "SOUSFamilleID2",
-      text: "SOUSFamilleID2 2",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listSousFamilleProduit
-  }
-
-
-  private getArticle = () => {
-    var listProduit = [{
-      key: "ArticleID1",
-      text: "Article 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "ArticleID2",
-      text: "Article 2",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listProduit
-  }
-
-
-  private getBeneficaire = () => {
-    var listBenef = [{
-      key: "BenefID1",
-      text: "BenefID1 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "BenefID2",
-      text: "BenefID2 2",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listBenef
-  }
-
-
-
 
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
     const currentUser = await Web(this.props.url).currentUser.get() ;
+    const FamilleListData = this.getFamilleProduit() ;
+    const sousFamilleListData = this.getSousFamilleProduit() ;
+    const DemandeID = this.getCurrentIDfromURL()
+    // const BenefListData = this.getBeneficaire() ;
     var ArticleList = []
     var prixTotal = 0
+
+
     if (!disabledSubmit) {
       const data = this.state.formData;
       data.map(Article => {
@@ -417,48 +414,116 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           "Prix": Article.price,"quantité": Article.quantity,"DescriptionTechnique": Article.Comment, "ArticleREF": Article.ArticleSelected[0].key
         });
       });
-
-      console.log(ArticleList)
       const getProbateurs = await Web(this.props.url).lists.getByTitle("ValidateurParEcole").items.filter("Ecole eq 'Ecole 1'").top(2000).orderBy("Created", false).get(); 
-      const UserDisplayNameV1 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV1Id).get()).Title ; 
 
-      var formData = {
-        "DemandeurId":currentUser.Id ,
-        "EcoleId":4 ,
-        "FamilleProduit": data[0].FamilleSelected[0].text,
-        "FamilleProduitREF": data[0].FamilleSelected[0].key,
-        "PrixTotal":prixTotal.toString(),
-        "DelaiLivraisionSouhaite":data[0].numberOfDays,
-        "Prix": "test ...." ,
-        "Quantite": "test ....",
-        "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-        "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-        "StatusDemande": "En cours de " + UserDisplayNameV1,
-        "Produit": JSON.stringify(ArticleList)
+      // const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
+      console.log(DemandeID)
+      var Demande = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.filter(`DemandeID eq ${DemandeID}`).get();
+      console.log(Demande)
+      if(Demande[0].StatusApprobateurV1 === "A modifier"){
+        console.log(1)
+        const UserDisplayNameV1 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV1Id).get()) ; 
+
+        var formData = {
+          "DemandeurId":currentUser.Id ,
+          "EcoleId":4 ,
+          "FamilleProduit": FamilleListData.filter(item => item.key === data[0].FamilleSelected[0].key)['text'],
+          "PrixTotal":prixTotal.toString(),
+          "DelaiLivraisionSouhaite":data[0].numberOfDays,
+          "Prix": "test ...." ,
+          "Quantite": "test ....",
+          "SousFamilleProduit": sousFamilleListData.filter(item => item.key === data[0].SousFamilleSelected[0].key)['text'],
+          "StatusDemande": "En cours de " + UserDisplayNameV1.Title,
+          "Produit": JSON.stringify(ArticleList)
+        }
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData)
+
+        // Save historique block
+        const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+        
+        if (historyData.length > 0){
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push("modifier par le demandeur a partir d'une demande de modification de la part de "+UserDisplayNameV1.Title);
+          resultArray.push("En cours de l'approbation de "+UserDisplayNameV1.Title)
+          const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+            Actions: JSON.stringify(resultArray)
+          });
+        };
+  
+        const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+          StatusApprobateurV1: "En cours",
+        });
+    
+      }else if (Demande[0].StatusApprobateurV2 === "A modifier"){
+        
+        console.log(2)
+        const UserDisplayNameV2 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV2Id).get()) ; 
+
+        var formData = {
+          "DemandeurId":currentUser.Id ,
+          "EcoleId":4 ,
+          "FamilleProduit": FamilleListData.filter(item => item.key === data[0].FamilleSelected[0].key)['text'],
+          "PrixTotal":prixTotal.toString(),
+          "DelaiLivraisionSouhaite":data[0].numberOfDays,
+          "Prix": "test ...." ,
+          "Quantite": "test ....",
+          "SousFamilleProduit": sousFamilleListData.filter(item => item.key === data[0].SousFamilleSelected[0].key)['text'],
+          "StatusDemande": "En cours de " + UserDisplayNameV2.Title,
+          "Produit": JSON.stringify(ArticleList)
+        }
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData)
+
+        // Save historique block
+        const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+        
+        if (historyData.length > 0){
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push("modifier par le demandeur a partir d'une demande de modification de la part de "+UserDisplayNameV2.Title);
+          resultArray.push("En cours de l'approbation de "+UserDisplayNameV2.Title)
+          const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+            Actions: JSON.stringify(resultArray)
+          });
+        };
+  
+        const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+          StatusApprobateurV2: "En cours",
+        });
+      }else if (Demande[0].StatusApprobateurV3 === "A modifier"){
+        
+        console.log(3)
+        const UserDisplayNameV3 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV3Id).get()) ; 
+
+        var formData = {
+          "DemandeurId":currentUser.Id ,
+          "EcoleId":4 ,
+          "FamilleProduit": FamilleListData.filter(item => item.key === data[0].FamilleSelected[0].key)['text'],
+          "PrixTotal":prixTotal.toString(),
+          "DelaiLivraisionSouhaite":data[0].numberOfDays,
+          "Prix": "test ...." ,
+          "Quantite": "test ....",
+          "SousFamilleProduit": sousFamilleListData.filter(item => item.key === data[0].SousFamilleSelected[0].key)['text'],
+          "StatusDemande": "En cours de " + UserDisplayNameV3.Title,
+          "Produit": JSON.stringify(ArticleList)
+        }
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData)
+
+        // Save historique block
+        const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+        
+        if (historyData.length > 0){
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push("modifier par le demandeur a partir d'une demande de modification de la part de "+UserDisplayNameV3.Title);
+          resultArray.push("En cours de l'approbation de "+UserDisplayNameV3.Title)
+          const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+            Actions: JSON.stringify(resultArray)
+          });
+        };
+  
+        const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+          StatusApprobateurV3: "En cours",
+        });
       }
-      const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
-
-      const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-      .add({
-        "DemandeID": sendData.data.ID.toString(),
-        "Actions": JSON.stringify(["Creation de la demande", "En cours de l'approbation de "+UserDisplayNameV1])
-      });
-
-      const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-      .add({
-        "DemandeID": sendData.data.ID.toString(),
-        "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-        "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-        "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-        "StatusApprobateurV1": "En cours",
-        "StatusApprobateurV2": "",
-        "StatusApprobateurV3": "",
-        "CommentaireApprobateurV1": "",
-        "CommentaireApprobateurV2": "",
-        "CommentaireApprobateurV3": "",
-      });
       this.setState({showValidationPopUp:true})
-      console.log(formData)
     }
   }
 
@@ -475,15 +540,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   // };
 
 
-  private getDataTest = async() => {
-    const vacationRequestsData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-      .top(2000)
-      .orderBy("Created", false)
-      .expand("Ecole")
-      .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
-      .get();    
-    console.log(vacationRequestsData) ;
-  }
+  // private getDataTest = async() => {
+  //   const vacationRequestsData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+  //     .top(2000)
+  //     .orderBy("Created", false)
+  //     .expand("Ecole")
+  //     .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
+  //     .get();    
+  //   console.log(vacationRequestsData) ;
+  // }
 
 
   private handleInputChange = (event:any, index: any) => {
@@ -534,67 +599,74 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
+  public getCurrentIDfromURL = () => {
+    const currentURL = window.location.href;
+    const urlOBJ = new URL(currentURL) ;
+    return urlOBJ.searchParams.get('itemID');
+  }
+
+
+  public getCurrentDemandeInfo = async() => {
+    const demandeID = this.getCurrentIDfromURL()
+    const demandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(demandeID)).get()
+    var listProduits = JSON.parse(demandeData.Produit)
+    var index = 0
+
+    console.log(listProduits)
+    console.log(demandeData)
+
+    listProduits.map(produit => {
+      index = index + 1 ;
+      const updatedFormData = [...this.state.formData];
+      console.log(updatedFormData[index-1])
+      if(index === 1){
+        const updatedFormData = [...this.state.formData];
+        updatedFormData[index-1].FamilleSelected = [{"key":demandeData.FamilleProduitREF}]
+        updatedFormData[index-1].SousFamilleSelected = [{"key":demandeData.SousFamilleProduitREF}]
+        updatedFormData[index-1].ArticleSelected = [{"key":produit.ArticleREF}]
+        // updatedFormData[index-1].BeneficiareSelected = demandeData
+        updatedFormData[index-1].Comment = produit.DescriptionTechnique
+        updatedFormData[index-1].quantity = produit.quantité
+        updatedFormData[index-1].price = produit.Prix
+        updatedFormData[index-1].DateSouhaite = demandeData.DelaiLivraisionSouhaite
+        updatedFormData[index-1].numberOfDays = demandeData.DelaiLivraisionSouhaite
+        this.setState({
+          formData: updatedFormData
+        });
+      }else {
+        const nullObject = {
+          FamilleSelected: [{"key":demandeData.FamilleProduitREF}],
+          SousFamilleSelected: [{"key":demandeData.SousFamilleProduitREF}],
+          ArticleSelected: [{"key":produit.ArticleREF}],
+          BeneficiareSelected: "",
+          Comment: produit.DescriptionTechnique,
+          quantity:produit.Quantite,
+          price:produit.Prix,
+          numberOfDays: demandeData.DelaiLivraisionSouhaite,
+          DateSouhaite: demandeData.DelaiLivraisionSouhaite,
+          fileData: "" as null,
+          fileName: "",
+        };
+    
+        const updatedFormData = [...this.state.formData];
+        updatedFormData.push(nullObject);
+        this.setState({
+          formData: updatedFormData,
+          counterProducts: this.state.counterProducts + 1,
+        })
+      }
+    })
+  }
+
+
   async componentDidMount() {
     // this.fetchDataAndHandle()
-    this.getDataTest() ;
-    this.loadUserInfo()
+    // this.getDataTest() ;
+    this.loadUserInfo() ;
+    await this.getCurrentDemandeInfo() ;
   }
-  
 
-
-
-
-
-
-  public render(): React.ReactElement<IFormulaireDemandeurProps> {
-
-    // this.dropdownOptionsListFamille.push({
-    //   key: "FamilleID",
-    //   text: "Famille 1",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // },
-    // {
-    //   key: "FamilleID",
-    //   text: "Famille 2",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // }
-    // );
-
-
-    // this.dropdownOptionsListSousFamille.push({
-    //   key: "SousFamilleID",
-    //   text: "SousFamille 1",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // },);
-
-
-    // this.dropdownOptionsRefArticles.push({
-    //   key: "RefArticle",
-    //   text: "Article 1",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // },);
-
-
-    // this.dropdownOptionsBeneficiaire.push(
-    //   {
-    //     key: "BenefID",
-    //     text: "Benef n1",
-    //     data: { icon: 'CircleShapeSolid', colorName: "#0000ff" }
-    //   },
-    //   {
-    //     key: "BenefID",
-    //     text: "Benef n2",
-    //     data: { icon: 'CircleShapeSolid', colorName: "#0000ff" }
-    //   },
-    //   {
-    //     key: "BenefID",
-    //     text: "Benef n3",
-    //     data: { icon: 'CircleShapeSolid', colorName: "#0000ff" }
-    //   }
-    // );
-
-
-
+  public render(): React.ReactElement<IModifierDemandeProps> {
     const dropdownStyles: Partial<IDropdownStyles> = {
       title: { backgroundColor: "white" },
     };
@@ -604,18 +676,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     });
 
     const disabledSubmit = this.disabledSubmitButton()
-
-
-
     return (
       <Fabric
         className="App"
         style={{ background: theme.semanticColors.bodyBackground, color: theme.semanticColors.bodyText }}
       >
-        <div className={stylescustom.formulaireDemandeur}>
+        <div className={stylescustom.modifierDemande}>
           <div className={stylescustom.DC}>
             <p className={stylescustom.datenow}>Date : <span className="date-time">{FormatDate(new Date())}</span></p>
-            <div className={stylescustom.titleh1}>Demande d'achat </div>
+            <div className={stylescustom.titleh1}>Modifier demande d'achat </div>
             <div className={stylescustom.line}></div>
             <div className={stylescustom.row}>
               <div className={stylescustom.col}>
@@ -650,10 +719,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             {this.intToList(this.state.counterProducts).map((index) => 
               <div className='productsDiv'>
                 <div className={stylescustom.row}>
-
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Famille</p>
-                    {console.log(this.state.formData[index - 1]['FamilleSelected'])}
                     <Dropdown
                       defaultValue={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
                       styles={dropdownStyles}
@@ -665,7 +732,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       defaultSelectedKey={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
                     />
                   </div>
-
 
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Sous famille</p>

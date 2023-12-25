@@ -48,8 +48,11 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     openDetailsDiv: false,
     listDemandeData: [] as any, 
     detailsListDemande: [] as any,
+    historiqueDemande: [] as any ,
     cancelPopUp: false,
+    demandeSelectedID: 0
   }; 
+
 
   handleNextPage = () => {
     const { currentPage } = this.state;
@@ -60,6 +63,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     }
   };
 
+
   handlePrevPage = () => {
     const { currentPage } = this.state;
     if (currentPage > 1) {
@@ -67,9 +71,39 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     }
   };
 
+
   handlePageClick = (page:any) => {
     this.setState({ currentPage: page });
   };
+
+
+  private rejectDemande = async(demandeID:any) => {
+    if (demandeID > 0){
+      const updateDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).update({
+        StatusDemande: "Annuler"
+      })
+      const list = Web(this.props.url).lists.getByTitle('HistoriqueDemande');
+      const historyData = await list.items.filter(`DemandeID eq ${demandeID}`).get();
+      if (historyData.length > 0){
+        var resultArray = JSON.parse(historyData[0].Actions);
+        resultArray.push("Demande Annuler par le demandeur");
+        const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+          Actions: JSON.stringify(resultArray)
+        })
+        const WorkflowApprobationData = await Web(this.props.url).lists.getByTitle('WorkflowApprobation').items.filter(`DemandeID eq ${demandeID}`).get();
+        const resultWorkflowApprobationData = await Web(this.props.url).lists.getByTitle('WorkflowApprobation').items.getById(WorkflowApprobationData[0].ID).delete();
+        window.location.reload()
+      }
+    }
+  }
+
+  // private changeDateFormat = (date:any) => {
+  //   const day = String(date.getDate()).padStart(2, '0');
+  //   const month = String(date.getMonth() + 1).padStart(2, '0');
+  //   const year = date.getFullYear();
+
+  //   const formattedDate = `${day}-${month}-${year}`;
+  // }
 
   // handleNameFilterChange = (e) => {
   //   this.setState({ nameFilter: e.target.value, currentPage: 1 });
@@ -82,12 +116,19 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   private openDetailsDiv = async (demandeID: any) => {
     const selectedDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).get();
     console.log(selectedDemande)
-    this.setState({openDetailsDiv: true, detailsListDemande:selectedDemande})
+    const historiqueDemande = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.filter(`DemandeID eq '${demandeID}'`).get(); 
+    var historiqueActions
+    if (historiqueDemande.length === 1){
+      historiqueActions = JSON.parse(historiqueDemande[0].Actions)
+      // console.log(historiqueActions)
+    }
+    this.setState({openDetailsDiv: true, detailsListDemande:selectedDemande, historiqueDemande:historiqueActions})
   }
 
+
   private getDemandeListData = async() => {
-    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.top(2000).select("Id, Demandeur, DateCreation, statusDemande", "FamilleProduit", "StatusDemande").orderBy("Created", false).get();
-    console.log(listDemandeData)
+    const currentUserID = (await Web(this.props.url).currentUser.get()).Id
+    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.filter(`AuthorId eq ${currentUserID}`).top(2000).get();
     this.setState({listDemandeData})
   }
 
@@ -97,9 +138,23 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   }
 
 
-  async componentDidMount() {
-    this.getDemandeListData()
+  public convertDateType = (dateInput: any) => {
+    var date = new Date(dateInput) ;
+    const formattedDate = date.toLocaleDateString('en-GB');
+    return formattedDate ;
   }
+
+
+  public getDateFormListJSON = (produits: any) => {
+    var listProduits = JSON.parse(produits)
+    return listProduits
+  }
+
+
+  async componentDidMount() {
+    this.getDemandeListData() ;
+  }
+
 
   public render(): React.ReactElement<IDemandeurDashboardProps> {
 
@@ -112,7 +167,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
       console.log(FamilleFilter)
       console.log(StatusFilter)
       filteredData = listDemandeData.filter((item:any) => {
-        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.statusDemande.toString().includes(StatusFilter);
+        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
       }); 
     }else {
       filteredData = listDemandeData
@@ -158,7 +213,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
           <div className={styles.statusWrapper}>
             <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
           </div>
-          <button className={styles.btnRef} onClick={() => window.open("https://x2r2q.sharepoint.com/sites/UCTtest/SitePages/formulaireDemandeur.aspx")}>Creer une demande</button>
+          <button className={styles.btnRef} onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/FormulaireDemandeAchat.aspx")}>Creer une demande</button>
         </div>
         <div id="spListContainer"> 
           <table style={{borderCollapse: "collapse", width:"100%"}}>
@@ -167,36 +222,41 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               <tr>
                 <td></td>
                 <td>{demande.FamilleProduit}</td>
-                <td>{demande.DateCreation}</td>
+                <td>{demande.DelaiLivraisionSouhaite} Jours</td>
                 <td className={styles.statut}>
-                  {demande.statusDemande === "En cours" && (
-                    <>
-                      <div className={styles.cercleBleu}></div>
-                      &nbsp;{demande.statusDemande}
-                    </>
-                  )}
-                  {demande.statusDemande === "Rejeter" && (
-                    <>
-                      <div className={styles.cercleRouge}></div>
-                      &nbsp;{demande.statusDemande}
-                    </>
-                  )}
-                  {demande.statusDemande === "A modifier" && (
-                    <>
-                      <div className={styles.cercleVert}></div>
-                      &nbsp;{demande.statusDemande}
-                    </>
-                  )}
-                  {demande.statusDemande === "Approuver" && (
-                    <>
-                      <div className={styles.cercleYellow}></div>
-                      &nbsp;{demande.statusDemande}
-                    </>
-                  )}
+                { (demande.StatusDemande.includes("En cours")) && (
+                  <>
+                    <div className={styles.cercleBleu}></div>
+                    &nbsp;{demande.StatusDemande}
+                  </>
+                )}
+                { (demande.StatusDemande.includes("Rejeter")) && (
+                  <>
+                    <div className={styles.cercleRouge}></div>
+                    &nbsp;{demande.StatusDemande}
+                  </>
+                )}
+                { (demande.StatusDemande.includes("Annuler")) && (
+                  <>
+                    <div className={styles.cercleRouge}></div>
+                    &nbsp;{demande.StatusDemande}
+                  </>
+                )}
+                { demande.StatusDemande.includes("A modifier") && (
+                  <>
+                    <div className={styles.cercleVert}></div>
+                    &nbsp;{demande.StatusDemande}
+                  </>
+                )}
+                { (demande.StatusDemande.includes("Approuver")) && (
+                  <>
+                    <div className={styles.cercleYellow}></div>
+                    &nbsp;{demande.StatusDemande}
+                  </>
+                )}
                 </td>
                 <td>
-
-                  {demande.statusDemande === "En cours" && (
+                  {(demande.StatusDemande.includes("En cours")) && (
                     <>
                       <span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -206,14 +266,14 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                       </span>
                       &nbsp;
                       <span>
-                        <svg onClick={() => this.setState({cancelPopUp: true})} style={{cursor:"pointer"}} color='red' xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
+                        <svg onClick={() => this.setState({cancelPopUp: true, demandeSelectedID: demande.ID})} style={{cursor:"pointer"}} color='red' xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
                           <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
                           <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
                         </svg>
                       </span>
                     </>
                   )}
-                  {demande.statusDemande === "Rejeter" && (
+                  {(demande.StatusDemande.includes("Rejeter")) && (
                     <>
                     <span>
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -230,9 +290,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                     </span>
                   </>
                   )}
-                  {demande.statusDemande === "A modifier" && (
+                  {(demande.StatusDemande.includes("A modifier")) && (
                     <>
-                    <span onClick={() => window.open("https://x2r2q.sharepoint.com/sites/UCTtest/SitePages/formulaireDemandeur.aspx?itemID="+demande.ID)}>
+                    <span onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/ModifierDemande.aspx?itemID="+demande.ID)}>
                       <svg style={{cursor:"pointer"}} color='blue' xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
                         <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
                         <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
@@ -247,7 +307,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                     </span>
                   </>
                   )}
-                  {demande.statusDemande === "Approuver" && (
+                  {(demande.StatusDemande.includes("Approuver")) && (
                     <>
                     <span>
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -264,8 +324,23 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                     </span>
                   </>
                   )}
-                  
-                  
+                  {(demande.StatusDemande.includes("Annuler")) && (
+                    <>
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
+                        <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                        <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                      </svg>
+                    </span>
+                    &nbsp;
+                    <span>
+                      <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
+                        <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                      </svg>
+                    </span>
+                  </>
+                  )}
                 </td>
                 <td>
                   <span className={styles.icon}>
@@ -362,43 +437,27 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               <tbody>
                 <tr>
                   <td >Famille :</td>
-                  <td className={styles.value}>Exemple famille</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
                 <tr>
                   <td >Sous famille :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
                 </tr>
                 <tr>
                   <td >Réference de l'article :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}> {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map(produit => <>- {produit.DescriptionTechnique}<br></br></>)} </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
                   <td className={styles.value}>data</td>
                 </tr>
                 <tr>
-                  <td >Montant du budget alloué :</td>
-                  <td className={styles.value}>data</td>
+                  <td >Prix estimatifs Total :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal}DT</td>
                 </tr>
                 <tr>
-                  <td >Montant du budget consommé :</td>
-                  <td className={styles.value}>data</td>
-                </tr>
-                <tr>
-                  <td >Montant du budget restant :</td>
-                  <td className={styles.value}>data</td>
-                </tr>
-                <tr>
-                  <td >Prix estimatifs :</td>
-                  <td className={styles.value}>data</td>
-                </tr>
-                <tr>
-                  <td >Description Technique :</td>
-                  <td className={styles.value}>data</td>
-                </tr>
-                <tr>
-                  <td >Détails de livraison souhaité :</td>
-                  <td className={styles.value}>data</td>
+                  <td >Délais de livraison souhaité :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite}Jours</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>
@@ -406,11 +465,15 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                 </tr>
                 <tr>
                   <td >Status actuel :</td>
-                  <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; En cours</td>
+                  { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Approuver")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Rejeter")) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("A modifier" )) && <td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                 </tr>
                 <tr>
                   <td >Historique de la demande :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}>{this.state.historiqueDemande.map(action => <>- {action} <br></br></>)}</td>
                 </tr>
               </tbody>
             </table>
@@ -437,12 +500,12 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
         {this.state.cancelPopUp && 
           <div className={styles.modalAlert}>
             <div className={styles.modalContent}>
-              <span id="close" className={styles.close} onClick={() => this.setState({cancelPopUp: false})}>&times;</span>
+              <span id="close" className={styles.close} onClick={() => this.setState({cancelPopUp: false, demandeSelectedID: 0})}>&times;</span>
               <h1 style={{textAlign:"left", color : "#7d2935"}}>Annulation de demande</h1>
               <div style={{fontSize:"14px", "color" : "#615c5d"}}>Voulez-vous vraiment annuler cette commande ?</div>
               <br></br>
               <div>
-                <button className={styles.btnRef}>Annuler la demande</button>
+                <button className={styles.btnRef} onClick={() => this.rejectDemande(this.state.demandeSelectedID)}>Annuler la demande</button>
               </div>
             </div>
           </div>

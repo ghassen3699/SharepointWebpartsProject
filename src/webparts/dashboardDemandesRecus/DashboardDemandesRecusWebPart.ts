@@ -8,30 +8,30 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 
-import * as strings from 'ApprobateurDashboardWebPartStrings';
-import ApprobateurDashboard from './components/ApprobateurDashboard';
-import { IApprobateurDashboardProps } from './components/IApprobateurDashboardProps';
+import * as strings from 'DashboardDemandesRecusWebPartStrings';
+import DashboardDemandesRecus from './components/DashboardDemandesRecus';
+import { IDashboardDemandesRecusProps } from './components/IDashboardDemandesRecusProps';
 import { GetUserInfoURL } from '../../API_END_POINTS/AchatModuleEndPoints';
 
-export interface IApprobateurDashboardWebPartProps {
+
+export interface IDashboardDemandesRecusWebPartProps {
   description: string;
 }
 
-export default class ApprobateurDashboardWebPart extends BaseClientSideWebPart<IApprobateurDashboardWebPartProps> {
+export default class DashboardDemandesRecusWebPart extends BaseClientSideWebPart<IDashboardDemandesRecusWebPartProps> {
 
   private _isDarkTheme: boolean = false;
   private _environmentMessage: string = '';
 
   public render(): void {
-    const element: React.ReactElement<IApprobateurDashboardProps> = React.createElement(
-      ApprobateurDashboard,
+    const element: React.ReactElement<IDashboardDemandesRecusProps> = React.createElement(
+      DashboardDemandesRecus,
       {
         description: this.properties.description,
         isDarkTheme: this._isDarkTheme,
         environmentMessage: this._environmentMessage,
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
         userDisplayName: this.context.pageContext.user.displayName,
-        context: this.context,
         url: this.context.pageContext.web.absoluteUrl,
         GetUserInfoURL:GetUserInfoURL,
       }

@@ -1,4 +1,4 @@
-export interface IApprobateurDashboardProps {
+export interface IModifierDemandeProps {
   description: string;
   isDarkTheme: boolean;
   environmentMessage: string;
@@ -6,5 +6,4 @@ export interface IApprobateurDashboardProps {
   userDisplayName: string;
   context: any;
   url: any;
-  GetUserInfoURL:string;
 }

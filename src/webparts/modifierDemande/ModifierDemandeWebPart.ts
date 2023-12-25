@@ -8,23 +8,24 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 
-import * as strings from 'ApprobateurDashboardWebPartStrings';
-import ApprobateurDashboard from './components/ApprobateurDashboard';
-import { IApprobateurDashboardProps } from './components/IApprobateurDashboardProps';
-import { GetUserInfoURL } from '../../API_END_POINTS/AchatModuleEndPoints';
+import * as strings from 'ModifierDemandeWebPartStrings';
+import ModifierDemande from './components/ModifierDemande';
+import { IModifierDemandeProps } from './components/IModifierDemandeProps';
 
-export interface IApprobateurDashboardWebPartProps {
+export interface IModifierDemandeWebPartProps {
   description: string;
+  context: any;
+  url: any;
 }
 
-export default class ApprobateurDashboardWebPart extends BaseClientSideWebPart<IApprobateurDashboardWebPartProps> {
+export default class ModifierDemandeWebPart extends BaseClientSideWebPart<IModifierDemandeWebPartProps> {
 
   private _isDarkTheme: boolean = false;
   private _environmentMessage: string = '';
 
   public render(): void {
-    const element: React.ReactElement<IApprobateurDashboardProps> = React.createElement(
-      ApprobateurDashboard,
+    const element: React.ReactElement<IModifierDemandeProps> = React.createElement(
+      ModifierDemande,
       {
         description: this.properties.description,
         isDarkTheme: this._isDarkTheme,
@@ -33,7 +34,6 @@ export default class ApprobateurDashboardWebPart extends BaseClientSideWebPart<I
         userDisplayName: this.context.pageContext.user.displayName,
         context: this.context,
         url: this.context.pageContext.web.absoluteUrl,
-        GetUserInfoURL:GetUserInfoURL,
       }
     );
 

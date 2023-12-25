@@ -33,6 +33,30 @@
           "manifest": "./src/webparts/approbateurDashboard/ApprobateurDashboardWebPart.manifest.json"
         }
       ]
+    },
+    "dashboard-demandes-recus-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/dashboardDemandesRecus/DashboardDemandesRecusWebPart.js",
+          "manifest": "./src/webparts/dashboardDemandesRecus/DashboardDemandesRecusWebPart.manifest.json"
+        }
+      ]
+    },
+    "dashboard-demande-cloturees-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/dashboardDemandeCloturees/DashboardDemandeClotureesWebPart.js",
+          "manifest": "./src/webparts/dashboardDemandeCloturees/DashboardDemandeClotureesWebPart.manifest.json"
+        }
+      ]
+    },
+    "modifier-demande-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/modifierDemande/ModifierDemandeWebPart.js",
+          "manifest": "./src/webparts/modifierDemande/ModifierDemandeWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
@@ -41,6 +65,9 @@
     "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js",
     "DashboardDemandeurWebPartStrings": "lib/webparts/dashboardDemandeur/loc/{locale}.js",
     "DemandeurDashboardWebPartStrings": "lib/webparts/demandeurDashboard/loc/{locale}.js",
-    "ApprobateurDashboardWebPartStrings": "lib/webparts/approbateurDashboard/loc/{locale}.js"
+    "ApprobateurDashboardWebPartStrings": "lib/webparts/approbateurDashboard/loc/{locale}.js",
+    "DashboardDemandesRecusWebPartStrings": "lib/webparts/dashboardDemandesRecus/loc/{locale}.js",
+    "DashboardDemandeClotureesWebPartStrings": "lib/webparts/dashboardDemandeCloturees/loc/{locale}.js",
+    "ModifierDemandeWebPartStrings": "lib/webparts/modifierDemande/loc/{locale}.js"
   }
 }

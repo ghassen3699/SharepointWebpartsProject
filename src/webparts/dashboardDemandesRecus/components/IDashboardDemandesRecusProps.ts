@@ -1,10 +1,9 @@
-export interface IApprobateurDashboardProps {
+export interface IDashboardDemandesRecusProps {
   description: string;
   isDarkTheme: boolean;
   environmentMessage: string;
   hasTeamsContext: boolean;
   userDisplayName: string;
-  context: any;
   url: any;
   GetUserInfoURL:string;
 }

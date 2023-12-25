@@ -8,23 +8,22 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import { IReadonlyTheme } from '@microsoft/sp-component-base';
 
-import * as strings from 'ApprobateurDashboardWebPartStrings';
-import ApprobateurDashboard from './components/ApprobateurDashboard';
-import { IApprobateurDashboardProps } from './components/IApprobateurDashboardProps';
-import { GetUserInfoURL } from '../../API_END_POINTS/AchatModuleEndPoints';
+import * as strings from 'DashboardDemandeClotureesWebPartStrings';
+import DashboardDemandeCloturees from './components/DashboardDemandeCloturees';
+import { IDashboardDemandeClotureesProps } from './components/IDashboardDemandeClotureesProps';
 
-export interface IApprobateurDashboardWebPartProps {
+export interface IDashboardDemandeClotureesWebPartProps {
   description: string;
 }
 
-export default class ApprobateurDashboardWebPart extends BaseClientSideWebPart<IApprobateurDashboardWebPartProps> {
+export default class DashboardDemandeClotureesWebPart extends BaseClientSideWebPart<IDashboardDemandeClotureesWebPartProps> {
 
   private _isDarkTheme: boolean = false;
   private _environmentMessage: string = '';
 
   public render(): void {
-    const element: React.ReactElement<IApprobateurDashboardProps> = React.createElement(
-      ApprobateurDashboard,
+    const element: React.ReactElement<IDashboardDemandeClotureesProps> = React.createElement(
+      DashboardDemandeCloturees,
       {
         description: this.properties.description,
         isDarkTheme: this._isDarkTheme,
@@ -33,7 +32,6 @@ export default class ApprobateurDashboardWebPart extends BaseClientSideWebPart<I
         userDisplayName: this.context.pageContext.user.displayName,
         context: this.context,
         url: this.context.pageContext.web.absoluteUrl,
-        GetUserInfoURL:GetUserInfoURL,
       }
     );
 

@@ -1,6 +1,6 @@
 import * as React from 'react';
-import styles from './ApprobateurDashboard.module.scss';
-import { IApprobateurDashboardProps } from './IApprobateurDashboardProps';
+import styles from './DashboardDemandesRecus.module.scss';
+import { IDashboardDemandesRecusProps } from './IDashboardDemandesRecusProps';
 import { Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/items";
@@ -9,8 +9,8 @@ import "@pnp/sp/lists";
 import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
 
-export default class ApprobateurDashboard extends React.Component<IApprobateurDashboardProps, {}> {
 
+export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
   public state = {
 
     // formData : [{
@@ -101,37 +101,15 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   }
 
 
-  private getAllDemandeListData = async () => {
-    var data = [];
-    const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
-    const DemandeIDs = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-      .filter(`
-          ( 
-              (ApprobateurV1/Id eq ${currentUserID} and (StatusApprobateurV1 eq 'En cours' or StatusApprobateurV1 eq 'Approuver' or StatusApprobateurV1 eq 'Rejeter')) or 
-              (ApprobateurV2/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuver' or StatusApprobateurV2 eq 'Rejeter')) or 
-              (ApprobateurV3/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuver' or StatusApprobateurV3 eq 'Rejeter'))
-          )
-      `)
+  private getAllDemandeListData = async() => {
+    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
       .top(2000)
-      .select('DemandeID','StatusApprobateurV1','StatusApprobateurV2','StatusApprobateurV3')
+      .orderBy("Created", false)
+      .expand("Ecole")
+      .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
       .get();
-    console.log(DemandeIDs)
-    // Use Promise.all to wait for all asynchronous operations
-    const listDemandeDataPromises = DemandeIDs.map(async (demande) => {
-      return await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-        .top(2000)
-        .orderBy("Created", false)
-        .expand("Ecole")
-        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
-        .getById(demande.DemandeID)();
-    });
-
-    // Wait for all promises to resolve
-    const listDemandeData = await Promise.all(listDemandeDataPromises);
-    console.log(listDemandeData)
-    this.setState({ listDemandeData });
-  };
-
+    this.setState({listDemandeData})
+  }
 
 
   private getDemandeListData = async () => {
@@ -423,7 +401,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   }
 
 
-  public render(): React.ReactElement<IApprobateurDashboardProps> {
+  public render(): React.ReactElement<IDashboardDemandesRecusProps> {
 
     const dropdownStyles: Partial<IDropdownStyles> = {
       title: { backgroundColor: "white" },
@@ -451,7 +429,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
 
     return (
-      <div className={styles.approbateurDashboard}>
+      <div className={styles.dashboardDemandesRecus}>
         <div className={styles.title}><strong>Filtres</strong></div>
         <div className={styles.filters}>
           <label className={styles.title}>Demandeur : </label>

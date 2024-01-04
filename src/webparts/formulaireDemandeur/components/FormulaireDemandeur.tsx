@@ -93,7 +93,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       quantity: "",
       price: "" ,
       DateSouhaite: new Date() ,
-      numberOfDays: 0,
+      numberOfDays: "",
       fileData: "" as any,
       fileName: "",
     }],
@@ -162,12 +162,16 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     (document.getElementById('uploadFile') as HTMLInputElement).value = "";
   }
 
-  private handleChangeQuantity = (event:any, index: any) => {
-    const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].quantity = event.target.value
-    this.setState({
-      formData: updatedFormData
-    });
+  private handleChangeQuantity = (event: any, index: any) => {
+    const inputValue = event.target.value;
+    // Check if inputValue is a valid number
+    if (!isNaN(inputValue) && inputValue !== '') {
+      const updatedFormData = [...this.state.formData];
+      updatedFormData[index - 1].quantity = inputValue;
+      this.setState({
+        formData: updatedFormData
+      });
+    }
   }
 
 
@@ -202,13 +206,20 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  private handleChangePrice = (event:any, index: any) => {
-    const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].price = event.target.value
-    this.setState({
-      formData: updatedFormData
-    });
+  private handleChangePrice = (event: any, index: any) => {
+    const inputValue = event.target.value;
+  
+    // Check if inputValue is a valid number
+    if (!isNaN(inputValue) && inputValue !== '') {
+      const updatedFormData = [...this.state.formData];
+      updatedFormData[index - 1].price = inputValue;
+  
+      this.setState({
+        formData: updatedFormData
+      });
+    }
   }
+  
 
 
   private handleChangeComment = (event:any, index: any) => {
@@ -285,7 +296,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       Comment: "",
       quantity:"",
       price:"",
-      numberOfDays: 0,
+      numberOfDays: "",
       DateSouhaite: new Date(),
       fileData: "" as null,
       fileName: "",
@@ -311,7 +322,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       formData.quantity.length === 0 ||
       formData.price.length === 0 ||
       formData.Comment.length === 0 || 
-      formData.numberOfDays === 0
+      formData.numberOfDays.length === 0
     ));
   }
 
@@ -401,6 +412,22 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     return listBenef
   }
 
+  private getCurrentDate() {
+    const currentDate = new Date();
+    
+    // Get day, month, and year components
+    const day = ('0' + currentDate.getUTCDate()).slice(-2);
+    const month = ('0' + (currentDate.getUTCMonth() + 1)).slice(-2); // Months are zero-based
+    const year = currentDate.getUTCFullYear();
+  
+    // Assemble the date in the desired format
+    const formattedDate = `${day}/${month}/${year}`;
+  
+    return formattedDate;
+  }
+  
+  
+
 
 
 
@@ -434,14 +461,16 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
         "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
         "StatusDemande": "En cours de " + UserDisplayNameV1,
-        "Produit": JSON.stringify(ArticleList)
+        "StatusDemandeV1":"En cours",
+        "Produit": JSON.stringify(ArticleList),
+        "CreerPar": currentUser.Title
       }
       const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
 
       const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
       .add({
         "DemandeID": sendData.data.ID.toString(),
-        "Actions": JSON.stringify(["Creation de la demande", "En cours de l'approbation de "+UserDisplayNameV1])
+        "Actions": JSON.stringify(["Creation de la demande le "+this.getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+this.getCurrentDate()])
       });
 
       const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
@@ -486,13 +515,20 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  private handleInputChange = (event:any, index: any) => {
-    const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].numberOfDays = event.target.value
-    this.setState({
-      formData: updatedFormData
-    });
+  private handleInputChange = (event: any, index: any) => {
+    const inputValue = event.target.value;
+  
+    // Check if inputValue is a valid number
+    if (!isNaN(inputValue) && inputValue !== '') {
+      const updatedFormData = [...this.state.formData];
+      updatedFormData[index - 1].numberOfDays = inputValue;
+  
+      this.setState({
+        formData: updatedFormData
+      });
+    }
   }
+  
 
 
   // public async getUserInfoFromERP1(establishment, registrationNumber) {
@@ -728,6 +764,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Prix estimatifs :</p>
                     <TextField 
+                      type='number'
                       className={controlClass.TextField} 
                       onChange={(e) => this.handleChangePrice(e, index)}
                       value={this.state.formData[index - 1]["price"]} 
@@ -795,18 +832,19 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             <div className={stylescustom.btncont}>
               {this.state.loadingFile ? <Spinner size={SpinnerSize.large} className={stylescustom.spinner} /> : ""}
               {/* <button disabled={this.state.btnSubmitDisable || this.state.loadingFile} onClick={() => this.SaveData()} className={stylescustom.btn}>soumettre la demande</button> */}
-              <button className={stylescustom.btn2} onClick={() => this.addArticle()}>AJOUTER UNE AUTRE ARTICLE</button>
+              <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.addArticle()}>AJOUTER UNE AUTRE ARTICLE</button>
               <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.submitFormData()}>soumettre la demande</button>
             </div>
 
             
             <SweetAlert2
+              allowOutsideClick={false}
               show={this.state.showValidationPopUp} 
               title="Demande des Articles" 
               text="Demande envoyée"
               imageUrl={img}
               confirmButtonColor='#7D2935'
-              onConfirm={() => window.open(this.props.url + "/SitePages/Tableau-de-bord-utilisateur-des-demandes-de-congé.aspx", "_self")}
+              onConfirm={() => window.open(this.props.url + "/SitePages/DashboardDemandeur.aspx", "_self")}
               imageWidth="150"
               imageHeight="150"
             />

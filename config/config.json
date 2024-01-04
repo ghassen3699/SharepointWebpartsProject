@@ -57,6 +57,14 @@
           "manifest": "./src/webparts/modifierDemande/ModifierDemandeWebPart.manifest.json"
         }
       ]
+    },
+    "dashboard-consultation-demandes-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/dashboardConsultationDemandes/DashboardConsultationDemandesWebPart.js",
+          "manifest": "./src/webparts/dashboardConsultationDemandes/DashboardConsultationDemandesWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
@@ -68,6 +76,7 @@
     "ApprobateurDashboardWebPartStrings": "lib/webparts/approbateurDashboard/loc/{locale}.js",
     "DashboardDemandesRecusWebPartStrings": "lib/webparts/dashboardDemandesRecus/loc/{locale}.js",
     "DashboardDemandeClotureesWebPartStrings": "lib/webparts/dashboardDemandeCloturees/loc/{locale}.js",
-    "ModifierDemandeWebPartStrings": "lib/webparts/modifierDemande/loc/{locale}.js"
+    "ModifierDemandeWebPartStrings": "lib/webparts/modifierDemande/loc/{locale}.js",
+    "DashboardConsultationDemandesWebPartStrings": "lib/webparts/dashboardConsultationDemandes/loc/{locale}.js"
   }
 }

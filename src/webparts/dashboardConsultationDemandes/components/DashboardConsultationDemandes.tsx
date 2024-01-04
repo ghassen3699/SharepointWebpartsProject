@@ -1,6 +1,6 @@
 import * as React from 'react';
-import styles from './DashboardDemandesRecus.module.scss';
-import { IDashboardDemandesRecusProps } from './IDashboardDemandesRecusProps';
+import styles from './DashboardConsultationDemandes.module.scss';
+import { IDashboardConsultationDemandesProps } from './IDashboardConsultationDemandesProps';
 import { Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/items";
@@ -10,7 +10,8 @@ import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
 
 
-export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
+
+export default class DashboardConsultationDemandes extends React.Component<IDashboardConsultationDemandesProps, {}> {
   public state = {
 
     // formData : [{
@@ -104,20 +105,43 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   private getAllDemandeListData = async () => {
     try {
       const listDemandeData = await Web(this.props.url)
-        .lists.getByTitle("DemandeAchat").items
-        .top(2000)
+        .lists.getByTitle("DemandeAchat")
+        .items.top(2000)
         .orderBy("Created", false)
         .expand("Ecole")
-        .filter(`
-          ((StatusDemandeV1 eq 'Approuver') and (StatusDemandeV2 eq 'Approuver') and (StatusDemandeV3 eq 'Approuver'))
-        `)
-        .select("Created","Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CreerPar", "StatusEquipeFinance")
+        .select(
+          "Created",
+          "Attachments",
+          "AuthorId",
+          "DelaiLivraisionSouhaite",
+          "DemandeurId",
+          "DemandeurStringId",
+          "DescriptionTechnique",
+          "Ecole/Title",
+          "Ecole/Ecole",
+          "FamilleProduit",
+          "ID",
+          "Prix",
+          "PrixTotal",
+          "Produit",
+          "Quantite",
+          "SousFamilleProduit",
+          "StatusDemande",
+          "Title",
+          "CreerPar",
+          "StatusEquipeFinance",
+          "StatusDemandeV1",
+          "StatusDemandeV2",
+          "StatusDemandeV3"
+        )
         .get();
+  
       this.setState({ listDemandeData });
     } catch (error) {
       console.error("Error fetching data:", error);
     }
   };
+  
   
 
 
@@ -163,7 +187,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   }
 
 
-  public render(): React.ReactElement<IDashboardDemandesRecusProps> {
+  public render(): React.ReactElement<IDashboardConsultationDemandesProps> {
 
     const dropdownStyles: Partial<IDropdownStyles> = {
       title: { backgroundColor: "white" },
@@ -191,7 +215,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
 
     return (
-      <div className={styles.dashboardDemandesRecus}>
+      <div className={styles.dashboardConsultationDemandes}>
         <div className={styles.title}><strong>Filtres</strong></div>
         <div className={styles.filters}>
           <label className={styles.title}>Demandeur : </label>
@@ -226,44 +250,132 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         </div>
         <div id="spListContainer"> 
           <table style={{borderCollapse: "collapse", width:"100%"}}>
-            <tr><th className={styles.textCenter}>#</th> <th>Demandeur</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
+            <tr><th className={styles.textCenter}>#</th> 
+              <th>Demandeur</th>
+              <th>Centre de gestion</th>
+              <th>Date de la Demande</th>
+              <th>Status V1</th>
+              <th>Status V2</th>
+              <th>Status V3</th>
+              <th>Détail</th>
+            </tr>
             {currentItems.map((demande:any) =>
               <tr>
                 <td></td>
                 <td>{demande.CreerPar}</td>
+                <td>Centre de gestion</td>
                 <td>{this.convertDateFormat(demande.Created)}</td>
                 <td className={styles.statut}>
-                { (demande.StatusEquipeFinance.includes("En cours")) && (
-                  <>
-                    <div className={styles.cercleBleu}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { (demande.StatusEquipeFinance.includes("Rejeter")) && (
-                  <>
-                    <div className={styles.cercleRouge}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { (demande.StatusEquipeFinance.includes("Annuler")) && (
-                  <>
-                    <div className={styles.cercleRouge}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { demande.StatusEquipeFinance.includes("A modifier") && (
-                  <>
-                    <div className={styles.cercleVert}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { (demande.StatusEquipeFinance.includes("Approuver")) && (
-                  <>
-                    <div className={styles.cercleYellow}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
+                  {(demande.StatusDemandeV1 !== null) ? (
+                    <>
+                      {demande.StatusDemandeV1.includes("En cours") && (
+                        <>
+                          <div className={styles.cercleBleu}></div>
+                          &nbsp;{demande.StatusDemandeV1}
+                        </>
+                      )}
+                      {demande.StatusDemandeV1.includes("Rejeter") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV1}
+                        </>
+                      )}
+                      {demande.StatusDemandeV1.includes("Annuler") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV1}
+                        </>
+                      )}
+                      {demande.StatusDemandeV1.includes("A modifier") && (
+                        <>
+                          <div className={styles.cercleVert}></div>
+                          &nbsp;{demande.StatusDemandeV1}
+                        </>
+                      )}
+                      {demande.StatusDemandeV1.includes("Approuver") && (
+                        <>
+                          <div className={styles.cercleYellow}></div>
+                          &nbsp;{demande.StatusDemandeV1}
+                        </>
+                      )}
+                    </>
+                  ):"---"}
                 </td>
+
+                <td className={styles.statut}>
+                  {(demande.StatusDemandeV2 !== null) ? (
+                    <>
+                      {demande.StatusDemandeV2.includes("En cours") && (
+                        <>
+                          <div className={styles.cercleBleu}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("Rejeter") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("Annuler") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("A modifier") && (
+                        <>
+                          <div className={styles.cercleVert}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("Approuver") && (
+                        <>
+                          <div className={styles.cercleYellow}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                    </>
+                  ):"---"}
+                </td>
+
+                <td className={styles.statut}>
+                  {(demande.StatusDemandeV3 !== null) ? (
+                    <>
+                      {demande.StatusDemandeV3.includes("En cours") && (
+                        <>
+                          <div className={styles.cercleBleu}></div>
+                          &nbsp;{demande.StatusDemandeV3}
+                        </>
+                      )}
+                      {demande.StatusDemandeV3.includes("Rejeter") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV3}
+                        </>
+                      )}
+                      {demande.StatusDemandeV3.includes("Annuler") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV3}
+                        </>
+                      )}
+                      {demande.StatusDemandeV3.includes("A modifier") && (
+                        <>
+                          <div className={styles.cercleVert}></div>
+                          &nbsp;{demande.StatusDemandeV3}
+                        </>
+                      )}
+                      {demande.StatusDemandeV3.includes("Approuver") && (
+                        <>
+                          <div className={styles.cercleYellow}></div>
+                          &nbsp;{demande.StatusDemandeV3}
+                        </>
+                      )}
+                    </>
+                  ): "---"}
+                </td>    
+
                 <td>
                   <span className={styles.icon}>
                     <svg onClick={() => this.openDetailsDiv(demande.ID)} version="1.1" id="Capa_1"
@@ -397,37 +509,6 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   <td >Historique de la demande :</td>
                   <td className={styles.value}>{this.state.historiqueDemande.map(action => <>- {action} <br></br></>)}</td>
                 </tr>
-                {this.state.listDemandeDataForCurrentUser.includes(this.state.detailsListDemande.ID) && (
-                  <>
-                    <tr>
-                      <td >Commentaire</td>
-                      <td className={styles.value}>
-                      <TextField 
-                          className={controlClass.TextField} 
-                          value={this.state.commentAction}
-                          multiline 
-                          onChange={(e) => this.handleChangeComment(e)}
-                        />
-                      </td>
-                    </tr>
-                    {/* <tr>
-                      <td>Approbation</td>
-                      <td className={styles.value}>
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "green" : "gray" }}className={styles.btnRef} onClick={() => this.ApprouveValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
-                          Approuver
-                        </button>
-                        &nbsp;
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "red" : "gray" }}className={styles.btnRef} onClick={() => this.RejectValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
-                          Rejeter
-                        </button>
-                        &nbsp;
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "blue" : "gray" }}className={styles.btnRef} onClick={() => this.ModifierValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
-                          Demande de modification
-                        </button>
-                      </td>
-                    </tr> */}
-                  </>
-                )}
               </tbody>
             </table>
           </div>

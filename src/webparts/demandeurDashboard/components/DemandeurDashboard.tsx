@@ -77,6 +77,21 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   };
 
 
+  private getCurrentDate() {
+    const currentDate = new Date();
+    
+    // Get day, month, and year components
+    const day = ('0' + currentDate.getUTCDate()).slice(-2);
+    const month = ('0' + (currentDate.getUTCMonth() + 1)).slice(-2); // Months are zero-based
+    const year = currentDate.getUTCFullYear();
+  
+    // Assemble the date in the desired format
+    const formattedDate = `${day}/${month}/${year}`;
+  
+    return formattedDate;
+  }
+
+
   private rejectDemande = async(demandeID:any) => {
     if (demandeID > 0){
       const updateDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).update({
@@ -86,7 +101,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
       const historyData = await list.items.filter(`DemandeID eq ${demandeID}`).get();
       if (historyData.length > 0){
         var resultArray = JSON.parse(historyData[0].Actions);
-        resultArray.push("Demande Annuler par le demandeur");
+        resultArray.push("Demande Annuler par le demandeur" + " le " + this.getCurrentDate());
         const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
           Actions: JSON.stringify(resultArray)
         })
@@ -128,7 +143,12 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
   private getDemandeListData = async() => {
     const currentUserID = (await Web(this.props.url).currentUser.get()).Id
-    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.filter(`AuthorId eq ${currentUserID}`).top(2000).get();
+    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+    .filter(`AuthorId eq ${currentUserID}`)
+    .orderBy('Created', false) // Order by creation date in descending order
+    .top(1000) 
+    .get();    
+    console.log(listDemandeData)
     this.setState({listDemandeData})
   }
 
@@ -148,6 +168,15 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   public getDateFormListJSON = (produits: any) => {
     var listProduits = JSON.parse(produits)
     return listProduits
+  }
+
+  public convertDateFormat(inputDate) {
+    const dateParts = inputDate.split('T')[0].split('-');
+    const day = dateParts[2];
+    const month = dateParts[1];
+    const year = dateParts[0];
+  
+    return `${day}/${month}/${year}`;
   }
 
 
@@ -222,7 +251,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               <tr>
                 <td></td>
                 <td>{demande.FamilleProduit}</td>
-                <td>{demande.DelaiLivraisionSouhaite} Jours</td>
+                <td>{this.convertDateFormat(demande.Created)}</td>
                 <td className={styles.statut}>
                 { (demande.StatusDemande.includes("En cours")) && (
                   <>
@@ -482,6 +511,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
         <div className={styles.paginations}>
           <span id="btn_prev" className={styles.pagination} onClick={this.handlePrevPage}>Prev</span>
+
           <span id="page">
             {(() => {
                 const pageButtons = [];
@@ -494,6 +524,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               })()
             }
           </span>
+          
           <span id="btn_next" className={styles.pagination} onClick={this.handleNextPage}>Next</span>
         </div>
 

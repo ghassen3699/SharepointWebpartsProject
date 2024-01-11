@@ -3,11 +3,15 @@ import styles from './DashboardDemandesRecus.module.scss';
 import { IDashboardDemandesRecusProps } from './IDashboardDemandesRecusProps';
 import { Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
-import "@pnp/sp/items";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
+import "@pnp/sp/items";
+import "@pnp/sp/webs";
+import "@pnp/sp/lists/web";
+import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
+import { convertDateFormat } from '../../../tools/FunctionTools';
 
 
 export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
@@ -111,7 +115,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         .filter(`
           ((StatusDemandeV1 eq 'Approuver') and (StatusDemandeV2 eq 'Approuver') and (StatusDemandeV3 eq 'Approuver'))
         `)
-        .select("Created","Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CreerPar", "StatusEquipeFinance")
+        .select("Attachments","Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CreerPar", "StatusEquipeFinance")
         .get();
       this.setState({ listDemandeData });
     } catch (error) {
@@ -148,13 +152,27 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     return listProduits
   }
 
-  public convertDateFormat(inputDate) {
-    const dateParts = inputDate.split('T')[0].split('-');
-    const day = dateParts[2];
-    const month = dateParts[1];
-    const year = dateParts[0];
-  
-    return `${day}/${month}/${year}`;
+
+  // open attachement file for each request with an attachement file
+  private openAttachementFile = async (itemID: number) => {
+    if (itemID > 0) {
+      const itemData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(itemID).select("AttachmentFiles").expand("AttachmentFiles").get().then(item => {
+        const attachmentFiles = item.AttachmentFiles;
+        if (attachmentFiles.length > 0) {
+
+          const attachmentUrl = attachmentFiles[0].ServerRelativeUrl;
+          const currentURL = this.props.url
+          const tenantUrl = currentURL.split("/sites/")[0];
+
+          const absoluteUrl = `${tenantUrl}${attachmentUrl}`;
+
+          window.open(absoluteUrl, "_blank");
+        }
+      }).catch(error => {
+        console.log(error);
+      });
+      console.log(itemData)
+    }
   }
 
 
@@ -224,14 +242,31 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
           </div>
           <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
         </div>
-        <div id="spListContainer"> 
+        {listDemandeData.length === 0 && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
+        {listDemandeData.length > 0 && 
+          <div id="spListContainer"> 
           <table style={{borderCollapse: "collapse", width:"100%"}}>
             <tr><th className={styles.textCenter}>#</th> <th>Demandeur</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
             {currentItems.map((demande:any) =>
               <tr>
-                <td></td>
+                <td>
+                  {demande.Attachments && <svg onClick={() => this.openAttachementFile(demande.ID)} version="1.1" className="icon_03c0be98" id="file162" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 512 512" style={{"height":"14px", "cursor":"pointer"}} xmlSpace="preserve">
+                    <g>
+                      <g>
+                        <path d="M446.661,37.298c-49.731-49.731-130.641-49.731-180.372,0L76.378,227.208c-5.861,5.861-5.861,15.356,0,21.217
+                          c5.861,5.861,15.356,5.861,21.217,0l189.91-189.91c36.865-36.836,101.073-36.836,137.938,0c38.023,38.023,38.023,99.901,0,137.924
+                          l-265.184,268.17c-22.682,22.682-62.2,22.682-84.881,0c-23.4-23.4-23.4-61.467,0-84.867l254.576-257.577
+                          c8.498-8.498,23.326-8.498,31.825,0c8.776,8.776,8.776,23.063,0,31.84L117.826,400.958c-5.06,5.06-5.06,16.156,0,21.217
+                          c5.861,5.861,15.356,5.861,21.217,0l243.952-246.954c20.485-20.485,20.485-53.789,0-74.273c-19.839-19.839-54.449-19.81-74.258,0
+                          L54.161,358.524c-34.826,34.826-34.826,92.474,0,127.301C71.173,502.837,93.781,512,117.825,512s46.654-9.163,63.651-26.174
+                          L446.66,217.655C496.391,167.924,496.391,87.028,446.661,37.298z">
+                        </path>
+                      </g>
+                    </g>
+                  </svg>}
+                </td>                
                 <td>{demande.CreerPar}</td>
-                <td>{this.convertDateFormat(demande.Created)}</td>
+                <td>{convertDateFormat(demande.Created)}</td>
                 <td className={styles.statut}>
                 { (demande.StatusEquipeFinance.includes("En cours")) && (
                   <>
@@ -349,7 +384,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
             )}
           </table>
           {/* <div style={{textAlign:"center"}}><h4>Aucune données trouvées</h4></div> */}
-        </div>
+          </div>
+        }
 
         {this.state.openDetailsDiv && <div className={styles.modal}>
           <div className={styles.modalContent}>
@@ -394,8 +430,24 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   { (this.state.detailsListDemande.StatusDemande.includes("A modifier" )) && <td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                 </tr>
                 <tr>
-                  <td >Historique de la demande :</td>
-                  <td className={styles.value}>{this.state.historiqueDemande.map(action => <>- {action} <br></br></>)}</td>
+                  <td>Historique de la demande :</td>
+                  {this.state.historiqueDemande.length < 4 ? (
+                    <div>
+                      <td className={styles.value}>
+                        {this.state.historiqueDemande.map((action, index) => (
+                          <span key={index}>- {action} <br /></span>
+                        ))}
+                      </td>
+                    </div>
+                  ) : (
+                    <div style={{ 'maxHeight': '80px', 'width': '103%', 'overflowY': 'auto', 'overflowX': 'hidden', 'float': 'left', 'backgroundColor': '#aaa' }}>
+                      <td className={styles.value}>
+                        {this.state.historiqueDemande.map((action, index) => (
+                          <span key={index}>- {action} <br /></span>
+                        ))}
+                      </td>
+                    </div>
+                  )}
                 </tr>
                 {this.state.listDemandeDataForCurrentUser.includes(this.state.detailsListDemande.ID) && (
                   <>
@@ -434,20 +486,38 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         </div>}
 
         <div className={styles.paginations}>
-          <span id="btn_prev" className={styles.pagination} onClick={this.handlePrevPage}>Prev</span>
+          <span
+            id="btn_prev"
+            className={styles.pagination}
+            onClick={this.handlePrevPage}>
+            Prev
+          </span>
+
           <span id="page">
             {(() => {
                 const pageButtons = [];
                 for (let page = 0; page < totalPages; page++) {
                   pageButtons.push(
-                    <span key={page + 1} onClick={() => this.handlePageClick(page + 1)} className={styles.pagination} style={{color:"#700d1f"}}>{page + 1}</span>
+                    <span 
+                      key={page + 1} 
+                      onClick={() => this.handlePageClick(page + 1)} 
+                      className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
+                    >
+                      {page + 1}
+                    </span>
                   );
                 }
                 return pageButtons;
               })()
             }
           </span>
-          <span id="btn_next" className={styles.pagination} onClick={this.handleNextPage}>Next</span>
+
+          <span
+            id="btn_prev"
+            className={styles.pagination}
+            onClick={this.handleNextPage}>
+            Next
+          </span>
         </div>
       </div>
     );

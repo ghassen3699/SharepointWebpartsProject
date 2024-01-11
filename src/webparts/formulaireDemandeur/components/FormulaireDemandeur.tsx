@@ -4,10 +4,8 @@ import { IFormulaireDemandeurProps } from './IFormulaireDemandeurProps';
 import { Dropdown, IDropdownOption, IDropdownProps, IDropdownStyles } from 'office-ui-fabric-react/lib/Dropdown';
 import { Icon } from 'office-ui-fabric-react/lib/Icon';
 import { Spinner, SpinnerSize } from 'office-ui-fabric-react/lib/Spinner';
-import { DatePicker, IDatePickerStrings } from 'office-ui-fabric-react/lib/DatePicker';
+import { IDatePickerStrings } from 'office-ui-fabric-react/lib/DatePicker';
 import { TextField } from 'office-ui-fabric-react/lib/TextField';
-import {getFamilyProduct} from "../../../ApiServices/getFamilleProduit";
-import {GetUserInfoURL} from "../../../API_END_POINTS/AchatModuleEndPoints";
 import SweetAlert2 from 'react-sweetalert2';
 var img = require('../../../image/UCT_image.png');
 import "@pnp/sp/webs";
@@ -28,6 +26,7 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
+import { getCurrentDate } from '../../../tools/FunctionTools';
 loadTheme({
   palette: {
   },
@@ -175,20 +174,23 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  public addFile(content:any) {
-    var extention = content.target.files[0].name.split('.').pop();
-    var encodedFileName = btoa(content.target.files[0].name.split('.').slice(0, -1).join('.')) + '.' + extention;
-
+  public addFile = (content: any) => {
+    console.log(this.state.counterProducts);
+  
+    const fileName = content.target.files[0].name;
+    const extension = fileName.split('.').pop();
+    const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}_${Date.now()}.${extension}`;
+  
     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
-
+  
     const updatedFormData = [...this.state.formData];
-    updatedFormData[this.state.counterProducts - 1].fileName = content.target.files[0].name
-    updatedFormData[this.state.counterProducts - 1].fileData = newFile
-
+    updatedFormData[this.state.counterProducts - 1].fileName = fileName; // Store the original file name
+    updatedFormData[this.state.counterProducts - 1].fileData = newFile;
+  
     this.setState({
       formData: updatedFormData
     });
-  }
+  };
 
 
 
@@ -330,28 +332,37 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     
   // }
 
-  // // Function to read file info
-  // public readFile = (file: any) => {
-  //   return new Promise((resolve, reject) => {
-  //     const reader = new FileReader();
-  //     reader.onloadend = () => resolve(reader.result);
-  //     reader.onerror = reject;
-  //     reader.readAsArrayBuffer(file);
-  //   });
-  // };
+  // Function to read file info
+  public readFile = (fileContent: any) => {
+    return new Promise((resolve, reject) => {
+      const blob = new Blob([fileContent]);
+      const reader = new FileReader();
 
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+  };
 
-
-  // private attachFileToItem = async (itemId: any, file: any) => {
-  //   try {
-  //     const fileContent: any = await this.readFile(file); // Implement the file reading logic
-  //     const fileName = file.name;
-  //     const response = await Web(this.props.url).lists.getByTitle("les demandes").items.getById(itemId).attachmentFiles.add(fileName,fileContent);
-  //     console.log("File attached to item successfully:", response);
-  //   } catch (error) {
-  //     console.log("Error attaching file to item:", error);
-  //   }
-  // };
+  private attachFileToItem = async (itemId: any) => {
+    try {
+      const formData = this.state.formData[this.state.counterProducts - 1];
+      const fileContent: any = await this.readFile(formData.fileData);
+      const fileName = formData.fileName; // Use the original file name
+  
+      console.log("Original File Name:", fileName);
+      console.log("File Content:", fileContent);
+  
+      const response = await Web(this.props.url)
+        .lists.getByTitle("DemandeAchat")
+        .items.getById(itemId)
+        .attachmentFiles.add(fileName, fileContent);
+  
+      console.log("File attached to item successfully:", response);
+    } catch (error) {
+      console.log("Error attaching file to item:", error);
+    }
+  };
 
 
   private getFamilleProduit = () => {
@@ -412,24 +423,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     return listBenef
   }
 
-  private getCurrentDate() {
-    const currentDate = new Date();
-    
-    // Get day, month, and year components
-    const day = ('0' + currentDate.getUTCDate()).slice(-2);
-    const month = ('0' + (currentDate.getUTCMonth() + 1)).slice(-2); // Months are zero-based
-    const year = currentDate.getUTCFullYear();
-  
-    // Assemble the date in the desired format
-    const formattedDate = `${day}/${month}/${year}`;
-  
-    return formattedDate;
-  }
-  
-  
-
-
-
 
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
@@ -441,7 +434,19 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       data.map(Article => {
         prixTotal = prixTotal + parseInt(Article.price);
         ArticleList.push({
-          "Prix": Article.price,"quantité": Article.quantity,"DescriptionTechnique": Article.Comment, "ArticleREF": Article.ArticleSelected[0].key
+          "Prix": Article.price,
+          "quantité": Article.quantity,
+          "DescriptionTechnique": Article.Comment,
+          "ArticleREF": Article.ArticleSelected[0].key,
+          "ArticleFileName": Article.fileName, 
+          "ArticleFileData": {
+            "name": Article.fileData.name,
+            "size": Article.fileData.size,
+            "type": Article.fileData.type,
+            // "lastModified": Article.fileData.lastModified,
+            // "lastModifiedDate": Article.fileData.lastModifiedDate,
+            "webkitRelativePath": Article.fileData.webkitRelativePath,
+          }
         });
       });
 
@@ -467,10 +472,14 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       }
       const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
 
+      ArticleList.map(async articleData => {
+        await this.attachFileToItem(sendData.data.ID)
+      })
+
       const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
       .add({
         "DemandeID": sendData.data.ID.toString(),
-        "Actions": JSON.stringify(["Creation de la demande le "+this.getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+this.getCurrentDate()])
+        "Actions": JSON.stringify(["Creation de la demande le "+getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+getCurrentDate()])
       });
 
       const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
@@ -690,16 +699,31 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Famille</p>
                     {console.log(this.state.formData[index - 1]['FamilleSelected'])}
-                    <Dropdown
-                      defaultValue={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
-                      styles={dropdownStyles}
-                      onRenderTitle={this.onRenderTitle}
-                      onRenderOption={this.onRenderOption}
-                      onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getFamilleProduit()}
-                      onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
-                      defaultSelectedKey={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
-                    />
+                    {index > 1 ? (
+                      <Dropdown
+                        defaultValue={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
+                        styles={dropdownStyles}
+                        onRenderTitle={this.onRenderTitle}
+                        onRenderOption={this.onRenderOption}
+                        onRenderCaretDown={this.onRenderCaretDown}
+                        options={this.getFamilleProduit()}
+                        onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
+                        defaultSelectedKey={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
+                        disabled={true}
+                      />
+                    ) : (
+                      <Dropdown
+                        defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                        styles={dropdownStyles}
+                        onRenderTitle={this.onRenderTitle}
+                        onRenderOption={this.onRenderOption}
+                        onRenderCaretDown={this.onRenderCaretDown}
+                        options={this.getFamilleProduit()}
+                        onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
+                        defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                      />
+                    )}
+                    
                   </div>
 
 
@@ -801,7 +825,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
                 <div className={stylescustom.row}>
                   <div className={stylescustom.comment}>
-                    <p className={stylescustom.title}>Commentaire :</p>
+                    <p className={stylescustom.title}>* Description :</p>
                     <TextField 
                       className={controlClass.TextField} 
                       value={this.state.formData[index - 1]["Comment"]} 

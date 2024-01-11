@@ -1,14 +1,11 @@
 import * as React from 'react';
 import stylescustom from './ModifierDemande.module.scss';
 import { IModifierDemandeProps } from './IModifierDemandeProps';
-import { escape } from '@microsoft/sp-lodash-subset';
 import { Dropdown, IDropdownOption, IDropdownProps, IDropdownStyles } from 'office-ui-fabric-react/lib/Dropdown';
 import { Icon } from 'office-ui-fabric-react/lib/Icon';
 import { Spinner, SpinnerSize } from 'office-ui-fabric-react/lib/Spinner';
-import { DatePicker, IDatePickerStrings } from 'office-ui-fabric-react/lib/DatePicker';
+import { IDatePickerStrings } from 'office-ui-fabric-react/lib/DatePicker';
 import { TextField } from 'office-ui-fabric-react/lib/TextField';
-import {getFamilyProduct} from "../../../ApiServices/getFamilleProduit";
-import {GetUserInfoURL} from "../../../API_END_POINTS/AchatModuleEndPoints";
 import SweetAlert2 from 'react-sweetalert2';
 var img = require('../../../image/UCT_image.png');
 import "@pnp/sp/webs";
@@ -28,6 +25,7 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
+import { getCurrentDate } from '../../../tools/FunctionTools';
 loadTheme({
   palette: {
   },
@@ -393,20 +391,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
   //   }
   // };
 
-  private getCurrentDate() {
-    const currentDate = new Date();
-    
-    // Get day, month, and year components
-    const day = ('0' + currentDate.getUTCDate()).slice(-2);
-    const month = ('0' + (currentDate.getUTCMonth() + 1)).slice(-2); // Months are zero-based
-    const year = currentDate.getUTCFullYear();
-  
-    // Assemble the date in the desired format
-    const formattedDate = `${day}/${month}/${year}`;
-  
-    return formattedDate;
-  }
-
 
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
@@ -504,11 +488,11 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                 var resultArray = JSON.parse(historyData[0].Actions);
                 resultArray.push(
                     "modifier par le demandeur a partir d'une demande de modification de la part de " +
-                        UserDisplayNameV1.Title + " le "+ this.getCurrentDate()
+                        UserDisplayNameV1.Title + " le "+ getCurrentDate()
                 );
                 resultArray.push(
                     "En cours de l'approbation de " +
-                        UserDisplayNameV1.Title + " a partir de "+ this.getCurrentDate()
+                        UserDisplayNameV1.Title + " a partir de "+ getCurrentDate()
                 );
                 const saveHistorique = await Web(this.props.url)
                     .lists.getByTitle("HistoriqueDemande")
@@ -569,9 +553,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             if (historyData.length > 0) {
                 var resultArray = JSON.parse(historyData[0].Actions);
                 resultArray.push(
-                    "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV2.Title + " le "+ this.getCurrentDate()
+                    "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV2.Title + " le "+ getCurrentDate()
                 );
-                resultArray.push("En cours de l'approbation de " + UserDisplayNameV2.Title + " a partir de" + this.getCurrentDate());
+                resultArray.push("En cours de l'approbation de " + UserDisplayNameV2.Title + " a partir de" + getCurrentDate());
                 const saveHistorique = await Web(this.props.url)
                   .lists.getByTitle("HistoriqueDemande")
                   .items.getById(historyData[0].ID)
@@ -625,10 +609,10 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             if (historyData.length > 0) {
               var resultArray = JSON.parse(historyData[0].Actions);
               resultArray.push(
-                  "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV3.Title + " le " + this.getCurrentDate()
+                  "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV3.Title + " le " + getCurrentDate()
               );
               resultArray.push(
-                "En cours de l'approbation de " + UserDisplayNameV3.Title + " a partir de " + this.getCurrentDate() 
+                "En cours de l'approbation de " + UserDisplayNameV3.Title + " a partir de " + getCurrentDate() 
               );
               const saveHistorique = await Web(this.props.url)
                 .lists.getByTitle("HistoriqueDemande")

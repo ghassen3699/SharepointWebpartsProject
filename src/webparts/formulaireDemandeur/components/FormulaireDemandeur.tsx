@@ -451,25 +451,46 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       });
 
       console.log(ArticleList)
-      const getProbateurs = await Web(this.props.url).lists.getByTitle("ValidateurParEcole").items.filter("Ecole eq 'Ecole 1'").top(2000).orderBy("Created", false).get(); 
+      const getProbateurs = await Web(this.props.url).lists.getByTitle("ValidateurParEcole").items.filter("Ecole eq 'Ecole 2'").top(2000).orderBy("Created", false).get(); 
       const UserDisplayNameV1 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV1Id).get()).Title ; 
-
-      var formData = {
-        "DemandeurId":currentUser.Id ,
-        "EcoleId":4 ,
-        "FamilleProduit": data[0].FamilleSelected[0].text,
-        "FamilleProduitREF": data[0].FamilleSelected[0].key,
-        "PrixTotal":prixTotal.toString(),
-        "DelaiLivraisionSouhaite":data[0].numberOfDays,
-        "Prix": "test ...." ,
-        "Quantite": "test ....",
-        "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-        "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-        "StatusDemande": "En cours de " + UserDisplayNameV1,
-        "StatusDemandeV1":"En cours",
-        "Produit": JSON.stringify(ArticleList),
-        "CreerPar": currentUser.Title
+      var formData
+      if (getProbateurs[0].ApprobateurV4Id === null){
+        formData = {
+          "DemandeurId":currentUser.Id ,
+          "EcoleId":getProbateurs[0].ID ,
+          "FamilleProduit": data[0].FamilleSelected[0].text,
+          "FamilleProduitREF": data[0].FamilleSelected[0].key,
+          "PrixTotal":prixTotal.toString(),
+          "DelaiLivraisionSouhaite":data[0].numberOfDays,
+          "Prix": "test ...." ,
+          "Quantite": "test ....",
+          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+          "StatusDemande": "En cours de " + UserDisplayNameV1,
+          "StatusDemandeV1":"En cours",
+          "StatusDemandeV4":"***",
+          "Produit": JSON.stringify(ArticleList),
+          "CreerPar": currentUser.Title
+        }
+      }else {
+        formData = {
+          "DemandeurId":currentUser.Id ,
+          "EcoleId":getProbateurs[0].ID ,
+          "FamilleProduit": data[0].FamilleSelected[0].text,
+          "FamilleProduitREF": data[0].FamilleSelected[0].key,
+          "PrixTotal":prixTotal.toString(),
+          "DelaiLivraisionSouhaite":data[0].numberOfDays,
+          "Prix": "test ...." ,
+          "Quantite": "test ....",
+          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+          "StatusDemande": "En cours de " + UserDisplayNameV1,
+          "StatusDemandeV1":"En cours",
+          "Produit": JSON.stringify(ArticleList),
+          "CreerPar": currentUser.Title
+        }
       }
+       
       const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
 
       ArticleList.map(async articleData => {
@@ -482,19 +503,41 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         "Actions": JSON.stringify(["Creation de la demande le "+getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+getCurrentDate()])
       });
 
-      const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-      .add({
-        "DemandeID": sendData.data.ID.toString(),
-        "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-        "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-        "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-        "StatusApprobateurV1": "En cours",
-        "StatusApprobateurV2": "",
-        "StatusApprobateurV3": "",
-        "CommentaireApprobateurV1": "",
-        "CommentaireApprobateurV2": "",
-        "CommentaireApprobateurV3": "",
-      });
+      console.log('testtt',getProbateurs[0].ApprobateurV4Id)
+      if (getProbateurs[0].ApprobateurV4Id === null){
+        const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+        .add({
+          "DemandeID": sendData.data.ID.toString(),
+          "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+          "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+          "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+          "StatusApprobateurV1": "En cours",
+          "StatusApprobateurV2": "",
+          "StatusApprobateurV3": "",
+          "StatusApprobateurV4": "***",
+          "CommentaireApprobateurV1": "",
+          "CommentaireApprobateurV2": "",
+          "CommentaireApprobateurV3": "",
+          "CommentaireApprobateurV4": "***",
+        });
+      }else {
+        const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+        .add({
+          "DemandeID": sendData.data.ID.toString(),
+          "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+          "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+          "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+          "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+          "StatusApprobateurV1": "En cours",
+          "StatusApprobateurV2": "",
+          "StatusApprobateurV3": "",
+          "StatusApprobateurV4": "",
+          "CommentaireApprobateurV1": "",
+          "CommentaireApprobateurV2": "",
+          "CommentaireApprobateurV3": "",
+          "CommentaireApprobateurV4": "",
+        });
+      }
       this.setState({showValidationPopUp:true})
       console.log(formData)
     }

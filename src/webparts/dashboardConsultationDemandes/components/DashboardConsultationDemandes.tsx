@@ -59,7 +59,8 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
     historiqueDemande: [] as any ,
     cancelPopUp: false,
     demandeSelectedID: 0,
-    commentAction:""
+    commentAction:"",
+    showSpinner: true,
   }; 
 
 
@@ -158,7 +159,8 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
           "StatusEquipeFinance",
           "StatusDemandeV1",
           "StatusDemandeV2",
-          "StatusDemandeV3"
+          "StatusDemandeV3",
+          "StatusDemandeV4"
         )
         .get();
         console.log(listDemandeData)
@@ -201,6 +203,9 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
 
   async componentDidMount() {
     this.getAllDemandeListData() ;
+    setTimeout(() => {
+      this.setState({ showSpinner: false});
+    }, 4000);
   }
 
 
@@ -265,9 +270,12 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
           </div>
           <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
         </div>
-        {listDemandeData.length === 0 && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
+        <div className={styles.paginations} style={{ textAlign: 'center' }}>
+          {this.state.showSpinner && <span className={styles.loader}></span>}
+        </div>  
+        {(listDemandeData.length === 0 && !this.state.showSpinner) && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
 
-        {listDemandeData.length > 0 && 
+        {(listDemandeData.length > 0 && !this.state.showSpinner) && 
           <div id="spListContainer"> 
           <table style={{borderCollapse: "collapse", width:"100%"}}>
             <tr><th className={styles.textCenter}>#</th> 
@@ -277,6 +285,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
               <th>Status V1</th>
               <th>Status V2</th>
               <th>Status V3</th>
+              <th>Status V4</th>
               <th>Détail</th>
             </tr>
             {currentItems.map((demande:any) =>
@@ -410,6 +419,43 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                     </>
                   ): "---"}
                 </td>    
+
+                <td className={styles.statut}>
+                  {((demande.StatusDemandeV4 !== null) && (demande.StatusDemandeV4 !== '***')) ? (
+                    <>
+                      {demande.StatusDemandeV4.includes("En cours") && (
+                        <>
+                          <div className={styles.cercleBleu}></div>
+                          &nbsp;{demande.StatusDemandeV4}
+                        </>
+                      )}
+                      {demande.StatusDemandeV4.includes("Rejeter") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV4}
+                        </>
+                      )}
+                      {demande.StatusDemandeV4.includes("Annuler") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV4}
+                        </>
+                      )}
+                      {demande.StatusDemandeV4.includes("A modifier") && (
+                        <>
+                          <div className={styles.cercleVert}></div>
+                          &nbsp;{demande.StatusDemandeV4}
+                        </>
+                      )}
+                      {demande.StatusDemandeV4.includes("Approuver") && (
+                        <>
+                          <div className={styles.cercleYellow}></div>
+                          &nbsp;{demande.StatusDemandeV4}
+                        </>
+                      )}
+                    </>
+                  ): "***"}
+                </td> 
 
                 <td>
                   <span className={styles.icon}>
@@ -566,40 +612,42 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
           </div>
         </div>}
 
-        <div className={styles.paginations}>
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handlePrevPage}>
-            Prev
-          </span>
+        {!this.state.showSpinner && 
+          <div className={styles.paginations}>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handlePrevPage}>
+              Prev
+            </span>
 
-          <span id="page">
-            {(() => {
-                const pageButtons = [];
-                for (let page = 0; page < totalPages; page++) {
-                  pageButtons.push(
-                    <span 
-                      key={page + 1} 
-                      onClick={() => this.handlePageClick(page + 1)} 
-                      className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
-                    >
-                      {page + 1}
-                    </span>
-                  );
-                }
-                return pageButtons;
-              })()
-            }
-          </span>
+            <span id="page">
+              {(() => {
+                  const pageButtons = [];
+                  for (let page = 0; page < totalPages; page++) {
+                    pageButtons.push(
+                      <span 
+                        key={page + 1} 
+                        onClick={() => this.handlePageClick(page + 1)} 
+                        className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
+                      >
+                        {page + 1}
+                      </span>
+                    );
+                  }
+                  return pageButtons;
+                })()
+              }
+            </span>
 
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handleNextPage}>
-            Next
-          </span>
-        </div>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handleNextPage}>
+              Next
+            </span>
+          </div>
+        }
       </div>
     );
   }

@@ -54,7 +54,8 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     detailsListDemande: [] as any,
     historiqueDemande: [] as any ,
     cancelPopUp: false,
-    demandeSelectedID: 0
+    demandeSelectedID: 0,
+    showSpinner: true,
   }; 
 
 
@@ -217,6 +218,10 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
   async componentDidMount() {
     this.getDemandeListData() ;
+
+    setTimeout(() => {
+      this.setState({ showSpinner: false});
+    }, 4000);
   }
 
 
@@ -279,8 +284,11 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
           </div>
           <button className={styles.btnRef} onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/FormulaireDemandeAchat.aspx")}>Creer une demande</button>
         </div>
-        {listDemandeData.length === 0 && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
-        {listDemandeData.length > 0 && 
+        <div className={styles.paginations} style={{ textAlign: 'center' }}>
+          {this.state.showSpinner && <span className={styles.loader}></span>}
+        </div>
+        {(listDemandeData.length === 0 && !this.state.showSpinner) && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
+        {(listDemandeData.length > 0 && !this.state.showSpinner)&& 
           <div id="spListContainer"> 
             <table style={{borderCollapse: "collapse", width:"100%"}}>
               <tr><th className={styles.textCenter}>#</th> <th>Famille demande</th><th>Date de la Demande</th><th>Status de la demande</th><th>Action</th><th>Détail</th></tr>
@@ -579,42 +587,42 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
           </div>
         </div>}
 
-        <div className={styles.paginations}>
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handlePrevPage}>
-            Prev
-          </span>
+        {!this.state.showSpinner && 
+          <div className={styles.paginations}>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handlePrevPage}>
+              Prev
+            </span>
 
-          <span id="page">
-            {(() => {
-                const pageButtons = [];
-                for (let page = 0; page < totalPages; page++) {
-                  pageButtons.push(
-                    <span 
-                      key={page + 1} 
-                      onClick={() => this.handlePageClick(page + 1)} 
-                      className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
-                    >
-                      {page + 1}
-                    </span>
-                  );
-                }
-                return pageButtons;
-              })()
-            }
-          </span>
+            <span id="page">
+              {(() => {
+                  const pageButtons = [];
+                  for (let page = 0; page < totalPages; page++) {
+                    pageButtons.push(
+                      <span 
+                        key={page + 1} 
+                        onClick={() => this.handlePageClick(page + 1)} 
+                        className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
+                      >
+                        {page + 1}
+                      </span>
+                    );
+                  }
+                  return pageButtons;
+                })()
+              }
+            </span>
 
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handleNextPage}>
-            Next
-          </span>
-        </div>
-
-
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handleNextPage}>
+              Next
+            </span>
+          </div>
+        }
 
         {this.state.cancelPopUp && 
           <div className={styles.modalAlert}>

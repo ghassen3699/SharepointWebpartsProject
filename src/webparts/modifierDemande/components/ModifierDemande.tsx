@@ -415,7 +415,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
         });
         const getProbateurs = await Web(this.props.url)
             .lists.getByTitle("ValidateurParEcole")
-            .items.filter("Ecole eq 'Ecole 1'")
+            .items.filter("Ecole eq 'Ecole 2'")
             .top(2000)
             .orderBy("Created", false)
             .get();
@@ -433,6 +433,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             StatusDemandeV1?: string;
             StatusDemandeV2?: string;
             StatusDemandeV3?: string;
+            StatusDemandeV4?: string;
             Produit: string;
         };
 
@@ -452,7 +453,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
             formData = {
                 DemandeurId: currentUser.Id,
-                EcoleId: 4,
+                EcoleId:getProbateurs[0].ID ,
                 FamilleProduit:
                     FamilleListData.filter(
                         (item) =>
@@ -518,7 +519,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
             formData = {
                 DemandeurId: currentUser.Id,
-                EcoleId: 4,
+                EcoleId:getProbateurs[0].ID ,
                 FamilleProduit:
                     FamilleListData.filter(
                         (item) =>
@@ -574,7 +575,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
             formData = {
               DemandeurId: currentUser.Id,
-              EcoleId: 4,
+              EcoleId:getProbateurs[0].ID ,
               FamilleProduit:
                   FamilleListData.filter(
                       (item) =>
@@ -628,7 +629,67 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
               .update({
                   StatusApprobateurV3: "En cours",
               });
-        }
+        }else if (Demande[0].StatusApprobateurV4 === "A modifier") {
+          console.log(3);
+          const UserDisplayNameV4 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV4Id).get());
+
+          formData = {
+            DemandeurId: currentUser.Id,
+            EcoleId:getProbateurs[0].ID ,
+            FamilleProduit:
+                FamilleListData.filter(
+                    (item) =>
+                        item.key ===
+                        data[0].FamilleSelected[0].key
+                )["text"],
+            PrixTotal: prixTotal.toString(),
+            DelaiLivraisionSouhaite: data[0].numberOfDays,
+            Prix: "test ....",
+            Quantite: "test ....",
+            SousFamilleProduit:
+                sousFamilleListData.filter(
+                    (item) =>
+                        item.key ===
+                        data[0].SousFamilleSelected[0].key
+                )["text"],
+            StatusDemande: "En cours de " + UserDisplayNameV4.Title,
+            StatusDemandeV4: "En cours",
+            Produit: JSON.stringify(ArticleList),
+          };
+          const updateDemandeAchat = await Web(this.props.url)
+            .lists.getByTitle("DemandeAchat")
+            .items.getById(parseInt(DemandeID))
+            .update(formData);
+
+          // Save historique block
+          const historyData = await Web(this.props.url)
+            .lists.getByTitle("HistoriqueDemande")
+            .items.filter(`DemandeID eq ${DemandeID}`)
+            .get();
+
+          if (historyData.length > 0) {
+            var resultArray = JSON.parse(historyData[0].Actions);
+            resultArray.push(
+                "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV4.Title + " le " + getCurrentDate()
+            );
+            resultArray.push(
+              "En cours de l'approbation de " + UserDisplayNameV4.Title + " a partir de " + getCurrentDate() 
+            );
+            const saveHistorique = await Web(this.props.url)
+              .lists.getByTitle("HistoriqueDemande")
+              .items.getById(historyData[0].ID)
+              .update({
+                Actions: JSON.stringify(resultArray),
+              });
+          }
+
+          const updateWorkFlowApprobation = await Web(this.props.url)
+            .lists.getByTitle("WorkflowApprobation")
+            .items.getById(Demande[0].ID)
+            .update({
+                StatusApprobateurV4: "En cours",
+            });
+      }
       this.setState({ showValidationPopUp: true });
     }
   };

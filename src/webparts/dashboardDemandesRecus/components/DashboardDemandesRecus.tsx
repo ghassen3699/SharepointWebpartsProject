@@ -58,7 +58,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     historiqueDemande: [] as any ,
     cancelPopUp: false,
     demandeSelectedID: 0,
-    commentAction:""
+    commentAction:"",
+    showSpinner: true,
   }; 
 
 
@@ -113,9 +114,9 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         .orderBy("Created", false)
         .expand("Ecole")
         .filter(`
-          ((StatusDemandeV1 eq 'Approuver') and (StatusDemandeV2 eq 'Approuver') and (StatusDemandeV3 eq 'Approuver'))
+          ((StatusDemandeV1 eq 'Approuver') and (StatusDemandeV2 eq 'Approuver') and (StatusDemandeV3 eq 'Approuver') and ((StatusDemandeV4 eq 'Approuver') or (StatusDemandeV4 eq '***')))
         `)
-        .select("Attachments","Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CreerPar", "StatusEquipeFinance")
+        .select("Attachments","Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar")
         .get();
       this.setState({ listDemandeData });
     } catch (error) {
@@ -178,6 +179,10 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
   async componentDidMount() {
     this.getAllDemandeListData() ;
+
+    setTimeout(() => {
+      this.setState({ showSpinner: false});
+    }, 4000);
   }
 
 
@@ -242,8 +247,11 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
           </div>
           <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
         </div>
-        {listDemandeData.length === 0 && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
-        {listDemandeData.length > 0 && 
+        <div className={styles.paginations} style={{ textAlign: 'center' }}>
+          {this.state.showSpinner && <span className={styles.loader}></span>}
+        </div>
+        {(listDemandeData.length === 0 && !this.state.showSpinner) && <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>}
+        {(listDemandeData.length > 0 && !this.state.showSpinner)&& 
           <div id="spListContainer"> 
           <table style={{borderCollapse: "collapse", width:"100%"}}>
             <tr><th className={styles.textCenter}>#</th> <th>Demandeur</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
@@ -268,36 +276,10 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                 <td>{demande.CreerPar}</td>
                 <td>{convertDateFormat(demande.Created)}</td>
                 <td className={styles.statut}>
-                { (demande.StatusEquipeFinance.includes("En cours")) && (
-                  <>
-                    <div className={styles.cercleBleu}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { (demande.StatusEquipeFinance.includes("Rejeter")) && (
-                  <>
-                    <div className={styles.cercleRouge}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { (demande.StatusEquipeFinance.includes("Annuler")) && (
-                  <>
-                    <div className={styles.cercleRouge}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { demande.StatusEquipeFinance.includes("A modifier") && (
-                  <>
-                    <div className={styles.cercleVert}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
-                  </>
-                )}
-                { (demande.StatusEquipeFinance.includes("Approuver")) && (
                   <>
                     <div className={styles.cercleYellow}></div>
-                    &nbsp;{demande.StatusEquipeFinance}
+                    &nbsp;Approuver
                   </>
-                )}
                 </td>
                 <td>
                   <span className={styles.icon}>
@@ -422,12 +404,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   <td className={styles.value}>data</td>
                 </tr>
                 <tr>
-                  <td >Status actuel :</td>
-                  { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Approuver")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Rejeter")) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("A modifier" )) && <td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  <td >Status De la demande :</td>
+                  {<td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; Approuver</td>}
                 </tr>
                 <tr>
                   <td>Historique de la demande :</td>
@@ -485,40 +463,42 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
           </div>
         </div>}
 
-        <div className={styles.paginations}>
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handlePrevPage}>
-            Prev
-          </span>
+        {!this.state.showSpinner && 
+          <div className={styles.paginations}>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handlePrevPage}>
+              Prev
+            </span>
 
-          <span id="page">
-            {(() => {
-                const pageButtons = [];
-                for (let page = 0; page < totalPages; page++) {
-                  pageButtons.push(
-                    <span 
-                      key={page + 1} 
-                      onClick={() => this.handlePageClick(page + 1)} 
-                      className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
-                    >
-                      {page + 1}
-                    </span>
-                  );
-                }
-                return pageButtons;
-              })()
-            }
-          </span>
+            <span id="page">
+              {(() => {
+                  const pageButtons = [];
+                  for (let page = 0; page < totalPages; page++) {
+                    pageButtons.push(
+                      <span 
+                        key={page + 1} 
+                        onClick={() => this.handlePageClick(page + 1)} 
+                        className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
+                      >
+                        {page + 1}
+                      </span>
+                    );
+                  }
+                  return pageButtons;
+                })()
+              }
+            </span>
 
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handleNextPage}>
-            Next
-          </span>
-        </div>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handleNextPage}>
+              Next
+            </span>
+          </div>
+        }
       </div>
     );
   }

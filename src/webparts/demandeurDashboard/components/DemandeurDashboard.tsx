@@ -564,23 +564,19 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                 </tr>
                 <tr>
                   <td>Historique de la demande :</td>
-                  {this.state.historiqueDemande.length < 4 ? (
-                    <div>
-                      <td className={styles.value}>
+                  <td className={styles.value}>
+                    {this.state.historiqueDemande.length < 4 ? (
+                      this.state.historiqueDemande.map((action, index) => (
+                        <span style={{'color':"black"}} key={index}>- {action} <br /></span>
+                      ))
+                    ) : (
+                      <div style={{ maxHeight: '80px', width: '100%', overflowY: 'auto', overflowX: 'hidden', backgroundColor: '#aaa' }}>
                         {this.state.historiqueDemande.map((action, index) => (
                           <span key={index}>- {action} <br /></span>
                         ))}
-                      </td>
-                    </div>
-                  ) : (
-                    <div style={{ 'maxHeight': '80px', 'width': '103%', 'overflowY': 'auto', 'overflowX': 'hidden', 'float': 'left', 'backgroundColor': '#aaa' }}>
-                      <td className={styles.value}>
-                        {this.state.historiqueDemande.map((action, index) => (
-                          <span key={index}>- {action} <br /></span>
-                        ))}
-                      </td>
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </td>
                 </tr>
               </tbody>
             </table>

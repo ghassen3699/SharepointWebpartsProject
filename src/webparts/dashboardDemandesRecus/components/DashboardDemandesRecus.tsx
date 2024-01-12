@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './DashboardDemandesRecus.module.scss';
 import { IDashboardDemandesRecusProps } from './IDashboardDemandesRecusProps';
-import { Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
+import { DatePicker, Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -58,7 +58,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     historiqueDemande: [] as any ,
     cancelPopUp: false,
     demandeSelectedID: 0,
-    commentAction:"",
+    DateAction: new Date(),
+    disableButtonUpdateDate: true,
     showSpinner: true,
   }; 
 
@@ -86,10 +87,29 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
 
-  private handleChangeComment = (event:any) => {
-    this.setState({
-      commentAction: event.target.value
-    });
+  private handleChangeDate = (date) => {
+    const newDateFormat = new Date(date);
+    this.setState({DateAction: newDateFormat, disableButtonUpdateDate: false})
+  };
+
+  // const date = year.toString() + "-" + month.toString() + "-" + day.toString();
+
+  private updateDateSouhaite = async () => {
+    var DemandeID = this.state.detailsListDemande.ID
+    // Save historique block
+    const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+        
+    if (historyData.length > 0){
+      var resultArray = JSON.parse(historyData[0].Actions);
+      const date = this.state.DateAction.getDate().toString() + "/" + (this.state.DateAction.getMonth() + 1).toString() + "/" + this.state.DateAction.getFullYear().toString();
+
+      resultArray.push("L'equipe finance a modifier la date souhaitée de la demande pour le " + date);
+      const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+        Actions: JSON.stringify(resultArray)
+      });
+
+      window.location.reload()
+    };
   }
 
 
@@ -427,37 +447,33 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                     </div>
                   )}
                 </tr>
-                {this.state.listDemandeDataForCurrentUser.includes(this.state.detailsListDemande.ID) && (
-                  <>
-                    <tr>
-                      <td >Commentaire</td>
-                      <td className={styles.value}>
-                      <TextField 
-                          className={controlClass.TextField} 
-                          value={this.state.commentAction}
-                          multiline 
-                          onChange={(e) => this.handleChangeComment(e)}
-                        />
-                      </td>
-                    </tr>
-                    {/* <tr>
-                      <td>Approbation</td>
-                      <td className={styles.value}>
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "green" : "gray" }}className={styles.btnRef} onClick={() => this.ApprouveValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
-                          Approuver
-                        </button>
-                        &nbsp;
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "red" : "gray" }}className={styles.btnRef} onClick={() => this.RejectValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
-                          Rejeter
-                        </button>
-                        &nbsp;
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "blue" : "gray" }}className={styles.btnRef} onClick={() => this.ModifierValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
-                          Demande de modification
-                        </button>
-                      </td>
-                    </tr> */}
-                  </>
-                )}
+                <tr>
+                  <td >Modifier la date souhaité</td>
+                  <td className={styles.value}>
+                  <DatePicker 
+                      isRequired={true}
+                      allowTextInput={true}
+                      className={controlClass.TextField} 
+                      value={this.state.DateAction}
+                      onSelectDate={(e) => { this.handleChangeDate(e)}} 
+                      />
+                  </td>
+                </tr>
+                <tr>
+                  <td>Valider la modification</td>
+                  <td className={styles.value}>
+                  <button
+                    style={{
+                      backgroundColor: this.state.disableButtonUpdateDate ? "gray" : "#7d2935",
+                    }}
+                    className={styles.btnRef}
+                    onClick={() => this.updateDateSouhaite()}
+                    disabled={this.state.disableButtonUpdateDate}
+                  >
+                    Modifier la demande
+                  </button>
+                  </td>
+                </tr>                
               </tbody>
             </table>
           </div>

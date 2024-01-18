@@ -593,7 +593,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                     <div>
                       <td className={styles.value}>
                         {this.state.historiqueDemande.map((action, index) => (
-                          <span key={index}>- {action} <br /></span>
+                          <span style={{'color':"black"}} key={index}>- {action} <br /></span>
                         ))}
                       </td>
                     </div>

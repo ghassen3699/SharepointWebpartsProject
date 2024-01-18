@@ -433,7 +433,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                     <div>
                       <td className={styles.value}>
                         {this.state.historiqueDemande.map((action, index) => (
-                          <span key={index}>- {action} <br /></span>
+                          <span style={{'color':"black"}} key={index}>- {action} <br /></span>
                         ))}
                       </td>
                     </div>

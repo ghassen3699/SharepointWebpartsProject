@@ -96,6 +96,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     });
   }
 
+  
   // open attachement file for each request with an attachement file
   private openAttachementFile = async (itemID: number) => {
     if (itemID > 0) {
@@ -258,10 +259,12 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   };
 
 
+  
   // Clear button in filter
   private clearFilterButton = () => {
     this.setState({StatusFilter:'', FamilleFilter: ''});
   }
+
 
 
   // Function to transform the historique result with JSON format to String format
@@ -269,6 +272,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     var listProduits = JSON.parse(produits)
     return listProduits
   }
+
 
 
   // Function fo approuve a demande and make changes in workflowApprobation and historique list
@@ -285,7 +289,28 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     if (Demande[0].ApprobateurV4Id === null){
       if(Demande[0].ApprobateurV1Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
-        UserDisplayName2 = (await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get()).Title ;
+
+        if (Demande[0].ApprobateurV2Id.length > 1){
+          await Promise.all(
+            Demande[0].ApprobateurV2Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayName2Title = user.Title;
+  
+                if (UserDisplayName2.length === 0) {
+                  UserDisplayName2 = UserDisplayName2Title;
+                } else {
+                  UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        }else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
+          UserDisplayName2 = user.Title;
+        }
   
         const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
           StatusDemande: "En cours de " + UserDisplayName2,
@@ -306,6 +331,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "Approuver",
+          CommentaireApprobateurV1: this.state.commentAction,
           StatusApprobateurV2: "En cours",
         });
   
@@ -313,7 +339,28 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
-        UserDisplayName2 = (await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get()).Title ;
+
+        if (Demande[0].ApprobateurV3Id.length > 1){
+          await Promise.all(
+            Demande[0].ApprobateurV3Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayName2Title = user.Title;
+  
+                if (UserDisplayName2.length === 0) {
+                  UserDisplayName2 = UserDisplayName2Title;
+                } else {
+                  UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        }else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
+          UserDisplayName2 = user.Title;
+        }
   
         const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
           StatusDemande: "En cours de " + UserDisplayName2,
@@ -334,6 +381,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "Approuver",
+          CommentaireApprobateurV2: this.state.commentAction,
           StatusApprobateurV3: "En cours"
         });
   
@@ -360,6 +408,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "Approuver",
+          CommentaireApprobateurV3: this.state.commentAction,
         });
   
         window.location.reload()
@@ -368,8 +417,28 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     }else {
       if(Demande[0].ApprobateurV1Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
-        UserDisplayName2 = (await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get()).Title ;
+        if (Demande[0].ApprobateurV2Id.length > 1){
+          await Promise.all(
+            Demande[0].ApprobateurV2Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayName2Title = user.Title;
   
+                if (UserDisplayName2.length === 0) {
+                  UserDisplayName2 = UserDisplayName2Title;
+                } else {
+                  UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        }else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
+          UserDisplayName2 = user.Title;
+        }
+
         const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
           StatusDemande: "En cours de " + UserDisplayName2,
           StatusDemandeV1:"Approuver",
@@ -389,6 +458,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "Approuver",
+          CommentaireApprobateurV1: this.state.commentAction,
           StatusApprobateurV2: "En cours",
         });
   
@@ -396,7 +466,27 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
-        UserDisplayName2 = (await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get()).Title ;
+        if (Demande[0].ApprobateurV3Id.length > 1){
+          await Promise.all(
+            Demande[0].ApprobateurV3Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayName2Title = user.Title;
+  
+                if (UserDisplayName2.length === 0) {
+                  UserDisplayName2 = UserDisplayName2Title;
+                } else {
+                  UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        }else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
+          UserDisplayName2 = user.Title;
+        }
   
         const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
           StatusDemande: "En cours de " + UserDisplayName2,
@@ -417,6 +507,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "Approuver",
+          CommentaireApprobateurV2: this.state.commentAction,
           StatusApprobateurV3: "En cours"
         });
   
@@ -424,7 +515,27 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
       }else if (Demande[0].ApprobateurV3Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
-        UserDisplayName2 = (await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get()).Title ;
+        if (Demande[0].ApprobateurV4Id.length > 1){
+          await Promise.all(
+            Demande[0].ApprobateurV4Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayName2Title = user.Title;
+  
+                if (UserDisplayName2.length === 0) {
+                  UserDisplayName2 = UserDisplayName2Title;
+                } else {
+                  UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        }else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get();
+          UserDisplayName2 = user.Title;
+        }
 
         const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
           StatusDemande: "En cours de " + UserDisplayName2,
@@ -445,6 +556,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "Approuver",
+          CommentaireApprobateurV3: this.state.commentAction,
           StatusApprobateurV4: "En cours"
         });
   
@@ -470,6 +582,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV4: "Approuver",
+          CommentaireApprobateurV4: this.state.commentAction,
         });
   
         window.location.reload()
@@ -513,6 +626,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "Rejeter",
+          CommentaireApprobateurV1: this.state.commentAction
         });
   
         window.location.reload()
@@ -537,6 +651,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "Rejeter",
+          CommentaireApprobateurV2: this.state.commentAction
         });
   
         window.location.reload()
@@ -561,6 +676,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "Rejeter",
+          CommentaireApprobateurV3: this.state.commentAction
         });
   
         window.location.reload()
@@ -587,6 +703,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "Rejeter",
+          CommentaireApprobateurV: this.state.commentAction
         });
   
         window.location.reload()
@@ -611,6 +728,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "Rejeter",
+          CommentaireApprobateurV2: this.state.commentAction
         });
   
         window.location.reload()
@@ -635,6 +753,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "Rejeter",
+          CommentaireApprobateurV3: this.state.commentAction
         });
   
         window.location.reload()
@@ -659,6 +778,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV4: "Rejeter",
+          CommentaireApprobateurV4: this.state.commentAction
         });
   
         window.location.reload()
@@ -702,6 +822,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "A modifier",
+          CommentaireApprobateurV1: this.state.commentAction
         });
   
         window.location.reload()
@@ -728,6 +849,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "A modifier",
+          CommentaireApprobateurV2: this.state.commentAction
         });
   
         window.location.reload()
@@ -753,6 +875,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "A modifier",
+          CommentaireApprobateurV3: this.state.commentAction
         });
   
         window.location.reload()
@@ -778,6 +901,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "A modifier",
+          CommentaireApprobateurV1: this.state.commentAction
         });
   
         window.location.reload()
@@ -804,6 +928,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "A modifier",
+          CommentaireApprobateurV2: this.state.commentAction
         });
   
         window.location.reload()
@@ -829,6 +954,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "A modifier",
+          CommentaireApprobateurV3: this.state.commentAction
         });
   
         window.location.reload()
@@ -853,6 +979,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV4: "A modifier",
+          CommentaireApprobateurV4: this.state.commentAction
         });
   
         window.location.reload()
@@ -860,6 +987,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     }
     
   }
+
 
 
   async componentDidMount() {
@@ -1234,7 +1362,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     <div>
                       <td className={styles.value}>
                         {this.state.historiqueDemande.map((action, index) => (
-                          <span key={index}>- {action} <br /></span>
+                          <span style={{'color':"black"}} key={index}>- {action} <br /></span>
                         ))}
                       </td>
                     </div>
@@ -1265,7 +1393,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     <tr>
                       <td>Approbation</td>
                       <td className={styles.value}>
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "green" : "gray" }}className={styles.btnRef} onClick={() => this.ApprouveValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
+                        <button style={{ backgroundColor: "green"}}className={styles.btnRef} onClick={() => this.ApprouveValidation()}>                          
                           Approuver
                         </button>
                         &nbsp;

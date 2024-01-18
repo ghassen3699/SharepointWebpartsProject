@@ -114,9 +114,12 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     MontantRestant: 0 ,
     counterProducts: 1 ,
     showValidationPopUp:false,
-    errors: { file: "" }
+    errors: { file: "" },
+
+    showOnConfirmButtonPopUp : true,
   };  
   private _graphService = new GraphService(this.props.context);
+
 
   // private dropdownOptionsListFamille: { key: string, text: string, data: any }[] = [];
   // private dropdownOptionsListSousFamille: { key: string, text: string, data: any }[] = [];
@@ -160,6 +163,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     });
     (document.getElementById('uploadFile') as HTMLInputElement).value = "";
   }
+
 
   private handleChangeQuantity = (event: any, index: any) => {
     const inputValue = event.target.value;
@@ -291,7 +295,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   private addArticle = () => {
     const nullObject = {
-      FamilleSelected: [] as any,
+      FamilleSelected: this.state.formData[0].FamilleSelected,
       SousFamilleSelected: []as any,
       ArticleSelected: []as any,
       BeneficiareSelected: []as any,
@@ -346,19 +350,21 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   private attachFileToItem = async (itemId: any) => {
     try {
-      const formData = this.state.formData[this.state.counterProducts - 1];
-      const fileContent: any = await this.readFile(formData.fileData);
-      const fileName = formData.fileName; // Use the original file name
-  
-      console.log("Original File Name:", fileName);
-      console.log("File Content:", fileContent);
-  
-      const response = await Web(this.props.url)
-        .lists.getByTitle("DemandeAchat")
-        .items.getById(itemId)
-        .attachmentFiles.add(fileName, fileContent);
-  
-      console.log("File attached to item successfully:", response);
+      for (let index = 0; index < this.state.counterProducts; index++) {
+        const formData = this.state.formData[index];
+        console.log(formData)
+        if (formData.fileName){
+          const fileContent: any = await this.readFile(formData.fileData);
+          const fileName = formData.fileName; // Use the original file name
+          console.log("Original File Name:", fileName);
+          console.log("File Content:", fileContent);
+          const response = await Web(this.props.url)
+            .lists.getByTitle("DemandeAchat")
+            .items.getById(itemId)
+            .attachmentFiles.add(fileName, fileContent);
+          console.log("File attached to item successfully:", response);
+        }
+      }
     } catch (error) {
       console.log("Error attaching file to item:", error);
     }
@@ -429,6 +435,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const currentUser = await Web(this.props.url).currentUser.get() ;
     var ArticleList = []
     var prixTotal = 0
+
+    this.setState({showValidationPopUp:true})
+
     if (!disabledSubmit) {
       const data = this.state.formData;
       data.map(Article => {
@@ -450,96 +459,200 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         });
       });
 
-      console.log(ArticleList)
-      const getProbateurs = await Web(this.props.url).lists.getByTitle("ValidateurParEcole").items.filter("Ecole eq 'Ecole 2'").top(2000).orderBy("Created", false).get(); 
-      const UserDisplayNameV1 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV1Id).get()).Title ; 
-      var formData
-      if (getProbateurs[0].ApprobateurV4Id === null){
-        formData = {
-          "DemandeurId":currentUser.Id ,
-          "EcoleId":getProbateurs[0].ID ,
-          "FamilleProduit": data[0].FamilleSelected[0].text,
-          "FamilleProduitREF": data[0].FamilleSelected[0].key,
-          "PrixTotal":prixTotal.toString(),
-          "DelaiLivraisionSouhaite":data[0].numberOfDays,
-          "Prix": "test ...." ,
-          "Quantite": "test ....",
-          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-          "StatusDemande": "En cours de " + UserDisplayNameV1,
-          "StatusDemandeV1":"En cours",
-          "StatusDemandeV4":"***",
-          "Produit": JSON.stringify(ArticleList),
-          "CreerPar": currentUser.Title
+      const getProbateurs = await Web(this.props.url).lists.getByTitle("ValidateurParEcole").items.filter("Ecole eq 'Ecole 3'").top(2000).orderBy("Created", false).get(); 
+
+      if (getProbateurs[0].ApprobateurV1Id.length > 1){
+        let UserDisplayNameV1 = "";
+        await Promise.all(
+          getProbateurs[0].ApprobateurV1Id.map(async (approbateur) => {
+            try {
+              const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+              const UserDisplayNameV1Title = user.Title;
+
+              if (UserDisplayNameV1.length === 0) {
+                UserDisplayNameV1 = UserDisplayNameV1Title;
+              } else {
+                UserDisplayNameV1 = UserDisplayNameV1 + " Ou " + UserDisplayNameV1Title;
+              }
+            } catch (error) {
+              console.error(`Error retrieving user information for ${approbateur}:`, error);
+            }
+          })
+        );
+        if (getProbateurs[0].ApprobateurV4Id === null){
+          formData = {
+            "DemandeurId":currentUser.Id ,
+            "EcoleId":getProbateurs[0].ID ,
+            "FamilleProduit": data[0].FamilleSelected[0].text,
+            "FamilleProduitREF": data[0].FamilleSelected[0].key,
+            "PrixTotal":prixTotal.toString(),
+            "DelaiLivraisionSouhaite":data[0].numberOfDays,
+            "Prix": "test ...." ,
+            "Quantite": "test ....",
+            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+            "StatusDemande": "En cours de " + UserDisplayNameV1,
+            "StatusDemandeV1":"En cours",
+            "StatusDemandeV4":"***",
+            "Produit": JSON.stringify(ArticleList),
+            "CreerPar": currentUser.Title
+          }
+        }else {
+          formData = {
+            "DemandeurId":currentUser.Id ,
+            "EcoleId":getProbateurs[0].ID ,
+            "FamilleProduit": data[0].FamilleSelected[0].text,
+            "FamilleProduitREF": data[0].FamilleSelected[0].key,
+            "PrixTotal":prixTotal.toString(),
+            "DelaiLivraisionSouhaite":data[0].numberOfDays,
+            "Prix": "test ...." ,
+            "Quantite": "test ....",
+            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+            "StatusDemande": "En cours de " + UserDisplayNameV1,
+            "StatusDemandeV1":"En cours",
+            "Produit": JSON.stringify(ArticleList),
+            "CreerPar": currentUser.Title
+          }
         }
-      }else {
-        formData = {
-          "DemandeurId":currentUser.Id ,
-          "EcoleId":getProbateurs[0].ID ,
-          "FamilleProduit": data[0].FamilleSelected[0].text,
-          "FamilleProduitREF": data[0].FamilleSelected[0].key,
-          "PrixTotal":prixTotal.toString(),
-          "DelaiLivraisionSouhaite":data[0].numberOfDays,
-          "Prix": "test ...." ,
-          "Quantite": "test ....",
-          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-          "StatusDemande": "En cours de " + UserDisplayNameV1,
-          "StatusDemandeV1":"En cours",
-          "Produit": JSON.stringify(ArticleList),
-          "CreerPar": currentUser.Title
-        }
-      }
-       
-      const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
 
-      ArticleList.map(async articleData => {
-        await this.attachFileToItem(sendData.data.ID)
-      })
-
-      const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-      .add({
-        "DemandeID": sendData.data.ID.toString(),
-        "Actions": JSON.stringify(["Creation de la demande le "+getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+getCurrentDate()])
-      });
-
-      console.log('testtt',getProbateurs[0].ApprobateurV4Id)
-      if (getProbateurs[0].ApprobateurV4Id === null){
-        const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+        
+        const sendData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
+          
+        
+        ArticleList.map(async articleData => {
+          await this.attachFileToItem(sendData.data.ID)
+        })
+  
+        const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
         .add({
           "DemandeID": sendData.data.ID.toString(),
-          "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-          "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-          "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-          "StatusApprobateurV1": "En cours",
-          "StatusApprobateurV2": "",
-          "StatusApprobateurV3": "",
-          "StatusApprobateurV4": "***",
-          "CommentaireApprobateurV1": "",
-          "CommentaireApprobateurV2": "",
-          "CommentaireApprobateurV3": "",
-          "CommentaireApprobateurV4": "***",
+          "Actions": JSON.stringify(["Creation de la demande le "+getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+getCurrentDate()])
         });
+
+        if (getProbateurs[0].ApprobateurV4Id === null){
+          const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+          .add({
+            "DemandeID": sendData.data.ID.toString(),
+            "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+            "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+            "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+            "StatusApprobateurV1": "En cours",
+            "StatusApprobateurV2": "",
+            "StatusApprobateurV3": "",
+            "StatusApprobateurV4": "***",
+            "CommentaireApprobateurV1": "",
+            "CommentaireApprobateurV2": "",
+            "CommentaireApprobateurV3": "",
+            "CommentaireApprobateurV4": "***",
+          });
+        }else {
+          const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+          .add({
+            "DemandeID": sendData.data.ID.toString(),
+            "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+            "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+            "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+            "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+            "StatusApprobateurV1": "En cours",
+            "StatusApprobateurV2": "",
+            "StatusApprobateurV3": "",
+            "StatusApprobateurV4": "",
+            "CommentaireApprobateurV1": "",
+            "CommentaireApprobateurV2": "",
+            "CommentaireApprobateurV3": "",
+            "CommentaireApprobateurV4": "",
+          });
+        }
+
       }else {
-        const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+        const UserDisplayNameV1 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV1Id).get()).Title ; 
+        var formData
+        if (getProbateurs[0].ApprobateurV4Id === null){
+          formData = {
+            "DemandeurId":currentUser.Id ,
+            "EcoleId":getProbateurs[0].ID ,
+            "FamilleProduit": data[0].FamilleSelected[0].text,
+            "FamilleProduitREF": data[0].FamilleSelected[0].key,
+            "PrixTotal":prixTotal.toString(),
+            "DelaiLivraisionSouhaite":data[0].numberOfDays,
+            "Prix": "test ...." ,
+            "Quantite": "test ....",
+            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+            "StatusDemande": "En cours de " + UserDisplayNameV1,
+            "StatusDemandeV1":"En cours",
+            "StatusDemandeV4":"***",
+            "Produit": JSON.stringify(ArticleList),
+            "CreerPar": currentUser.Title
+          }
+        }else {
+          formData = {
+            "DemandeurId":currentUser.Id ,
+            "EcoleId":getProbateurs[0].ID ,
+            "FamilleProduit": data[0].FamilleSelected[0].text,
+            "FamilleProduitREF": data[0].FamilleSelected[0].key,
+            "PrixTotal":prixTotal.toString(),
+            "DelaiLivraisionSouhaite":data[0].numberOfDays,
+            "Prix": "test ...." ,
+            "Quantite": "test ....",
+            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+            "StatusDemande": "En cours de " + UserDisplayNameV1,
+            "StatusDemandeV1":"En cours",
+            "Produit": JSON.stringify(ArticleList),
+            "CreerPar": currentUser.Title
+          }
+        }
+         
+        const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
+  
+        ArticleList.map(async articleData => {
+          await this.attachFileToItem(sendData.data.ID)
+        })
+  
+        const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
         .add({
           "DemandeID": sendData.data.ID.toString(),
-          "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-          "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-          "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-          "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-          "StatusApprobateurV1": "En cours",
-          "StatusApprobateurV2": "",
-          "StatusApprobateurV3": "",
-          "StatusApprobateurV4": "",
-          "CommentaireApprobateurV1": "",
-          "CommentaireApprobateurV2": "",
-          "CommentaireApprobateurV3": "",
-          "CommentaireApprobateurV4": "",
+          "Actions": JSON.stringify(["Creation de la demande le "+getCurrentDate(), "En cours de l'approbation de "+UserDisplayNameV1+" a partir de "+getCurrentDate()])
         });
+  
+        console.log('testtt',getProbateurs[0].ApprobateurV4Id)
+        if (getProbateurs[0].ApprobateurV4Id === null){
+          const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+          .add({
+            "DemandeID": sendData.data.ID.toString(),
+            "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+            "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+            "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+            "StatusApprobateurV1": "En cours",
+            "StatusApprobateurV2": "",
+            "StatusApprobateurV3": "",
+            "StatusApprobateurV4": "***",
+            "CommentaireApprobateurV1": "",
+            "CommentaireApprobateurV2": "",
+            "CommentaireApprobateurV3": "",
+            "CommentaireApprobateurV4": "***",
+          });
+        }else {
+          const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+          .add({
+            "DemandeID": sendData.data.ID.toString(),
+            "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+            "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+            "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+            "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+            "StatusApprobateurV1": "En cours",
+            "StatusApprobateurV2": "",
+            "StatusApprobateurV3": "",
+            "StatusApprobateurV4": "",
+            "CommentaireApprobateurV1": "",
+            "CommentaireApprobateurV2": "",
+            "CommentaireApprobateurV3": "",
+            "CommentaireApprobateurV4": "",
+          });
+        }
       }
-      this.setState({showValidationPopUp:true})
-      console.log(formData)
     }
   }
 
@@ -625,7 +738,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   async componentDidMount() {
     // this.fetchDataAndHandle()
     this.getDataTest() ;
-    this.loadUserInfo()
+    this.loadUserInfo(); 
   }
   
 
@@ -741,18 +854,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Famille</p>
-                    {console.log(this.state.formData[index - 1]['FamilleSelected'])}
                     {index > 1 ? (
                       <Dropdown
-                        defaultValue={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
                         styles={dropdownStyles}
                         onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
                         onRenderCaretDown={this.onRenderCaretDown}
                         options={this.getFamilleProduit()}
                         onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
-                        defaultSelectedKey={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
-                        disabled={true}
+                        defaultSelectedKey={this.state.formData[0].FamilleSelected[0].key}
                       />
                     ) : (
                       <Dropdown
@@ -766,7 +876,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                         defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
                       />
                     )}
-                    
                   </div>
 
 
@@ -915,6 +1024,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               imageWidth="150"
               imageHeight="150"
             />
+
 
             {/* <SweetAlert2
               show={true} title="Demande de congé" text="Votre solde de congé est insuffisant"

@@ -208,8 +208,8 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
   public initImage(index: any) {
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].fileData = null
-    updatedFormData[index-1].fileName = null
+    updatedFormData[this.state.counterProducts - 1].fileName = "";
+    updatedFormData[this.state.counterProducts - 1].fileData = "";
     this.setState({
       formData: updatedFormData
     });
@@ -225,20 +225,23 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
   }
 
 
-  public addFile(content:any) {
-    var extention = content.target.files[0].name.split('.').pop();
-    var encodedFileName = btoa(content.target.files[0].name.split('.').slice(0, -1).join('.')) + '.' + extention;
-
+  public addFile = (content: any) => {
+    console.log(this.state.counterProducts);
+  
+    const fileName = content.target.files[0].name;
+    const extension = fileName.split('.').pop();
+    const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}_${Date.now()}.${extension}`;
+  
     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
-
+  
     const updatedFormData = [...this.state.formData];
-    updatedFormData[this.state.counterProducts - 1].fileName = content.target.files[0].name
-    updatedFormData[this.state.counterProducts - 1].fileData = newFile
-
+    updatedFormData[this.state.counterProducts - 1].fileName = fileName; // Store the original file name
+    updatedFormData[this.state.counterProducts - 1].fileData = newFile;
+  
     this.setState({
       formData: updatedFormData
     });
-  }
+  };
 
 
 
@@ -309,14 +312,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     });
   }
 
-  // private handleChangeDateSouhaite = (date:any, index: any) => {
-  //   const updatedFormData = [...this.state.formData];
-  //   updatedFormData[index-1].DateSouhaite = new Date(date)
-  //   this.setState({
-  //     formData: updatedFormData
-  //   });
-  // }
-
 
 
   private intToList(number: number): number[] {
@@ -368,116 +363,162 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     ));
   }
 
-  // // Function to read file info
-  // public readFile = (file: any) => {
-  //   return new Promise((resolve, reject) => {
-  //     const reader = new FileReader();
-  //     reader.onloadend = () => resolve(reader.result);
-  //     reader.onerror = reject;
-  //     reader.readAsArrayBuffer(file);
-  //   });
-  // };
+
+
+  // Function to read file info
+  public readFile = (fileContent: any) => {
+    return new Promise((resolve, reject) => {
+      const blob = new Blob([fileContent]);
+      const reader = new FileReader();
+
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+  };
 
 
 
-  // private attachFileToItem = async (itemId: any, file: any) => {
-  //   try {
-  //     const fileContent: any = await this.readFile(file); // Implement the file reading logic
-  //     const fileName = file.name;
-  //     const response = await Web(this.props.url).lists.getByTitle("les demandes").items.getById(itemId).attachmentFiles.add(fileName,fileContent);
-  //     console.log("File attached to item successfully:", response);
-  //   } catch (error) {
-  //     console.log("Error attaching file to item:", error);
-  //   }
-  // };
+  private attachFileToItem = async (itemId: any) => {
+    try {
+      const formData = this.state.formData[this.state.counterProducts - 1];
+      const fileContent: any = await this.readFile(formData.fileData);
+      const fileName = formData.fileName; // Use the original file name
+  
+      console.log("Original File Name:", fileName);
+      console.log("File Content:", fileContent);
+  
+      const response = await Web(this.props.url)
+        .lists.getByTitle("DemandeAchat")
+        .items.getById(itemId)
+        .attachmentFiles.add(fileName, fileContent);
+  
+      console.log("File attached to item successfully:", response);
+    } catch (error) {
+      console.log("Error attaching file to item:", error);
+    }
+  };
+
 
 
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
     const currentUser = await Web(this.props.url).currentUser.get();
-    const FamilleListData = this.getFamilleProduit();
-    const sousFamilleListData = this.getSousFamilleProduit();
     const DemandeID = this.getCurrentIDfromURL();
+    const prevData = await this.getPrevDemandeInfo(DemandeID) ;
+
+
+    
     // const BenefListData = this.getBeneficaire() ;
     var ArticleList = [];
     var prixTotal = 0;
 
     if (!disabledSubmit) {
         const data = this.state.formData;
-        data.map((Article) => {
-            prixTotal = prixTotal + parseInt(Article.price);
+        console.log(data) ;
+        data.map(Article => {
+          prixTotal = prixTotal + parseInt(Article.price);
+          if (Article.fileData){
             ArticleList.push({
-                Prix: Article.price,
-                quantité: Article.quantity,
-                DescriptionTechnique: Article.Comment,
-                ArticleREF: Article.ArticleSelected[0].key,
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.Comment,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": Article.fileName, 
+              "ArticleFileData": {
+                "name": Article.fileData.name, 
+                "size": Article.fileData.size,
+                "type": Article.fileData.type,
+                // "lastModified": Article.fileData.lastModified,
+                // "lastModifiedDate": Article.fileData.lastModifiedDate,
+              }
             });
+          }else {
+            ArticleList.push({
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.Comment,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": Article.fileName, 
+            });
+          }
+          
         });
-        const getProbateurs = await Web(this.props.url)
-            .lists.getByTitle("ValidateurParEcole")
-            .items.filter("Ecole eq 'Ecole 2'")
-            .top(2000)
-            .orderBy("Created", false)
-            .get();
+      
+        console.log(ArticleList)
+
+        const getProbateurs = await Web(this.props.url).lists.getByTitle("ValidateurParEcole").items.filter("Ecole eq 'Ecole 3'").top(2000).orderBy("Created", false).get();
 
         var formData: {
-            DemandeurId: number;
-            EcoleId: number;
-            FamilleProduit: any;
-            PrixTotal: string;
-            DelaiLivraisionSouhaite: number;
-            Prix: string;
-            Quantite: string;
-            SousFamilleProduit: any;
-            StatusDemande: string;
-            StatusDemandeV1?: string;
-            StatusDemandeV2?: string;
-            StatusDemandeV3?: string;
-            StatusDemandeV4?: string;
-            Produit: string;
+          DemandeurId: number;
+          EcoleId: number;
+          FamilleProduit: any;
+          PrixTotal: string;
+          DelaiLivraisionSouhaite: number;
+          Prix: string;
+          Quantite: string;
+          SousFamilleProduit: any;
+          StatusDemande: string;
+          StatusDemandeV1?: string;
+          StatusDemandeV2?: string;
+          StatusDemandeV3?: string;
+          StatusDemandeV4?: string;
+          Produit: any;
         };
 
         console.log(DemandeID);
-        var Demande = await Web(this.props.url)
-            .lists.getByTitle("WorkflowApprobation")
-            .items.filter(`DemandeID eq ${DemandeID}`)
-            .get();
+        var Demande = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.filter(`DemandeID eq ${DemandeID}`).get();
         console.log(Demande);
         if (Demande[0].StatusApprobateurV1 === "A modifier") {
             console.log(1);
-            const UserDisplayNameV1 = (
-                await Web(this.props.url).siteUsers
-                    .getById(getProbateurs[0].ApprobateurV1Id)
-                    .get()
-            );
+            var UserDisplayNameV1 = "";
+
+            if (getProbateurs[0].ApprobateurV1Id.length > 1){
+              await Promise.all(
+                getProbateurs[0].ApprobateurV1Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayNameV1Title = user.Title;
+      
+                    if (UserDisplayNameV1.length === 0) {
+                      UserDisplayNameV1 = UserDisplayNameV1Title;
+                    } else {
+                      UserDisplayNameV1 = UserDisplayNameV1 + " Ou " + UserDisplayNameV1Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
+                  }
+                })
+              );
+            }else {
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV1Id[0]).get();
+              UserDisplayNameV1 = user.Title;
+            }
 
             formData = {
-                DemandeurId: currentUser.Id,
-                EcoleId:getProbateurs[0].ID ,
-                FamilleProduit:
-                    FamilleListData.filter(
-                        (item) =>
-                            item.key ===
-                            data[0].FamilleSelected[0].key
-                    )["text"],
-                PrixTotal: prixTotal.toString(),
-                DelaiLivraisionSouhaite: data[0].numberOfDays,
-                Prix: "test ....",
-                Quantite: "test ....",
-                SousFamilleProduit:
-                    sousFamilleListData.filter(
-                        (item) =>
-                            item.key ===
-                            data[0].SousFamilleSelected[0].key
-                    )["text"],
-                StatusDemande: "En cours de " + UserDisplayNameV1.Title,
-                StatusDemandeV1: "En cours",
-                Produit: JSON.stringify(ArticleList),
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1": "En cours",
+              "Produit": JSON.stringify(ArticleList),
             };
-            const updateDemandeAchat = await Web(this.props.url)
-                .lists.getByTitle("DemandeAchat")
-                .items.getById(parseInt(DemandeID))
-                .update(formData);
+            console.log(formData)
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+
+            ArticleList.map(async (articleData, index) => {
+              if (articleData && articleData.ArticleFileName){
+                await this.attachFileToItem(parseInt(DemandeID))
+              }else{
+                console.log("the new file data : ",prevData[index].ArticleFileName)
+                await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[index].ArticleFileName).delete()
+              }
+            })
 
             // Save historique block
             const historyData = await Web(this.props.url)
@@ -489,11 +530,11 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                 var resultArray = JSON.parse(historyData[0].Actions);
                 resultArray.push(
                     "modifier par le demandeur a partir d'une demande de modification de la part de " +
-                        UserDisplayNameV1.Title + " le "+ getCurrentDate()
+                        UserDisplayNameV1 + " le "+ getCurrentDate()
                 );
                 resultArray.push(
                     "En cours de l'approbation de " +
-                        UserDisplayNameV1.Title + " a partir de "+ getCurrentDate()
+                        UserDisplayNameV1 + " a partir de "+ getCurrentDate()
                 );
                 const saveHistorique = await Web(this.props.url)
                     .lists.getByTitle("HistoriqueDemande")
@@ -503,47 +544,59 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                     });
             }
 
-            const updateWorkFlowApprobation = await Web(this.props.url)
-                .lists.getByTitle("WorkflowApprobation")
-                .items.getById(Demande[0].ID)
-                .update({
-                    StatusApprobateurV1: "En cours",
-                });
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
+            .update({
+              StatusApprobateurV1: "En cours",
+            });
         } else if (Demande[0].StatusApprobateurV2 === "A modifier") {
             console.log(2);
-            const UserDisplayNameV2 = (
-                await Web(this.props.url).siteUsers
-                    .getById(getProbateurs[0].ApprobateurV2Id)
-                    .get()
-            );
+            var UserDisplayNameV2 = "";
+
+            if (getProbateurs[0].ApprobateurV2Id.length > 1){
+              await Promise.all(
+                getProbateurs[0].ApprobateurV2Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayNameV2Title = user.Title;
+      
+                    if (UserDisplayNameV2.length === 0) {
+                      UserDisplayNameV2 = UserDisplayNameV2Title;
+                    } else {
+                      UserDisplayNameV2 = UserDisplayNameV2 + " Ou " + UserDisplayNameV2Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
+                  }
+                })
+              );
+            }else {
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
+              UserDisplayNameV2 = user.Title;
+            }
 
             formData = {
-                DemandeurId: currentUser.Id,
-                EcoleId:getProbateurs[0].ID ,
-                FamilleProduit:
-                    FamilleListData.filter(
-                        (item) =>
-                            item.key ===
-                            data[0].FamilleSelected[0].key
-                    )["text"],
-                PrixTotal: prixTotal.toString(),
-                DelaiLivraisionSouhaite: data[0].numberOfDays,
-                Prix: "test ....",
-                Quantite: "test ....",
-                SousFamilleProduit:
-                    sousFamilleListData.filter(
-                        (item) =>
-                            item.key ===
-                            data[0].SousFamilleSelected[0].key
-                    )["text"],
-                StatusDemande: "En cours de " + UserDisplayNameV2.Title,
-                StatusDemandeV2: "En cours",
-                Produit: JSON.stringify(ArticleList),
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "StatusDemande": "En cours de " + UserDisplayNameV2,
+              "StatusDemandeV2": "En cours",
+              "Produit": JSON.stringify(ArticleList),
             };
-            const updateDemandeAchat = await Web(this.props.url)
-              .lists.getByTitle("DemandeAchat")
-              .items.getById(parseInt(DemandeID))
-              .update(formData);
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+
+            ArticleList.map(async (articleData, index) => {
+              if (articleData && articleData.ArticleFileName){
+                await this.attachFileToItem(parseInt(DemandeID))
+              }else{
+                console.log("the new file data : ",prevData[index].ArticleFileName)
+                await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[index].ArticleFileName).delete()
+              }
+            })
 
             // Save historique block
             const historyData = await Web(this.props.url)
@@ -554,9 +607,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             if (historyData.length > 0) {
                 var resultArray = JSON.parse(historyData[0].Actions);
                 resultArray.push(
-                    "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV2.Title + " le "+ getCurrentDate()
+                    "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV2 + " le "+ getCurrentDate()
                 );
-                resultArray.push("En cours de l'approbation de " + UserDisplayNameV2.Title + " a partir de" + getCurrentDate());
+                resultArray.push("En cours de l'approbation de " + UserDisplayNameV2 + " a partir de" + getCurrentDate());
                 const saveHistorique = await Web(this.props.url)
                   .lists.getByTitle("HistoriqueDemande")
                   .items.getById(historyData[0].ID)
@@ -571,35 +624,52 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
               });
         } else if (Demande[0].StatusApprobateurV3 === "A modifier") {
             console.log(3);
-            const UserDisplayNameV3 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV3Id).get());
+            var UserDisplayNameV3 = "";
 
+            if (getProbateurs[0].ApprobateurV3Id.length > 1){
+              await Promise.all(
+                getProbateurs[0].ApprobateurV3Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayNameV3Title = user.Title;
+      
+                    if (UserDisplayNameV3.length === 0) {
+                      UserDisplayNameV3 = UserDisplayNameV3Title;
+                    } else {
+                      UserDisplayNameV3 = UserDisplayNameV3 + " Ou " + UserDisplayNameV3Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
+                  }
+                })
+              );
+            }else {
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
+              UserDisplayNameV2 = user.Title;
+            }
             formData = {
-              DemandeurId: currentUser.Id,
-              EcoleId:getProbateurs[0].ID ,
-              FamilleProduit:
-                  FamilleListData.filter(
-                      (item) =>
-                          item.key ===
-                          data[0].FamilleSelected[0].key
-                  )["text"],
-              PrixTotal: prixTotal.toString(),
-              DelaiLivraisionSouhaite: data[0].numberOfDays,
-              Prix: "test ....",
-              Quantite: "test ....",
-              SousFamilleProduit:
-                  sousFamilleListData.filter(
-                      (item) =>
-                          item.key ===
-                          data[0].SousFamilleSelected[0].key
-                  )["text"],
-              StatusDemande: "En cours de " + UserDisplayNameV3.Title,
-              StatusDemandeV3: "En cours",
-              Produit: JSON.stringify(ArticleList),
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "StatusDemande": "En cours de " + UserDisplayNameV3,
+              "StatusDemandeV3": "En cours",
+              "Produit": JSON.stringify(ArticleList),
             };
-            const updateDemandeAchat = await Web(this.props.url)
-              .lists.getByTitle("DemandeAchat")
-              .items.getById(parseInt(DemandeID))
-              .update(formData);
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+
+            ArticleList.map(async (articleData, index) => {
+              if (articleData && articleData.ArticleFileName){
+                await this.attachFileToItem(parseInt(DemandeID))
+              }else{
+                console.log("the new file data : ",prevData[index].ArticleFileName)
+                await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[index].ArticleFileName).delete()
+              }
+            })
 
             // Save historique block
             const historyData = await Web(this.props.url)
@@ -610,10 +680,10 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             if (historyData.length > 0) {
               var resultArray = JSON.parse(historyData[0].Actions);
               resultArray.push(
-                  "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV3.Title + " le " + getCurrentDate()
+                  "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV3 + " le " + getCurrentDate()
               );
               resultArray.push(
-                "En cours de l'approbation de " + UserDisplayNameV3.Title + " a partir de " + getCurrentDate() 
+                "En cours de l'approbation de " + UserDisplayNameV3 + " a partir de " + getCurrentDate() 
               );
               const saveHistorique = await Web(this.props.url)
                 .lists.getByTitle("HistoriqueDemande")
@@ -631,35 +701,53 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
               });
         }else if (Demande[0].StatusApprobateurV4 === "A modifier") {
           console.log(3);
-          const UserDisplayNameV4 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV4Id).get());
+          var UserDisplayNameV4 = "";
 
+          if (getProbateurs[0].ApprobateurV4Id.length > 1){
+            await Promise.all(
+              getProbateurs[0].ApprobateurV4Id.map(async (approbateur) => {
+                try {
+                  const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                  const UserDisplayNameV4Title = user.Title;
+    
+                  if (UserDisplayNameV4.length === 0) {
+                    UserDisplayNameV4 = UserDisplayNameV4Title;
+                  } else {
+                    UserDisplayNameV4 = UserDisplayNameV4 + " Ou " + UserDisplayNameV4Title;
+                  }
+                } catch (error) {
+                  console.error(`Error retrieving user information for ${approbateur}:`, error);
+                }
+              })
+            );
+          }else {
+            const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get();
+            UserDisplayNameV2 = user.Title;
+          }
           formData = {
-            DemandeurId: currentUser.Id,
-            EcoleId:getProbateurs[0].ID ,
-            FamilleProduit:
-                FamilleListData.filter(
-                    (item) =>
-                        item.key ===
-                        data[0].FamilleSelected[0].key
-                )["text"],
-            PrixTotal: prixTotal.toString(),
-            DelaiLivraisionSouhaite: data[0].numberOfDays,
-            Prix: "test ....",
-            Quantite: "test ....",
-            SousFamilleProduit:
-                sousFamilleListData.filter(
-                    (item) =>
-                        item.key ===
-                        data[0].SousFamilleSelected[0].key
-                )["text"],
-            StatusDemande: "En cours de " + UserDisplayNameV4.Title,
+            "DemandeurId":currentUser.Id ,
+            "EcoleId":getProbateurs[0].ID ,
+            "FamilleProduit": data[0].FamilleSelected[0].text,
+            "PrixTotal":prixTotal.toString(),
+            "DelaiLivraisionSouhaite":data[0].numberOfDays,
+            "Prix": "test ...." ,
+            "Quantite": "test ....",
+            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+            StatusDemande: "En cours de " + UserDisplayNameV4,
             StatusDemandeV4: "En cours",
-            Produit: JSON.stringify(ArticleList),
+            "Produit": JSON.stringify(ArticleList),
           };
-          const updateDemandeAchat = await Web(this.props.url)
-            .lists.getByTitle("DemandeAchat")
-            .items.getById(parseInt(DemandeID))
-            .update(formData);
+          const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+
+
+          ArticleList.map(async (articleData, index) => {
+            if (articleData && articleData.ArticleFileName){
+              await this.attachFileToItem(parseInt(DemandeID))
+            }else{
+              console.log("the new file data : ",prevData[index].ArticleFileName)
+              await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[index].ArticleFileName).delete()
+            }
+          })
 
           // Save historique block
           const historyData = await Web(this.props.url)
@@ -670,10 +758,10 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
           if (historyData.length > 0) {
             var resultArray = JSON.parse(historyData[0].Actions);
             resultArray.push(
-                "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV4.Title + " le " + getCurrentDate()
+                "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV4 + " le " + getCurrentDate()
             );
             resultArray.push(
-              "En cours de l'approbation de " + UserDisplayNameV4.Title + " a partir de " + getCurrentDate() 
+              "En cours de l'approbation de " + UserDisplayNameV4 + " a partir de " + getCurrentDate() 
             );
             const saveHistorique = await Web(this.props.url)
               .lists.getByTitle("HistoriqueDemande")
@@ -766,6 +854,12 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       });
   }
 
+  private getPrevDemandeInfo = async(demanedID) => {
+    const data = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demanedID).get() ;
+    var listProduits = JSON.parse(data.Produit)
+    return listProduits ;
+  }
+
 
   public getCurrentIDfromURL = () => {
     const currentURL = window.location.href;
@@ -780,13 +874,12 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     var listProduits = JSON.parse(demandeData.Produit)
     var index = 0
 
-    console.log(listProduits)
     console.log(demandeData)
 
     listProduits.map(produit => {
       index = index + 1 ;
       const updatedFormData = [...this.state.formData];
-      console.log(updatedFormData[index-1])
+      console.log(updatedFormData)
       if(index === 1){
         const updatedFormData = [...this.state.formData];
         updatedFormData[index-1].FamilleSelected = [{"key":demandeData.FamilleProduitREF}]
@@ -798,23 +891,54 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
         updatedFormData[index-1].price = produit.Prix
         updatedFormData[index-1].DateSouhaite = demandeData.DelaiLivraisionSouhaite
         updatedFormData[index-1].numberOfDays = demandeData.DelaiLivraisionSouhaite
+        updatedFormData[index-1].fileName = produit.ArticleFileData.name
+        updatedFormData[index-1].fileData = {
+          "name":produit.ArticleFileData.name,
+          "size":produit.ArticleFileData.size,
+          "type":produit.ArticleFileData.type,
+        }
         this.setState({
-          formData: updatedFormData
+          formData: updatedFormData,
         });
       }else {
-        const nullObject = {
-          FamilleSelected: [{"key":demandeData.FamilleProduitREF}],
-          SousFamilleSelected: [{"key":demandeData.SousFamilleProduitREF}],
-          ArticleSelected: [{"key":produit.ArticleREF}],
-          BeneficiareSelected: "",
-          Comment: produit.DescriptionTechnique,
-          quantity:produit.Quantite,
-          price:produit.Prix,
-          numberOfDays: demandeData.DelaiLivraisionSouhaite,
-          DateSouhaite: demandeData.DelaiLivraisionSouhaite,
-          fileData: "" as null,
-          fileName: "",
-        };
+        var nullObject
+        if (produit.ArticleFileData){
+          nullObject = {
+            FamilleSelected: [{"key":demandeData.FamilleProduitREF}],
+            SousFamilleSelected: [{"key":demandeData.SousFamilleProduitREF}],
+            ArticleSelected: [{"key":produit.ArticleREF}],
+            BeneficiareSelected: "",
+            Comment: produit.DescriptionTechnique,
+            quantity:produit.quantité,
+            price:produit.Prix,
+            numberOfDays: demandeData.DelaiLivraisionSouhaite,
+            DateSouhaite: demandeData.DelaiLivraisionSouhaite,
+            fileData:{
+              "name":produit.ArticleFileData.name,
+              "size":produit.ArticleFileData.size,
+              "type":produit.ArticleFileData.type,
+            }, 
+            fileName: produit.ArticleFileData.name,
+          };
+        }else {
+          nullObject = {
+            FamilleSelected: [{"key":demandeData.FamilleProduitREF}],
+            SousFamilleSelected: [{"key":demandeData.SousFamilleProduitREF}],
+            ArticleSelected: [{"key":produit.ArticleREF}],
+            BeneficiareSelected: "",
+            Comment: produit.DescriptionTechnique,
+            quantity:produit.quantité,
+            price:produit.Prix,
+            numberOfDays: demandeData.DelaiLivraisionSouhaite,
+            DateSouhaite: demandeData.DelaiLivraisionSouhaite,
+            fileData:{
+              "name":"",
+              "size":"",
+              "type":"",
+            }, 
+            fileName: "",
+          };
+        }
     
         const updatedFormData = [...this.state.formData];
         updatedFormData.push(nullObject);
@@ -890,7 +1014,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Famille</p>
                     <Dropdown
-                      defaultValue={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
+                      defaultValue={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
                       styles={dropdownStyles}
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}

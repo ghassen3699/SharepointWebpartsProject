@@ -97,6 +97,10 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       fileName: "",
     }],
 
+    FamilleID : "",
+    SousFamilleID : "" ,
+    ArticleID : "" ,
+
     ID: 0,
     userUPN: "",
     userId: "",
@@ -242,7 +246,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].FamilleSelected = [event]
     this.setState({
-      formData: updatedFormData
+      formData: updatedFormData,
+      FamilleID: event.key,
+      SousFamilleID: ""
     });
   }
 
@@ -251,7 +257,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].SousFamilleSelected = [event]
     this.setState({
-      formData: updatedFormData
+      formData: updatedFormData,
+      SousFamilleID: event.key
     });
   }
 
@@ -372,14 +379,22 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   private getFamilleProduit = () => {
-    var listFamilleProduit = [{
-      key: "FamilleID1",
-      text: "Famille 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
+    var listFamilleProduit = [
     {
-      key: "FamilleID2",
-      text: "Famille 2",
+      key: "CARBURANT",
+      text: "CARBURANT",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },{
+      key: "CONSOMMABLE LABO/STUDIO",
+      text: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },{
+      key: "CONSTRUCTION ET AMENAGEMENT",
+      text: "CONSTRUCTION ET AMENAGEMENT",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },{
+      key: "DOCUMENTS IMPRIMABLE",
+      text: "DOCUMENTS IMPRIMABLE",
       data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     }]
     return listFamilleProduit
@@ -387,32 +402,140 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   private getSousFamilleProduit = () => {
     var listSousFamilleProduit = [{
-      key: "SOUSFamilleID1",
-      text: "SOUSFamilleID1 1",
+      key: "CARBURANT",
+      text: "CARBURANT",
+      FamilleKey: "CARBURANT",
       data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
-      key: "SOUSFamilleID2",
-      text: "SOUSFamilleID2 2",
+      key: "ART & DECORATION",
+      text: "ART & DECORATION",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "AUDIOVISUEL",
+      text: "AUDIOVISUEL",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "BIOLOGIE",
+      text: "BIOLOGIE",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "CONSOMMABLES PROTHESE",
+      text: "CONSOMMABLES PROTHESE",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "NURSING",
+      text: "NURSING",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "OPTIQUES ET LUNETTERIES",
+      text: "OPTIQUES ET LUNETTERIES",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "TOPOGRAPHIQUE ET GEOLOGIQUE",
+      text: "TOPOGRAPHIQUE ET GEOLOGIQUE",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "ELECTROMECANIQUE",
+      text: "ELECTROMECANIQUE",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "VERRERIES",
+      text: "VERRERIES",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "PRODUITS CHIMIQUES",
+      text: "PRODUITS CHIMIQUES",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "SOUDURE",
+      text: "SOUDURE",
+      FamilleKey: "CONSOMMABLE LABO/STUDIO",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "AGENCEMENT ET AMENAGEMENT",
+      text: "AGENCEMENT ET AMENAGEMENT",
+      FamilleKey: "CONSTRUCTION ET AMENAGEMENT",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "DOCUMENTS IMPRIMABLE",
+      text: "DOCUMENTS IMPRIMABLE",
+      FamilleKey: "DOCUMENTS IMPRIMABLE",
       data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     }]
     return listSousFamilleProduit
   }
 
 
-  private getArticle = () => {
-    var listProduit = [{
-      key: "ArticleID1",
-      text: "Article 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "ArticleID2",
-      text: "Article 2",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listProduit
-  }
+  getArticle = () => {
+    var listProduit = [
+      { key: "CHAUSSETTE_BASKET", text: "CHAUSSETTE BASKET", sousFamilleKey: "CARBURANT", Axe: "Fuel", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "BALLON", text: "BALLON", sousFamilleKey: "CARBURANT", Axe: "Fuel", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "LOCATION_TERRAIN", text: "LOCATION TERRAIN", sousFamilleKey: "CARBURANT", Axe: "Fuel", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "TENUE", text: "TENUE", sousFamilleKey: "ART & DECORATION", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "GASOIL", text: "GASOIL", sousFamilleKey: "AUDIOVISUEL", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "SERVICE_GASOIL", text: "SERVICE GASOIL", sousFamilleKey: "BIOLOGIE", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CARTE_PAYAGE", text: "CARTE PAYAGE", sousFamilleKey: "BIOLOGIE", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMMABLE_ART", text: "CONSOMMABLE ART", sousFamilleKey: "CONSOMMABLES PROTHESE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMABLES_AUDIOVISUEL", text: "CONSOMABLES AUDIOVISUEL", sousFamilleKey: "NURSING", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "PRODUITS_CHIMIQUE", text: "PRODUITS CHIMIQUE", sousFamilleKey: "OPTIQUES ET LUNETTERIES", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMMABLES_BCP", text: "CONSOMMABLES BCP", sousFamilleKey: "TOPOGRAPHIQUE ET GEOLOGIQUE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMMABLE_PROTHESE", text: "CONSOMMABLE PROTHESE", sousFamilleKey: "ELECTROMECANIQUE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMMABLE_NURSING", text: "CONSOMMABLE NURSING", sousFamilleKey: "VERRERIES", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "Consomables_OPTIQUES_ET_LUNETTERIES", text: "Consomables OPTIQUES ET LUNETTERIES", sousFamilleKey: "PRODUITS CHIMIQUES", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMABLES_TOPOGRAPHIQUE_ET_GEOLOGIQUE", text: "CONSOMABLES TOPOGRAPHIQUE ET GEOLOGIQUE", sousFamilleKey: "SOUDURE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMMABLE_ELECTROMECANIQUE", text: "CONSOMMABLE ELECTROMECANIQUE", sousFamilleKey: "SOUDURE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMABLES_VERRERIES", text: "CONSOMABLES VERRERIES", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CONSOMMABLES_PRODUITS_CHIMIQUES", text: "CONSOMMABLES PRODUITS CHIMIQUES", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "Consomable_SOUDURE", text: "Consomable SOUDURE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "Consomables_PHYSIOTHERAPIE", text: "Consomables PHYSIOTHERAPIE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "Consomables_Climatisation", text: "Consomables Climatisation", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: {icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "FOURNITURE_ET_POSE", text: "FOURNITURE ET POSE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "REAMENAGEMENT", text: "REAMENAGEMENT", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "PEINTURE_GENERALE", text: "PEINTURE GENERALE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CLIMATISATION", text: "CLIMATISATION", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "ENSEIGNES", text: "ENSEIGNES", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "ETUDES", text: "ETUDES", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "AMENAGEMENT", text: "AMENAGEMENT", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "RIDEAUX", text: "RIDEAUX", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "CLIMATISEURS", text: "CLIMATISEURS", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "TRAVAUX_AMENAGEMENT_ET_INSTALLATION_ELECTRICITE", text: "TRAVAUX AMENAGEMENT ET INSTALLATION ELECTRICITE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "REGLEMENT_INTERIEUR", text: "REGLEMENT INTERIEUR", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "FORMULAIRE_DINSCRIPTION", text: "FORMULAIRE D'INSCRIPTION", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "JOURNAL_DE_STAGE", text: "JOURNAL DE STAGE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "RAPPORT_DE_STAGE", text: "RAPPORT DE STAGE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "FEUILLE_DE_EXAMEN", text: "FEUILLE D'EXAMEN", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "PAPIER_EN_TETE", text: "PAPIER EN TETE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "IMPRIME_DE_DIPLOME", text: "IMPRIME DE DIPLÔME", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "ATTESTATION", text: "ATTESTATION", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "BLOC_NOTE", text: "BLOC NOTE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+      { key: "ETIQUETTES", text: "ETIQUETTES", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
+    ];
+    return listProduit;
+  };
+  
 
 
   private getBeneficaire = () => {
@@ -887,7 +1010,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getSousFamilleProduit()}                      
+                      options={this.getSousFamilleProduit().filter(option => {
+                        return option.FamilleKey === this.state.FamilleID
+                      })}                      
                       onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
                     />
                   </div>
@@ -903,7 +1028,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getArticle()}                     
+                      options={this.getArticle().filter(option => {
+                        return option.sousFamilleKey === this.state.SousFamilleID
+                      })}                       
                       onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
                     />
                   </div>
@@ -933,6 +1060,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       className={controlClass.TextField} 
                       type='number'
                       onChange={(e) => this.handleChangeQuantity(e, index)}
+                      min={0}
                       value={ this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""} 
                     />
                   </div>
@@ -941,6 +1069,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     <p className={stylescustom.title}>* Prix estimatifs :</p>
                     <TextField 
                       type='number'
+                      min={0}
                       className={controlClass.TextField} 
                       onChange={(e) => this.handleChangePrice(e, index)}
                       value={this.state.formData[index - 1]["price"]} 
@@ -952,6 +1081,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
                     <TextField 
                       type='number'
+                      min={0}
                       value={String(this.state.formData[index - 1]["numberOfDays"])} 
                       onChange={(e) => this.handleInputChange(e, index)}
                     />

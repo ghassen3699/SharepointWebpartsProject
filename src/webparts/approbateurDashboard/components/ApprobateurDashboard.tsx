@@ -60,6 +60,10 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     demandeSelectedID: 0,
     commentAction:"",
     showSpinner: true,
+
+    isOpen: false,
+    currentAccordion : 0,
+    filenames: [],
   }; 
 
 
@@ -193,6 +197,15 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   }
 
 
+  // Get attachement files from item by her ID
+  private getAttachementFileName = async(demandeID) => {
+    const attachmentFiles = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.getById(demandeID).attachmentFiles.get();
+
+    // Extract file names from the attachment files
+    const fileNames = attachmentFiles.map((attachment) => attachment.FileName);
+    return fileNames
+  }
+
   // When user click to open the detail popup
   private openDetailsDiv = async (demandeID: any) => {
     const selectedDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).get();
@@ -201,9 +214,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     var historiqueActions
     if (historiqueDemande.length === 1){
       historiqueActions = JSON.parse(historiqueDemande[0].Actions)
-      // console.log(historiqueActions)
     }
     this.setState({openDetailsDiv: true, detailsListDemande:selectedDemande, historiqueDemande:historiqueActions})
+
+    const filenames = await this.getAttachementFileName(demandeID)
+    this.setState({openDetailsDiv: true, detailsListDemande:selectedDemande, historiqueDemande:historiqueActions, filenames:filenames})
   }
 
 
@@ -619,6 +634,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -644,6 +660,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -669,6 +686,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -696,6 +714,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -703,7 +722,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "Rejeter",
-          CommentaireApprobateurV: this.state.commentAction
+          CommentaireApprobateurV1: this.state.commentAction
         });
   
         window.location.reload()
@@ -721,6 +740,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -746,6 +766,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -771,6 +792,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande Rejeter par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -815,6 +837,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -822,6 +845,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "A modifier",
+          Notif: "",
           CommentaireApprobateurV1: this.state.commentAction
         });
   
@@ -840,6 +864,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -849,6 +874,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "A modifier",
+          Notif: "",
           CommentaireApprobateurV2: this.state.commentAction
         });
   
@@ -868,6 +894,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -875,6 +902,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "A modifier",
+          Notif: "",
           CommentaireApprobateurV3: this.state.commentAction
         });
   
@@ -894,6 +922,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -901,6 +930,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV1: "A modifier",
+          Notif: "",
           CommentaireApprobateurV1: this.state.commentAction
         });
   
@@ -919,6 +949,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -928,6 +959,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV2: "A modifier",
+          Notif: "",
           CommentaireApprobateurV2: this.state.commentAction
         });
   
@@ -947,6 +979,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -954,6 +987,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV3: "A modifier",
+          Notif: "",
           CommentaireApprobateurV3: this.state.commentAction
         });
   
@@ -972,6 +1006,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
           resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
           });
@@ -979,6 +1014,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   
         const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
           StatusApprobateurV4: "A modifier",
+          Notif: "",
           CommentaireApprobateurV4: this.state.commentAction
         });
   
@@ -987,6 +1023,48 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     }
     
   }
+
+
+  toggleAccordion = (Accordionindex) => {
+    var isStatePrev = this.state.isOpen
+    console.log(Accordionindex)
+
+    this.setState({isOpen: !isStatePrev, currentAccordion:Accordionindex})
+  };
+
+
+  private downloadAttachmentFile = async (itemID: number, index) => {
+    if (itemID > 0) {
+      try {
+        const itemData = await Web(this.props.url)
+          .lists.getByTitle("DemandeAchat")
+          .items.getById(itemID)
+          .select("AttachmentFiles")
+          .expand("AttachmentFiles")
+          .get();
+  
+        const attachmentFiles = itemData.AttachmentFiles;
+  
+        if (attachmentFiles.length > 0) {
+          const attachmentUrl = attachmentFiles[index].ServerRelativeUrl;
+          const currentURL = this.props.url;
+          const tenantUrl = currentURL.split("/sites/")[0];
+  
+          const absoluteUrl = `${tenantUrl}${attachmentUrl}`;
+  
+          // Create a hidden link to trigger the download
+          const downloadLink = document.createElement("a");
+          downloadLink.href = absoluteUrl;
+          downloadLink.download = attachmentFiles[index].FileName; // Use the original file name
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+      } catch (error) {
+        console.log("Error downloading attachment file:", error);
+      }
+    }
+  };
 
 
 
@@ -1329,8 +1407,20 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Réference de l'article :</td>
-                  <td className={styles.value}> {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map(produit => <>- {produit.DescriptionTechnique}<br></br></>)} </td>
+                  <td >Article :</td>
+                  <td className={styles.value}>
+                  {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
+                     {console.log(produit, index)}
+                      <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
+                        <h4>{produit.ArticleREF}</h4>
+                      </button>
+                      <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
+                        <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
+                        <p className={styles.value}>Prix: {produit.Prix}</p>
+                        <p className={styles.value}>Quantité: {produit.quantité}</p>
+                      </div>
+                    </div>)}
+                  </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
@@ -1338,15 +1428,21 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                 </tr>
                 <tr>
                   <td >Prix estimatifs Total :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal}DT</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
                 <tr>
                   <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite}Jours</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value} > 
+                    {this.state.filenames.map((file, index) => (
+                        <span key={file} style={{ cursor: 'pointer', color:"black" }} onClick={()=>this.downloadAttachmentFile(this.state.detailsListDemande.ID, index)}>
+                          - {file}
+                        </span>
+                      ))}                  
+                  </td>
                 </tr>
                 <tr>
                   <td >Status actuel :</td>

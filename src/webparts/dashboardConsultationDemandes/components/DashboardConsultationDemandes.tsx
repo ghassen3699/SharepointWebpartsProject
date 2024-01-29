@@ -61,6 +61,9 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
     demandeSelectedID: 0,
     commentAction:"",
     showSpinner: true,
+    filenames: [],
+    isOpen: false,
+    currentAccordion : 0
   }; 
 
 
@@ -125,6 +128,9 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
       // console.log(historiqueActions)
     }
     this.setState({openDetailsDiv: true, detailsListDemande:selectedDemande, historiqueDemande:historiqueActions})
+
+    const filenames = await this.getAttachementFileName(demandeID)
+    this.setState({openDetailsDiv: true, detailsListDemande:selectedDemande, historiqueDemande:historiqueActions, filenames:filenames})
   }
 
 
@@ -199,6 +205,58 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
     var listProduits = JSON.parse(produits)
     return listProduits
   }
+
+  private downloadAttachmentFile = async (itemID: number, index) => {
+    if (itemID > 0) {
+      try {
+        const itemData = await Web(this.props.url)
+          .lists.getByTitle("DemandeAchat")
+          .items.getById(itemID)
+          .select("AttachmentFiles")
+          .expand("AttachmentFiles")
+          .get();
+  
+        const attachmentFiles = itemData.AttachmentFiles;
+  
+        if (attachmentFiles.length > 0) {
+          const attachmentUrl = attachmentFiles[index].ServerRelativeUrl;
+          const currentURL = this.props.url;
+          const tenantUrl = currentURL.split("/sites/")[0];
+  
+          const absoluteUrl = `${tenantUrl}${attachmentUrl}`;
+  
+          // Create a hidden link to trigger the download
+          const downloadLink = document.createElement("a");
+          downloadLink.href = absoluteUrl;
+          downloadLink.download = attachmentFiles[index].FileName; // Use the original file name
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+      } catch (error) {
+        console.log("Error downloading attachment file:", error);
+      }
+    }
+  };
+
+
+  // Get attachement files from item by her ID
+  private getAttachementFileName = async(demandeID) => {
+    const attachmentFiles = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.getById(demandeID).attachmentFiles.get();
+
+    // Extract file names from the attachment files
+    const fileNames = attachmentFiles.map((attachment) => attachment.FileName);
+    return fileNames
+  }
+
+
+  toggleAccordion = (Accordionindex) => {
+    var isStatePrev = this.state.isOpen
+    console.log(Accordionindex)
+
+    this.setState({isOpen: !isStatePrev, currentAccordion:Accordionindex})
+  };
+
 
 
   async componentDidMount() {
@@ -560,8 +618,20 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                   <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Réference de l'article :</td>
-                  <td className={styles.value}> {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map(produit => <>- {produit.DescriptionTechnique}<br></br></>)} </td>
+                  <td >Article :</td>
+                  <td className={styles.value}>
+                  {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
+                     {console.log(produit, index)}
+                      <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
+                        <h4>{produit.ArticleREF}</h4>
+                      </button>
+                      <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
+                        <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
+                        <p className={styles.value}>Prix: {produit.Prix}</p>
+                        <p className={styles.value}>Quantité: {produit.quantité}</p>
+                      </div>
+                    </div>)}
+                  </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
@@ -569,15 +639,21 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                 </tr>
                 <tr>
                   <td >Prix estimatifs Total :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal}DT</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
                 <tr>
                   <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite}Jours</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value} > 
+                    {this.state.filenames.map((file, index) => (
+                        <span key={file} style={{ cursor: 'pointer', color:"black" }} onClick={()=>this.downloadAttachmentFile(this.state.detailsListDemande.ID, index)}>
+                          - {file}
+                        </span>
+                      ))}                  
+                  </td>
                 </tr>
                 <tr>
                   <td >Status actuel :</td>

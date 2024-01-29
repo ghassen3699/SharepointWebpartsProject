@@ -668,6 +668,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
             .update({
               StatusApprobateurV1: "En cours",
+              Notif: "Y"
             });
         } else if (Demande[0].StatusApprobateurV2 === "A modifier") {
             console.log(2);
@@ -742,6 +743,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
               .update({
                   StatusApprobateurV2: "En cours",
+                  Notif: "Y"
               });
         } else if (Demande[0].StatusApprobateurV3 === "A modifier") {
             console.log(3);
@@ -819,6 +821,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
               .items.getById(Demande[0].ID)
               .update({
                   StatusApprobateurV3: "En cours",
+                  Notif: "Y"
               });
         }else if (Demande[0].StatusApprobateurV4 === "A modifier") {
           console.log(3);
@@ -897,6 +900,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             .items.getById(Demande[0].ID)
             .update({
                 StatusApprobateurV4: "En cours",
+                Notif: "Y"
             });
       }
       this.setState({ showValidationPopUp: true });

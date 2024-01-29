@@ -187,7 +187,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   
     const fileName = content.target.files[0].name;
     const extension = fileName.split('.').pop();
-    const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}_${Date.now()}.${extension}`;
+    const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}.${extension}`;
   
     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
   
@@ -275,14 +275,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   private handleChangeDestinataireDropdown = (event:any, index: any) => {
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].BeneficiareSelected = [event]
-    this.setState({
-      formData: updatedFormData
-    });
-  }
-
-  private handleChangeDateSouhaite = (date:any, index: any) => {
-    const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].DateSouhaite = new Date(date)
     this.setState({
       formData: updatedFormData
     });
@@ -399,6 +391,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     }]
     return listFamilleProduit
   }
+
 
   private getSousFamilleProduit = () => {
     var listSousFamilleProduit = [{
@@ -872,53 +865,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   public render(): React.ReactElement<IFormulaireDemandeurProps> {
 
-    // this.dropdownOptionsListFamille.push({
-    //   key: "FamilleID",
-    //   text: "Famille 1",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // },
-    // {
-    //   key: "FamilleID",
-    //   text: "Famille 2",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // }
-    // );
-
-
-    // this.dropdownOptionsListSousFamille.push({
-    //   key: "SousFamilleID",
-    //   text: "SousFamille 1",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // },);
-
-
-    // this.dropdownOptionsRefArticles.push({
-    //   key: "RefArticle",
-    //   text: "Article 1",
-    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    // },);
-
-
-    // this.dropdownOptionsBeneficiaire.push(
-    //   {
-    //     key: "BenefID",
-    //     text: "Benef n1",
-    //     data: { icon: 'CircleShapeSolid', colorName: "#0000ff" }
-    //   },
-    //   {
-    //     key: "BenefID",
-    //     text: "Benef n2",
-    //     data: { icon: 'CircleShapeSolid', colorName: "#0000ff" }
-    //   },
-    //   {
-    //     key: "BenefID",
-    //     text: "Benef n3",
-    //     data: { icon: 'CircleShapeSolid', colorName: "#0000ff" }
-    //   }
-    // );
-
-
-
     const dropdownStyles: Partial<IDropdownStyles> = {
       title: { backgroundColor: "white" },
     };
@@ -974,19 +920,10 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             {this.intToList(this.state.counterProducts).map((index) => 
               <div className='productsDiv'>
                 <div className={stylescustom.row}>
-
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Famille</p>
                     {index > 1 ? (
-                      <Dropdown
-                        styles={dropdownStyles}
-                        onRenderTitle={this.onRenderTitle}
-                        onRenderOption={this.onRenderOption}
-                        onRenderCaretDown={this.onRenderCaretDown}
-                        options={this.getFamilleProduit()}
-                        onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
-                        defaultSelectedKey={this.state.formData[0].FamilleSelected[0].key}
-                      />
+                      <label className={stylescustom.btn}>{this.state.formData[0].FamilleSelected[0].text}</label>
                     ) : (
                       <Dropdown
                         defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}

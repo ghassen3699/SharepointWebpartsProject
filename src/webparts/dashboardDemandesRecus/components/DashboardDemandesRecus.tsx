@@ -405,7 +405,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                 </tr>
                 <tr>
                   <td >Réference de l'article :</td>
-                  <td className={styles.value}> {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map(produit => <>- {produit.DescriptionTechnique}<br></br></>)} </td>
+                  <td className={styles.value}> {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map(produit => <>{produit.DescriptionTechnique}<br></br></>)} </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
@@ -413,11 +413,11 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                 </tr>
                 <tr>
                   <td >Prix estimatifs Total :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal}DT</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
                 <tr>
                   <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite}Jours</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>

@@ -20,6 +20,37 @@
     position: absolute;
   }
   
+  .accordion {
+    margin-bottom: 10px;
+  }
+  
+  .accordionButton {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    border: none;
+    outline: none;
+    transition: 0.4s;
+  }
+  
+  .active, .accordionButton:hover {
+    background-color: #ccc;
+  }
+  
+  .panel {
+    padding: 0 18px;
+    background-color: white;
+    display: none;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+  }
+  
+  .panelOpen {
+    display: block;
+  }
+  
   @keyframes rotation {
     0% {
       transform: rotate(0deg);

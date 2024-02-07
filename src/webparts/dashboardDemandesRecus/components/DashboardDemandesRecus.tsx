@@ -61,6 +61,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     DateAction: new Date(),
     disableButtonUpdateDate: true,
     showSpinner: true,
+    isOpen: false,
+    currentAccordion : 0
   }; 
 
 
@@ -136,7 +138,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         .filter(`
           ((StatusDemandeV1 eq 'Approuver') and (StatusDemandeV2 eq 'Approuver') and (StatusDemandeV3 eq 'Approuver') and ((StatusDemandeV4 eq 'Approuver') or (StatusDemandeV4 eq '***')))
         `)
-        .select("Attachments","Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar")
+        .select("Attachments","Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar")
         .get();
       this.setState({ listDemandeData });
     } catch (error) {
@@ -172,6 +174,14 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     var listProduits = JSON.parse(produits)
     return listProduits
   }
+
+
+  toggleAccordion = (Accordionindex) => {
+    var isStatePrev = this.state.isOpen
+    console.log(Accordionindex)
+
+    this.setState({isOpen: !isStatePrev, currentAccordion:Accordionindex})
+  };
 
 
   // open attachement file for each request with an attachement file
@@ -212,16 +222,19 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
       title: { backgroundColor: "white" },
     };
     const controlClass = mergeStyleSets({
-      TextField: { backgroundColor: "white", }
+      TextField: { backgroundColor: "white"}
     });
-
 
     const { currentPage, itemsPerPage, listDemandeData, FamilleFilter, StatusFilter } = this.state;
     var filteredData
-    if(FamilleFilter.length > 0 || StatusFilter.length > 0){
+    console.log(FamilleFilter)
+    console.log(StatusFilter)
+
+    if(FamilleFilter !== "" || StatusFilter !== ""){
       console.log(FamilleFilter)
       console.log(StatusFilter)
       filteredData = listDemandeData.filter((item:any) => {
+        console.log(item)
         return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
       }); 
     }else {
@@ -404,8 +417,20 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Réference de l'article :</td>
-                  <td className={styles.value}> {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map(produit => <>{produit.DescriptionTechnique}<br></br></>)} </td>
+                  <td >Article :</td>
+                  <td className={styles.value}>
+                  {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
+                     {console.log(produit, index)}
+                      <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
+                        <h4>{produit.ArticleREF}</h4>
+                      </button>
+                      <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
+                        <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
+                        <p className={styles.value}>Prix: {produit.Prix}</p>
+                        <p className={styles.value}>Quantité: {produit.quantité}</p>
+                      </div>
+                    </div>)}
+                  </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>

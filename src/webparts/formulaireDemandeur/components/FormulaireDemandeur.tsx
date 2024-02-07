@@ -121,6 +121,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     errors: { file: "" },
 
     showOnConfirmButtonPopUp : true,
+    spinnerShow: false
   };  
   private _graphService = new GraphService(this.props.context);
 
@@ -546,15 +547,27 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
+  private handleSpinnerButtonClick = () => {
+    
+    this.setState({spinnerShow:true})
+
+    setTimeout(() => {
+      this.setState({spinnerShow:false})
+    }, 3000);
+  };
+
+
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
     const currentUser = await Web(this.props.url).currentUser.get() ;
     var ArticleList = []
     var prixTotal = 0
 
-    this.setState({showValidationPopUp:true})
 
     if (!disabledSubmit) {
+
+      this.setState({spinnerShow : true})
+
       const data = this.state.formData;
       data.map(Article => {
         prixTotal = prixTotal + parseInt(Article.price);
@@ -769,6 +782,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           });
         }
       }
+      this.setState({showValidationPopUp:true, spinnerShow : false})
     }
   }
 
@@ -1073,7 +1087,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             
 
             <div className={stylescustom.btncont}>
-              {this.state.loadingFile ? <Spinner size={SpinnerSize.large} className={stylescustom.spinner} /> : ""}
+              {/* {this.state.loadingFile ? <Spinner size={SpinnerSize.large} className={stylescustom.spinner} /> : ""} */}
               {/* <button disabled={this.state.btnSubmitDisable || this.state.loadingFile} onClick={() => this.SaveData()} className={stylescustom.btn}>soumettre la demande</button> */}
               <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.addArticle()}>AJOUTER UNE AUTRE ARTICLE</button>
               <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.submitFormData()}>soumettre la demande</button>
@@ -1102,6 +1116,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               imageHeight="200"
             /> */}
           </div>
+          {this.state.spinnerShow && 
+            <div className={stylescustom.modal}>
+              <div className={stylescustom.modalContent}>
+                <div className={stylescustom.paginations} style={{ textAlign: 'center', paddingTop:"30%" }}>
+                  {this.state.spinnerShow && <span className={stylescustom.loader}></span>}
+                </div>              
+              </div>
+            </div>
+          }
         </div>
       </Fabric>
     );

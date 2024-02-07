@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './ApprobateurDashboard.module.scss';
 import { IApprobateurDashboardProps } from './IApprobateurDashboardProps';
-import { Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
+import { DatePicker, Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -11,6 +11,8 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import { convertDateFormat, getCurrentDate } from '../../../tools/FunctionTools';
+import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
+
 
 export default class ApprobateurDashboard extends React.Component<IApprobateurDashboardProps, {}> {
 
@@ -64,6 +66,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     isOpen: false,
     currentAccordion : 0,
     filenames: [],
+    RemplacantPoUp: false,
+    startDate: null,
+    endDate: null,
+    replacedBy: [] as any,
+    replacedByUserName: "",
   }; 
 
 
@@ -1066,6 +1073,35 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     }
   };
 
+  
+  private selectedDate = (year, month, day, startOrEndDate) => {
+    if (startOrEndDate){
+      const date = year.toString() + "-" + month.toString() + "-" + day.toString();
+      const newDateFormat = new Date(date);
+      this.setState({startDate: newDateFormat})
+    }else {
+      const date = year.toString() + "-" + month.toString() + "-" + day.toString();
+      const newDateFormat = new Date(date);
+      console.log('new Date format',newDateFormat)
+      this.setState({endDate: newDateFormat})
+    }
+  }
+
+
+  // get new user when we change a new user in "Remplacé Par" 
+  public _getPeoplePickerItems = async (items: any[]) => {
+    if (items.length > 0) {
+      if (items[0].id && items[0].text && items[0].secondaryText){
+        let replacedUserData = {ID:items[0].id,name:items[0].text,email:items[0].secondaryText}
+        this.setState({replacedBy:[replacedUserData]})
+        this.setState({replacedByUserName:items[0].text})
+      }
+    }else {
+      this.setState({replacedBy:[]})
+      this.setState({replacedByUserName:""})
+    }
+  }
+
 
 
   async componentDidMount() {
@@ -1135,8 +1171,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
               onChanged={(value) => this.setState({StatusFilter:value.key , currentPage: 1})}
             />
           </div>
-          <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
-        </div>
+          <div className={styles.statusWrapper}>
+            <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
+          </div>
+            <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Mon Remplacant</button>        
+          </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
         </div>        
@@ -1508,6 +1547,65 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             </table>
           </div>
         </div>}
+        {this.state.RemplacantPoUp && <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <span id="close" className={styles.close} onClick={() => this.setState({RemplacantPoUp: false})}>&times;</span>
+            <h2 style={{color:"#7d2935"}}> Voulez-vous vraiment Ajouter un remplaçant ?</h2>
+            <table className={styles.table}>
+              <tbody>
+                <tr>
+                  <td>Mon Remplacant</td>
+                  <td>
+                    <PeoplePicker
+                      // className={styles.value}
+                      // styles={dropdownStyles}
+                      context={this.props.context}
+                      personSelectionLimit={1}
+                      required={true}
+                      onChange={this._getPeoplePickerItems}
+                      defaultSelectedUsers={[this.state.replacedByUserName]}
+                      principalTypes={[PrincipalType.User]}
+                      resolveDelay={1000}
+                      ensureUser={true}
+                    />
+                  </td>
+                </tr>
+                <br></br>
+                <tr>
+                  <td>Date de debut</td>
+                  <DatePicker
+                    className={controlClass.TextField}
+                    placeholder="date de debut"
+                    ariaLabel="date de debut"
+                    value={this.state.startDate}
+                    onSelectDate={(e) => { this.selectedDate(e.getFullYear(), e.getMonth() + 1, e.getDate(), true)}}
+                    minDate={new Date()}
+                  />
+                </tr>
+                <br></br>
+                <tr>
+                  <td>Date de fin</td>
+                  <DatePicker
+                    className={controlClass.TextField}
+                    placeholder="date de fin"
+                    ariaLabel="date de fin"
+                    value={this.state.endDate}
+                    onSelectDate={(e) => { this.selectedDate(e.getFullYear(), e.getMonth() + 1, e.getDate(), false)}}
+                    minDate={this.state.startDate}
+                  />
+                </tr>
+                <br></br>
+                <tr>
+                  <td>
+                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => this.ModifierValidation()}>                          
+                      Envoyer
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>}
         {!this.state.showSpinner && 
           <div className={styles.paginations}>
             <span
@@ -1519,7 +1617,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
             <span id="page">
               {(() => {
-                  const pageButtons = [];
+                  const pageButtons = []
                   for (let page = 0; page < totalPages; page++) {
                     pageButtons.push(
                       <span 

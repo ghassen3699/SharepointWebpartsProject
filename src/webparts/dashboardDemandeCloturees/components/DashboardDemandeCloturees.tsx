@@ -152,6 +152,7 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
               ]}
               defaultSelectedKey={this.state.FamilleFilter}
               onChanged={(value) => this.setState({FamilleFilter:value.key, currentPage: 1})}
+              style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
           <label className={styles.title}>Status : </label>
@@ -166,6 +167,7 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
                 { key: 'Approuver', text: 'Approuver' },
               ]}
               defaultSelectedKey={this.state.StatusFilter}
+              style={{ width: '189.84px' }} // Specify the width you desire
               onChanged={(value) => this.setState({StatusFilter:value.key , currentPage: 1})}
             />
           </div>

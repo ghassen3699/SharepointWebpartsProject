@@ -5,5 +5,4 @@ export interface IDashboardDemandesRecusProps {
   hasTeamsContext: boolean;
   userDisplayName: string;
   url: any;
-  GetUserInfoURL:string;
 }

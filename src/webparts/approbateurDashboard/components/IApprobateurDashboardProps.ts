@@ -6,5 +6,4 @@ export interface IApprobateurDashboardProps {
   userDisplayName: string;
   context: any;
   url: any;
-  GetUserInfoURL:string;
 }

@@ -11,7 +11,6 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import * as strings from 'DashboardConsultationDemandesWebPartStrings';
 import DashboardConsultationDemandes from './components/DashboardConsultationDemandes';
 import { IDashboardConsultationDemandesProps } from './components/IDashboardConsultationDemandesProps';
-import { GetUserInfoURL } from '../../API_END_POINTS/AchatModuleEndPoints';
 
 export interface IDashboardConsultationDemandesWebPartProps {
   description: string;
@@ -32,7 +31,6 @@ export default class DashboardConsultationDemandesWebPart extends BaseClientSide
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
         userDisplayName: this.context.pageContext.user.displayName,
         url: this.context.pageContext.web.absoluteUrl,
-        GetUserInfoURL:GetUserInfoURL,
       }
     );
 

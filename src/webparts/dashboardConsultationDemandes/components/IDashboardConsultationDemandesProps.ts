@@ -5,5 +5,4 @@ export interface IDashboardConsultationDemandesProps {
   hasTeamsContext: boolean;
   userDisplayName: string;
   url: any;
-  GetUserInfoURL:string;
 }

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './DemandeurDashboard.module.scss';
 import { IDemandeurDashboardProps } from './IDemandeurDashboardProps';
-import { DefaultPalette, Dropdown, IDropdownStyles, AnimationClassNames } from 'office-ui-fabric-react';
+import { DefaultPalette, Dropdown, IDropdownStyles, AnimationClassNames, DatePicker, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -11,6 +11,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import { convertDateFormat, getCurrentDate } from '../../../tools/FunctionTools';
+import { PeoplePicker, PrincipalType } from '@pnp/spfx-controls-react/lib/PeoplePicker';
 
 export default class DemandeurDashboard extends React.Component<IDemandeurDashboardProps, {}> {
   public state = {
@@ -58,7 +59,14 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     showSpinner: true,
     filenames: [],
     isOpen: false,
-    currentAccordion : 0
+    currentAccordion : 0,
+    RemplacantPoUp: false,
+    startDate: null,
+    endDate: null,
+    replacedBy: [] as any,
+    replacedByUserName: "",
+    checkActionCurrentUser: true,
+    showAnotePopUp: false  
   }; 
 
   // private showContent = (e) => {
@@ -111,22 +119,6 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   }
 
 
-  // private changeDateFormat = (date:any) => {
-  //   const day = String(date.getDate()).padStart(2, '0');
-  //   const month = String(date.getMonth() + 1).padStart(2, '0');
-  //   const year = date.getFullYear();
-
-  //   const formattedDate = `${day}-${month}-${year}`;
-  // }
-
-  // handleNameFilterChange = (e) => {
-  //   this.setState({ nameFilter: e.target.value, currentPage: 1 });
-  // };
-
-  // handleAgeFilterChange = (e) => {
-  //   this.setState({ ageFilter: e.target.value, currentPage: 1 });
-  // };
-
   private openDetailsDiv = async (demandeID: any) => {
     const selectedDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).get();
     console.log(selectedDemande)
@@ -141,16 +133,66 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   }
 
 
-  private getDemandeListData = async() => {
-    const currentUserID = (await Web(this.props.url).currentUser.get()).Id
-    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-    .filter(`AuthorId eq ${currentUserID}`)
-    .orderBy('Created', false) // Order by creation date in descending order
-    .top(1000) 
-    .get();    
-    console.log(listDemandeData)
-    this.setState({listDemandeData})
+  // Check if the current user in list of remplaçant if true get the list of demands of the other demander
+  private checkRemplacantDemandes = async (): Promise<any[]> => {
+    try {
+      const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
+      const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+      const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
+      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}'`)
+      .orderBy('Created', false)
+      .top(1)
+      .get();
+
+      console.log(remplacantTest);
+      return remplacantTest;
+
+    } catch (error) {
+      console.error("Error checking remplacant demandes:", error);
+      return [];
+    }
   }
+
+
+  private checkUserActions = async() => {
+    const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
+    const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+    const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
+    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}'`)
+    .orderBy('Created', false)
+    .top(1)
+    .get();
+
+    if (remplacantTest.length > 0) {
+      this.setState({checkActionCurrentUser : false, showAnotePopUp: true});
+    }
+  }
+
+
+  private getDemandeListData = async () => {
+    const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
+    let listDemandeData;
+    const checkRemplacant = await this.checkRemplacantDemandes();
+    
+    if (checkRemplacant.length > 0) {
+      const demandeurId = checkRemplacant[0].DemandeurId;
+      listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+      .filter(`AuthorId eq ${currentUserID} or AuthorId eq ${demandeurId}`)
+      .orderBy('Created', false)
+      .top(1000)
+      .get();
+    } else {
+      listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+      .filter(`AuthorId eq ${currentUserID}`)
+      .orderBy('Created', false)
+      .top(1000)
+      .get();
+    }
+    
+    console.log(listDemandeData);
+    this.setState({ listDemandeData });
+  }
+
 
 
   private clearFilterButton = () => {
@@ -242,9 +284,56 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
     this.setState({isOpen: !isStatePrev, currentAccordion:Accordionindex})
   };
+
+  // get new user when we change a new user in "Remplacé Par" 
+  public _getPeoplePickerItems = async (items: any[]) => {
+    if (items.length > 0) {
+      if (items[0].id && items[0].text && items[0].secondaryText){
+        let replacedUserData = {ID:items[0].id,name:items[0].text,email:items[0].secondaryText}
+        this.setState({replacedBy:[replacedUserData]})
+        this.setState({replacedByUserName:items[0].text})
+      }
+    }else {
+      this.setState({replacedBy:[]})
+      this.setState({replacedByUserName:""})
+    }
+  }
+
+  private selectedDate = (year, month, day, startOrEndDate) => {
+    if (startOrEndDate){
+      const date = year.toString() + "-" + month.toString() + "-" + day.toString();
+      const newDateFormat = new Date(date);
+      this.setState({startDate: newDateFormat})
+    }else {
+      const date = year.toString() + "-" + month.toString() + "-" + day.toString();
+      const newDateFormat = new Date(date);
+      console.log('new Date format',newDateFormat)
+      this.setState({endDate: newDateFormat})
+    }
+  }
+
+
+  private ajouterAutreDemandeur = async() => {
+    const currentUser = (await Web(this.props.url).currentUser.get()).Id ;
+    const remplacant = this.state.replacedBy[0].ID ;
+    const startDate = this.state.startDate ;
+    const  endDate = this.state.endDate ;
+
+
+    // Save data in Remplacant Module Achat list
+    const data = await Web(this.props.url).lists.getByTitle("RemplacantsModuleAchat").items.add({
+      "DemandeurId": currentUser ,
+      "RemplacantId": remplacant,
+      "DateDeDebut": startDate,
+      "DateDeFin": endDate
+    });
+
+    this.setState({RemplacantPoUp: false})  
+  }
   
 
   async componentDidMount() {
+    this.checkUserActions() ;
     this.getDemandeListData() ;
 
     setTimeout(() => {
@@ -258,6 +347,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     const dropdownStyles: Partial<IDropdownStyles> = {
       title: { backgroundColor: "white" },
     };
+    const controlClass = mergeStyleSets({
+      TextField: { backgroundColor: "white", }
+    });
     const { currentPage, itemsPerPage, listDemandeData, FamilleFilter, StatusFilter } = this.state;
     var filteredData
     if(FamilleFilter.length > 0 || StatusFilter.length > 0){
@@ -290,6 +382,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               ]}
               defaultSelectedKey={this.state.FamilleFilter}
               onChanged={(value) => this.setState({FamilleFilter:value.key, currentPage: 1})}
+              style={{ width: '194.49px' }} // Specify the width you desire
             />
           </div>
           <label className={styles.title}>Status : </label>
@@ -305,12 +398,15 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               ]}
               defaultSelectedKey={this.state.StatusFilter}
               onChanged={(value) => this.setState({StatusFilter:value.key , currentPage: 1})}
+              style={{ width: '189.84px' }} // Specify the width you desire
             />
           </div>
           <div className={styles.statusWrapper}>
             <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
+            &nbsp;
+            <button className={styles.btnRef} onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/FormulaireDemandeAchat.aspx")}>Creer une demande</button>
           </div>
-          <button className={styles.btnRef} onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/FormulaireDemandeAchat.aspx")}>Creer une demande</button>
+          <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Un Demandeur</button>        
         </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
@@ -319,7 +415,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
         {(listDemandeData.length > 0 && !this.state.showSpinner)&& 
           <div id="spListContainer"> 
             <table style={{borderCollapse: "collapse", width:"100%"}}>
-              <tr><th className={styles.textCenter}>#</th> <th>Famille demande</th><th>Date de la Demande</th><th>Status de la demande</th><th>Action</th><th>Détail</th></tr>
+              <tr><th className={styles.textCenter}>#</th> <th>Famille demande</th><th>Date de la Demande</th><th>Status de la demande</th>{this.state.checkActionCurrentUser && <th>Action</th>}<th>Détail</th></tr>
               {currentItems.map((demande:any) =>
                 <tr>
                   {console.log(demande)}
@@ -373,9 +469,63 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                     </>
                   )}
                   </td>
-                  <td>
-                    {(demande.StatusDemande.includes("En cours")) && (
-                      <>
+                  {this.state.checkActionCurrentUser && (<>
+                    <td>
+                      {(demande.StatusDemande.includes("En cours")) && (
+                        <>
+                          <span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
+                              <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                              <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                            </svg>
+                          </span>
+                          &nbsp;
+                          {demande.StatusDemandeV1.includes("En cours") ? (
+                            <span>
+                              <svg
+                                onClick={() =>
+                                  this.setState({ cancelPopUp: true, demandeSelectedID: demande.ID })
+                                }
+                                style={{ cursor: "pointer" }}
+                                color="red"
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                fill="currentColor"
+                                className="bi bi-x-square"
+                                viewBox="0 0 16 16"
+                              >
+                                <path
+                                  d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
+                                />
+                                <path
+                                  d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
+                                />
+                              </svg>
+                            </span>
+                          ) : (
+                            <span>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                fill="currentColor"
+                                className="bi bi-x-square"
+                                viewBox="0 0 16 16"
+                              >
+                                <path
+                                  d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
+                                />
+                                <path
+                                  d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
+                                />
+                              </svg>
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {(demande.StatusDemande.includes("Rejeter")) && (
+                        <>
                         <span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
                             <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
@@ -383,119 +533,67 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                           </svg>
                         </span>
                         &nbsp;
-                        {demande.StatusDemandeV1.includes("En cours") ? (
-                          <span>
-                            <svg
-                              onClick={() =>
-                                this.setState({ cancelPopUp: true, demandeSelectedID: demande.ID })
-                              }
-                              style={{ cursor: "pointer" }}
-                              color="red"
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              fill="currentColor"
-                              className="bi bi-x-square"
-                              viewBox="0 0 16 16"
-                            >
-                              <path
-                                d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
-                              />
-                              <path
-                                d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
-                              />
-                            </svg>
-                          </span>
-                        ) : (
-                          <span>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              fill="currentColor"
-                              className="bi bi-x-square"
-                              viewBox="0 0 16 16"
-                            >
-                              <path
-                                d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
-                              />
-                              <path
-                                d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
-                              />
-                            </svg>
-                          </span>
-                        )}
+                        <span>
+                          <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
+                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                          </svg>
+                        </span>
                       </>
-                    )}
-                    {(demande.StatusDemande.includes("Rejeter")) && (
-                      <>
-                      <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
-                          <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                          <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
-                        </svg>
-                      </span>
-                      &nbsp;
-                      <span>
-                        <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
-                          <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                          <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                        </svg>
-                      </span>
-                    </>
-                    )}
-                    {(demande.StatusDemande.includes("A modifier")) && (
-                      <>
-                      <span onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/ModifierDemande.aspx?itemID="+demande.ID)}>
-                        <svg style={{cursor:"pointer"}} color='blue' xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
-                          <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                          <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
-                        </svg>
-                      </span>
-                      &nbsp;
-                      <span>
-                        <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
-                          <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                          <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                        </svg>
-                      </span>
-                    </>
-                    )}
-                    {(demande.StatusDemande.includes("Approuver")) && (
-                      <>
-                      <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
-                          <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                          <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
-                        </svg>
-                      </span>
-                      &nbsp;
-                      <span>
-                        <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
-                          <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                          <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                        </svg>
-                      </span>
-                    </>
-                    )}
-                    {(demande.StatusDemande.includes("Annuler")) && (
-                      <>
-                      <span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
-                          <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                          <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
-                        </svg>
-                      </span>
-                      &nbsp;
-                      <span>
-                        <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
-                          <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                          <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                        </svg>
-                      </span>
-                    </>
-                    )}
-                  </td>
+                      )}
+                      {(demande.StatusDemande.includes("A modifier")) && (
+                        <>
+                        <span onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/ModifierDemande.aspx?itemID="+demande.ID)}>
+                          <svg style={{cursor:"pointer"}} color='blue' xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
+                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                          </svg>
+                        </span>
+                        &nbsp;
+                        <span>
+                          <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
+                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                          </svg>
+                        </span>
+                      </>
+                      )}
+                      {(demande.StatusDemande.includes("Approuver")) && (
+                        <>
+                        <span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
+                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                          </svg>
+                        </span>
+                        &nbsp;
+                        <span>
+                          <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
+                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                          </svg>
+                        </span>
+                      </>
+                      )}
+                      {(demande.StatusDemande.includes("Annuler")) && (
+                        <>
+                        <span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
+                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                          </svg>
+                        </span>
+                        &nbsp;
+                        <span>
+                          <svg color="gray" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-square" viewBox="0 0 16 16">
+                            <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                          </svg>
+                        </span>
+                      </>
+                      )}
+                    </td>
+                  </>)}
                   <td>
                     <span className={styles.icon}>
                       <svg onClick={() => this.openDetailsDiv(demande.ID)} version="1.1" id="Capa_1"
@@ -580,7 +678,6 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                 </tr>
               )}
             </table>
-            {/* <div style={{textAlign:"center"}}><h4>Aucune données trouvées</h4></div> */}
           </div>
         }
 
@@ -712,6 +809,83 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               <div>
                 <button className={styles.btnRef} onClick={() => this.rejectDemande(this.state.demandeSelectedID)}>Annuler la demande</button>
               </div>
+            </div>
+          </div>
+        }
+
+        {/* PopUp Remplaçant */}
+        {this.state.RemplacantPoUp && <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <span id="close" className={styles.close} onClick={() => this.setState({RemplacantPoUp: false})}>&times;</span>
+            <h2 style={{color:"#7d2935"}}> Voulez-vous vraiment Ajouter un autre demandeur ?</h2>
+            <table className={styles.table}>
+              <tbody>
+                <tr>
+                  <td>Mon Remplacant</td>
+                  <td>
+                    <PeoplePicker
+                      // className={styles.value}
+                      // styles={dropdownStyles}
+                      context={this.props.context}
+                      personSelectionLimit={1}
+                      required={true}
+                      onChange={this._getPeoplePickerItems}
+                      defaultSelectedUsers={[this.state.replacedByUserName]}
+                      principalTypes={[PrincipalType.User]}
+                      resolveDelay={1000}
+                      ensureUser={true}
+                    />
+                  </td>
+                </tr>
+                <br></br>
+                <tr>
+                  <td>Date de debut</td>
+                  <DatePicker
+                    className={controlClass.TextField}
+                    placeholder="Du"
+                    ariaLabel="Du"
+                    value={this.state.startDate}
+                    onSelectDate={(e) => { this.selectedDate(e.getFullYear(), e.getMonth() + 1, e.getDate(), true)}}
+                    minDate={new Date()}
+                  />
+                </tr>
+                <br></br>
+                <tr>
+                  <td>Date de fin</td>
+                  <DatePicker
+                    className={controlClass.TextField}
+                    placeholder="Jusqu'a"
+                    ariaLabel="Jusqu'a"
+                    value={this.state.endDate}
+                    onSelectDate={(e) => { this.selectedDate(e.getFullYear(), e.getMonth() + 1, e.getDate(), false)}}
+                    minDate={this.state.startDate}
+                  />
+                </tr>
+                <br></br>
+                <tr>
+                  <td>
+                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => this.ajouterAutreDemandeur()}>                          
+                      Envoyer
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>}
+
+        {(!this.state.checkActionCurrentUser && this.state.showAnotePopUp) && <div className={styles.modal}>
+            <div className={styles.modalContent}>
+              <span className={styles.close} onClick={() => this.setState({showAnotePopUp:false})}>&times;</span>
+              <h3>À noter</h3>
+              <ul>
+                <li>
+                  Désolé(e), Monsieur/Madame, vous n'avez pas le droit d'effectuer des actions sur les demandes car vous avez déjà un remplaçant.
+                  <br></br>
+                  L'accès aux actions sur les demandes a été affecté à votre remplaçant.
+                </li>
+              </ul>
+              <p> =&gt; Vous pouvez effectuer les actions lorsque la période de remplacement est terminée.</p>
             </div>
           </div>
         }

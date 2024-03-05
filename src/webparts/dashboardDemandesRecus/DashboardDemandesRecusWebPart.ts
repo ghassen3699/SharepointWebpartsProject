@@ -11,7 +11,6 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import * as strings from 'DashboardDemandesRecusWebPartStrings';
 import DashboardDemandesRecus from './components/DashboardDemandesRecus';
 import { IDashboardDemandesRecusProps } from './components/IDashboardDemandesRecusProps';
-import { GetUserInfoURL } from '../../API_END_POINTS/AchatModuleEndPoints';
 
 
 export interface IDashboardDemandesRecusWebPartProps {
@@ -32,8 +31,7 @@ export default class DashboardDemandesRecusWebPart extends BaseClientSideWebPart
         environmentMessage: this._environmentMessage,
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
         userDisplayName: this.context.pageContext.user.displayName,
-        url: this.context.pageContext.web.absoluteUrl,
-        GetUserInfoURL:GetUserInfoURL,
+        url: this.context.pageContext.web.absoluteUrl
       }
     );
 

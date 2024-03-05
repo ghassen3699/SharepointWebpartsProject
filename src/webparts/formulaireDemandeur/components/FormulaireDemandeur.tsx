@@ -27,6 +27,12 @@ import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
 import { getCurrentDate } from '../../../tools/FunctionTools';
+import { getUserInfo } from "../../../services/getUserInfo" ;
+import { sendPerchaseRequest } from "../../../services/postPerchaseRequest" ;
+import { getSubFamily } from "../../../services/getProductsSubFamily" ;
+import { getFamily } from "../../../services/getAllProductFamily" ;
+import { getProduct } from "../../../services/getProducts" ;
+
 loadTheme({
   palette: {
   },
@@ -96,6 +102,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       fileData: "" as any,
       fileName: "",
     }],
+
+    familyProducts: [],
+    subFamilyProducts: [],
+    articles: [],
+
 
     FamilleID : "",
     SousFamilleID : "" ,
@@ -390,6 +401,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       text: "DOCUMENTS IMPRIMABLE",
       data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     }]
+    // const familyProducts = this.state.familyProducts
+    // console.log(familyProducts)
     return listFamilleProduit
   }
 
@@ -867,8 +880,10 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   async componentDidMount() {
     // this.fetchDataAndHandle()
-    this.getDataTest() ;
+    // this.getDataTest() ;
     this.loadUserInfo(); 
+    // const familyProducts = await getFamily() ;
+    // this.setState({familyProducts})
   }
   
 

@@ -32,5 +32,5 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx"
-  ]
+, "src/API_END_POINTS/PreprodPassword.js"  ]
 }

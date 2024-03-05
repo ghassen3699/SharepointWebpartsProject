@@ -11,7 +11,6 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import * as strings from 'ApprobateurDashboardWebPartStrings';
 import ApprobateurDashboard from './components/ApprobateurDashboard';
 import { IApprobateurDashboardProps } from './components/IApprobateurDashboardProps';
-import { GetUserInfoURL } from '../../API_END_POINTS/AchatModuleEndPoints';
 
 export interface IApprobateurDashboardWebPartProps {
   description: string;
@@ -33,7 +32,6 @@ export default class ApprobateurDashboardWebPart extends BaseClientSideWebPart<I
         userDisplayName: this.context.pageContext.user.displayName,
         context: this.context,
         url: this.context.pageContext.web.absoluteUrl,
-        GetUserInfoURL:GetUserInfoURL,
       }
     );
 

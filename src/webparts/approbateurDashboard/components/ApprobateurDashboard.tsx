@@ -1154,6 +1154,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
               ]}
               defaultSelectedKey={this.state.FamilleFilter}
               onChanged={(value) => this.setState({FamilleFilter:value.key, currentPage: 1})}
+              style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
           <label className={styles.title}>Status : </label>
@@ -1169,12 +1170,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
               ]}
               defaultSelectedKey={this.state.StatusFilter}
               onChanged={(value) => this.setState({StatusFilter:value.key , currentPage: 1})}
+              style={{ width: '189.84px' }} // Specify the width you desire
             />
           </div>
           <div className={styles.statusWrapper}>
             <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
           </div>
-            <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Mon Remplacant</button>        
+            <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Un Approbateur</button>        
           </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
@@ -1597,7 +1599,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                 <br></br>
                 <tr>
                   <td>
-                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => this.ModifierValidation()}>                          
+                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => console.log('clicked')}>                          
                       Envoyer
                     </button>
                   </td>

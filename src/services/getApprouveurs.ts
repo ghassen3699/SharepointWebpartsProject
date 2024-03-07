@@ -1,17 +1,15 @@
-import { GET_SUB_FAMILY_PREPROD } from "../API_END_POINTS/AchatModuleEndPoints";
+import { EmployeeApprouverURL } from "../API_END_POINTS/AchatModuleEndPoints";
 
 
 // GET all sub product family 
-export async function getSubFamily(idSubFamily) {
+export async function getApprouverList(matUser,idSubFamily, ResponceCenter) {
     try {
-        console.log(typeof(idSubFamily))
-        const response = await fetch(GET_SUB_FAMILY_PREPROD, {
+        const response = await fetch(EmployeeApprouverURL, {
           method: 'POST',
           headers: new Headers({ "Authorization": `Basic ${btoa(`Achat_Mod_24:Achat$$Mod*%24`)}`, 'Content-Type': 'application/json', 'Accept': '*/*' }),
-          body:  JSON.stringify({"IdFamily":idSubFamily})
+          body:  JSON.stringify({"MatUser":matUser,"idSubFamily":idSubFamily, "respCenter":ResponceCenter })
         });
         const data = await response.json();
-        console.log(data)
         return data
     } catch (error) {
         console.log(error);

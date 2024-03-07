@@ -701,7 +701,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                   {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
                      {console.log(produit, index)}
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                        <h4>{produit.ArticleREF}</h4>
+                        <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
                         <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>

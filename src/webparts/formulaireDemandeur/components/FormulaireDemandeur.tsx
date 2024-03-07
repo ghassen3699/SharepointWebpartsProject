@@ -1,5 +1,6 @@
 import * as React from 'react';
 import stylescustom from './FormulaireDemandeur.module.scss';
+import styles from '../../demandeurDashboard/components/DemandeurDashboard.module.scss'; 
 import { IFormulaireDemandeurProps } from './IFormulaireDemandeurProps';
 import { Dropdown, IDropdownOption, IDropdownProps, IDropdownStyles } from 'office-ui-fabric-react/lib/Dropdown';
 import { Icon } from 'office-ui-fabric-react/lib/Icon';
@@ -16,7 +17,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/items";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
-// import { Web } from '@pnp/sp/webs';
+import { ChoiceGroup, IChoiceGroupOption } from '@fluentui/react/lib/ChoiceGroup';
 import { mergeStyleSets } from 'office-ui-fabric-react/lib/Styling';
 import {
   Fabric,
@@ -32,6 +33,7 @@ import { sendPerchaseRequest } from "../../../services/postPerchaseRequest" ;
 import { getSubFamily } from "../../../services/getProductsSubFamily" ;
 import { getFamily } from "../../../services/getAllProductFamily" ;
 import { getProduct } from "../../../services/getProducts" ;
+import { getApprouverList } from "../../../services/getApprouveurs" ;
 
 loadTheme({
   palette: {
@@ -132,7 +134,13 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     errors: { file: "" },
 
     showOnConfirmButtonPopUp : true,
-    spinnerShow: false
+    spinnerShow: false,
+
+    checkRemplacant: false,
+    showAnotePopUp: false,
+    remplacantName: "",
+    remplacantID: 0,
+    demandeAffectation: ""
   };  
   private _graphService = new GraphService(this.props.context);
 
@@ -253,7 +261,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  private handleChangeFamilleDropdown = (event:any, index:any) => {
+  private handleChangeFamilleDropdown = async (event:any, index:any) => {
     console.log(event)
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].FamilleSelected = [event]
@@ -262,16 +270,31 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       FamilleID: event.key,
       SousFamilleID: ""
     });
+    await this.getSubFamilyData(event.key)
   }
 
 
-  private handleChangeSousFamilleDropdown = (event:any, index: any) => {
+  private handleChangeSousFamilleDropdown = async(event:any, index: any) => {
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].SousFamilleSelected = [event]
     this.setState({
       formData: updatedFormData,
       SousFamilleID: event.key
     });
+
+    // const items = await getProduct(event.key, this.state.userEstablishment) ;
+    const items = await getProduct("01001", "HEALTH") ;
+    const listArticles = items.Items.map(item => ({
+      key: item.RefItem, 
+      LatestPurchasePrice: item.LatestPurchasePrice,
+      text: item.DesignationItem, 
+      BudgetAnnualUsed: item.BudgetAnnualUsed,
+      BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
+      BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
+      Axe: item.Axe, 
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } 
+    }));
+    this.setState({articles:listArticles})
   }
 
 
@@ -383,117 +406,143 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   private getFamilleProduit = () => {
-    var listFamilleProduit = [
-    {
-      key: "CARBURANT",
-      text: "CARBURANT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },{
-      key: "CONSOMMABLE LABO/STUDIO",
-      text: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },{
-      key: "CONSTRUCTION ET AMENAGEMENT",
-      text: "CONSTRUCTION ET AMENAGEMENT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },{
-      key: "DOCUMENTS IMPRIMABLE",
-      text: "DOCUMENTS IMPRIMABLE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    // const familyProducts = this.state.familyProducts
-    // console.log(familyProducts)
+    var listFamilleProduit = []
+    if (this.state.familyProducts.length > 0){
+      const familyProducts = this.state.familyProducts[0].Families
+
+      familyProducts.map(famille => {
+        listFamilleProduit.push({
+          key: famille.IdFamily,
+          text: famille.DescFamily,
+          data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+        })
+      })
+    }
+    // var listFamilleProduit = [
+    // {
+    //   key: "CARBURANT",
+    //   text: "CARBURANT",
+    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    // },{
+    //   key: "CONSOMMABLE LABO/STUDIO",
+    //   text: "CONSOMMABLE LABO/STUDIO",
+    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    // },{
+    //   key: "CONSTRUCTION ET AMENAGEMENT",
+    //   text: "CONSTRUCTION ET AMENAGEMENT",
+    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    // },{
+    //   key: "DOCUMENTS IMPRIMABLE",
+    //   text: "DOCUMENTS IMPRIMABLE",
+    //   data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    // }]
     return listFamilleProduit
   }
 
 
-  private getSousFamilleProduit = () => {
-    var listSousFamilleProduit = [{
-      key: "CARBURANT",
-      text: "CARBURANT",
-      FamilleKey: "CARBURANT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "ART & DECORATION",
-      text: "ART & DECORATION",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "AUDIOVISUEL",
-      text: "AUDIOVISUEL",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "BIOLOGIE",
-      text: "BIOLOGIE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "CONSOMMABLES PROTHESE",
-      text: "CONSOMMABLES PROTHESE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "NURSING",
-      text: "NURSING",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "OPTIQUES ET LUNETTERIES",
-      text: "OPTIQUES ET LUNETTERIES",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "TOPOGRAPHIQUE ET GEOLOGIQUE",
-      text: "TOPOGRAPHIQUE ET GEOLOGIQUE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "ELECTROMECANIQUE",
-      text: "ELECTROMECANIQUE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "VERRERIES",
-      text: "VERRERIES",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "PRODUITS CHIMIQUES",
-      text: "PRODUITS CHIMIQUES",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "SOUDURE",
-      text: "SOUDURE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "AGENCEMENT ET AMENAGEMENT",
-      text: "AGENCEMENT ET AMENAGEMENT",
-      FamilleKey: "CONSTRUCTION ET AMENAGEMENT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "DOCUMENTS IMPRIMABLE",
-      text: "DOCUMENTS IMPRIMABLE",
-      FamilleKey: "DOCUMENTS IMPRIMABLE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listSousFamilleProduit
+  private getSubFamilyData = async(FamilleID) => {
+    var sousFamilles = []
+    const sousFamilyData = await getSubFamily(FamilleID.toString()) ;
+    sousFamilyData.SubFamilies.map(sousFamily => {
+      sousFamilles.push({
+        key: sousFamily.IdSubFamily,
+        text: sousFamily.DescSubFamily,
+        FamilleKey: sousFamily.IdFamily,
+        data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+      })
+    })
+    this.setState({subFamilyProducts:sousFamilles})
   }
+
+
+  // private getSousFamilleProduit = () => {
+
+  //   var listSousFamilleProduit = [{
+  //     key: "CARBURANT",
+  //     text: "CARBURANT",
+  //     FamilleKey: "CARBURANT",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "ART & DECORATION",
+  //     text: "ART & DECORATION",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "AUDIOVISUEL",
+  //     text: "AUDIOVISUEL",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "BIOLOGIE",
+  //     text: "BIOLOGIE",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "CONSOMMABLES PROTHESE",
+  //     text: "CONSOMMABLES PROTHESE",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "NURSING",
+  //     text: "NURSING",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "OPTIQUES ET LUNETTERIES",
+  //     text: "OPTIQUES ET LUNETTERIES",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "TOPOGRAPHIQUE ET GEOLOGIQUE",
+  //     text: "TOPOGRAPHIQUE ET GEOLOGIQUE",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "ELECTROMECANIQUE",
+  //     text: "ELECTROMECANIQUE",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "VERRERIES",
+  //     text: "VERRERIES",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "PRODUITS CHIMIQUES",
+  //     text: "PRODUITS CHIMIQUES",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "SOUDURE",
+  //     text: "SOUDURE",
+  //     FamilleKey: "CONSOMMABLE LABO/STUDIO",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "AGENCEMENT ET AMENAGEMENT",
+  //     text: "AGENCEMENT ET AMENAGEMENT",
+  //     FamilleKey: "CONSTRUCTION ET AMENAGEMENT",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   },
+  //   {
+  //     key: "DOCUMENTS IMPRIMABLE",
+  //     text: "DOCUMENTS IMPRIMABLE",
+  //     FamilleKey: "DOCUMENTS IMPRIMABLE",
+  //     data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+  //   }]
+  //   return listSousFamilleProduit
+  // }
 
 
   getArticle = () => {
@@ -570,6 +619,12 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   };
 
 
+  private _onChange = (ev: React.FormEvent<HTMLInputElement>, option: IChoiceGroupOption) => {
+    console.log(option)
+    this.setState({demandeAffectation:option.key})
+  }
+
+
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
     const currentUser = await Web(this.props.url).currentUser.get() ;
@@ -581,15 +636,26 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
       this.setState({spinnerShow : true})
 
+      const listApprouvers = await this.getUserApprouvers(this.state.userRegistrationNumber, this.state.SousFamilleID, this.state.userEstablishment)
+      console.log(listApprouvers)
+
+      
       const data = this.state.formData;
+      console.log('all Data:', data)
       data.map(Article => {
+        console.log("Article", Article)
         prixTotal = prixTotal + parseInt(Article.price);
         ArticleList.push({
           "Prix": Article.price,
           "quantité": Article.quantity,
-          "DescriptionTechnique": Article.Comment,
+          "DescriptionTechnique": Article.ArticleSelected[0].text,
           "ArticleREF": Article.ArticleSelected[0].key,
-          "ArticleFileName": Article.fileName, 
+          "ArticleFileName": Article.fileName,
+          "Axe":  Article.ArticleSelected[0].Axe,
+          "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+          "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+          "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+          "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
           "ArticleFileData": {
             "name": Article.fileData.name,
             "size": Article.fileData.size,
@@ -621,40 +687,82 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             }
           })
         );
+        
         if (getProbateurs[0].ApprobateurV4Id === null){
-          formData = {
-            "DemandeurId":currentUser.Id ,
-            "EcoleId":getProbateurs[0].ID ,
-            "FamilleProduit": data[0].FamilleSelected[0].text,
-            "FamilleProduitREF": data[0].FamilleSelected[0].key,
-            "PrixTotal":prixTotal.toString(),
-            "DelaiLivraisionSouhaite":data[0].numberOfDays,
-            "Prix": "test ...." ,
-            "Quantite": "test ....",
-            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-            "StatusDemande": "En cours de " + UserDisplayNameV1,
-            "StatusDemandeV1":"En cours",
-            "StatusDemandeV4":"***",
-            "Produit": JSON.stringify(ArticleList),
-            "CreerPar": currentUser.Title
+          if (this.state.checkRemplacant){
+            formData = {
+              "DemandeurId":this.state.remplacantID ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "StatusDemandeV4":"***",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": this.state.remplacantName
+            }
+          }else {
+            formData = {
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "StatusDemandeV4":"***",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": currentUser.Title
+            }
           }
+          
         }else {
-          formData = {
-            "DemandeurId":currentUser.Id ,
-            "EcoleId":getProbateurs[0].ID ,
-            "FamilleProduit": data[0].FamilleSelected[0].text,
-            "FamilleProduitREF": data[0].FamilleSelected[0].key,
-            "PrixTotal":prixTotal.toString(),
-            "DelaiLivraisionSouhaite":data[0].numberOfDays,
-            "Prix": "test ...." ,
-            "Quantite": "test ....",
-            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-            "StatusDemande": "En cours de " + UserDisplayNameV1,
-            "StatusDemandeV1":"En cours",
-            "Produit": JSON.stringify(ArticleList),
-            "CreerPar": currentUser.Title
+          if (this.state.checkRemplacant){
+            formData = {
+              "DemandeurId":this.state.remplacantID ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": this.state.remplacantName
+            }
+          }else {
+            formData = {
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "StatusDemandeV4":"***",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": currentUser.Title
+            }
           }
         }
 
@@ -711,39 +819,78 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         const UserDisplayNameV1 = (await Web(this.props.url).siteUsers.getById(getProbateurs[0].ApprobateurV1Id).get()).Title ; 
         var formData
         if (getProbateurs[0].ApprobateurV4Id === null){
-          formData = {
-            "DemandeurId":currentUser.Id ,
-            "EcoleId":getProbateurs[0].ID ,
-            "FamilleProduit": data[0].FamilleSelected[0].text,
-            "FamilleProduitREF": data[0].FamilleSelected[0].key,
-            "PrixTotal":prixTotal.toString(),
-            "DelaiLivraisionSouhaite":data[0].numberOfDays,
-            "Prix": "test ...." ,
-            "Quantite": "test ....",
-            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-            "StatusDemande": "En cours de " + UserDisplayNameV1,
-            "StatusDemandeV1":"En cours",
-            "StatusDemandeV4":"***",
-            "Produit": JSON.stringify(ArticleList),
-            "CreerPar": currentUser.Title
+          if (this.state.checkRemplacant){
+            formData = {
+              "DemandeurId":this.state.remplacantID ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "StatusDemandeV4":"***",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": this.state.remplacantName
+            }
+          }else {
+            formData = {
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "StatusDemandeV4":"***",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": currentUser.Title
+            }
           }
         }else {
-          formData = {
-            "DemandeurId":currentUser.Id ,
-            "EcoleId":getProbateurs[0].ID ,
-            "FamilleProduit": data[0].FamilleSelected[0].text,
-            "FamilleProduitREF": data[0].FamilleSelected[0].key,
-            "PrixTotal":prixTotal.toString(),
-            "DelaiLivraisionSouhaite":data[0].numberOfDays,
-            "Prix": "test ...." ,
-            "Quantite": "test ....",
-            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-            "StatusDemande": "En cours de " + UserDisplayNameV1,
-            "StatusDemandeV1":"En cours",
-            "Produit": JSON.stringify(ArticleList),
-            "CreerPar": currentUser.Title
+          if (this.state.checkRemplacant){
+            formData = {
+              "DemandeurId":this.state.remplacantID ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": this.state.remplacantName
+            }
+          }else {
+            formData = {
+              "DemandeurId":currentUser.Id ,
+              "EcoleId":getProbateurs[0].ID ,
+              "FamilleProduit": data[0].FamilleSelected[0].text,
+              "FamilleProduitREF": data[0].FamilleSelected[0].key,
+              "PrixTotal":prixTotal.toString(),
+              "DelaiLivraisionSouhaite":data[0].numberOfDays,
+              "Prix": "test ...." ,
+              "Quantite": "test ....",
+              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+              "StatusDemande": "En cours de " + UserDisplayNameV1,
+              "StatusDemandeV1":"En cours",
+              "Produit": JSON.stringify(ArticleList),
+              "CreerPar": currentUser.Title
+            }
           }
         }
          
@@ -800,26 +947,26 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  // private fetchDataAndHandle = async () => {
-  //   try {
-  //     const data = await getFamilyProduct();
-  //     console.log('Data:', data);
-  //     // Do something with the data here
-  //   } catch (error) {
-  //     // Handle the error
-  //     console.error('Error in fetchDataAndHandle:', error.message);
-  //   }
-  // };
+  // Check if the current user in list of remplaçant if true get the list of demands of the other demander
+  private checkRemplacantDemandes = async (): Promise<any[]> => {
+    try {
+      const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
+      const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+      const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
+      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}'`)
+      .orderBy('Created', false)
+      .top(1)
+      .select("Demandeur/Title", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
+      .expand("Demandeur")
+      .get();
 
+      console.log(remplacantTest);
+      return remplacantTest;
 
-  private getDataTest = async() => {
-    const vacationRequestsData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-      .top(2000)
-      .orderBy("Created", false)
-      .expand("Ecole")
-      .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
-      .get();    
-    console.log(vacationRequestsData) ;
+    } catch (error) {
+      console.error("Error checking remplacant demandes:", error);
+      return [];
+    }
   }
 
 
@@ -836,32 +983,16 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       });
     }
   }
+
+
+  private getUserApprouvers = async(MatUser, IdSubFamily, respCenter) => {
+    const approuverList = await getApprouverList(MatUser, IdSubFamily, respCenter)
+    console.log(approuverList)
+  }
   
 
 
-  // public async getUserInfoFromERP1(establishment, registrationNumber) {
-  //   try {
-  //     const response = await fetch(GetUserInfoURL, {
-  //       method: 'POST',
-  //       headers: new Headers({ "Authorization": `Basic ${btoa(`INTRANET:UCG2021*++`)}`, 'Content-Type': 'application/json', 'Accept': '*/*' }),
-  //       body: JSON.stringify({ "establishment": establishment, "registrationNumber": registrationNumber }),
-  //     });
-  //     console.log('response', response);
-  //     let erp = await response.json();
-  //     console.log('erp', erp);
-  //     // this.setState({
-  //     //   JobTitle: erp.data.Fonction,
-  //     // });
-  //     console.log('All userData from ERP:',erp.data)
-  //     console.log('USER JOB: ',erp.data.Fonction)
-  //   } catch (error) {
-  //     console.log(error);
-  //   }
-  // }
-
-  
   private loadUserInfo() {
-    // console.log(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
     this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
       .then(user => {
         console.log(user)
@@ -872,18 +1003,32 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           userEstablishment:user["companyName"],
           JobTitle:user["jobTitle"],
         })
-        // console.log('getUserInfoFromERP');
-        // this.getUserInfoFromERP1(user["companyName"], user["employeeId"])
       });
   }
 
 
   async componentDidMount() {
-    // this.fetchDataAndHandle()
-    // this.getDataTest() ;
+
+    // Get user info
     this.loadUserInfo(); 
-    // const familyProducts = await getFamily() ;
-    // this.setState({familyProducts})
+
+    // Check if user have remplacant or not
+    const checkTestRemplacant = await this.checkRemplacantDemandes() ;
+    if (checkTestRemplacant.length > 0){
+      this.setState({checkRemplacant: true, showAnotePopUp: true, remplacantName: checkTestRemplacant[0].Demandeur.Title, remplacantID:checkTestRemplacant[0].DemandeurId})
+    }
+
+    // Get all famille products
+    const listFamilleProduit = [] ;
+    const familyProducts = await getFamily() ;
+    familyProducts.Families.map(famille => {
+      listFamilleProduit.push({
+        key: famille.IdFamily,
+        text: famille.DescFamily,
+        data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+      })
+    })
+    this.setState({familyProducts:listFamilleProduit})
   }
   
 
@@ -940,6 +1085,22 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       <td className={stylescustom.key}>Post</td>
                       <td className={stylescustom.value}>{this.state.JobTitle}</td>
                     </tr>
+                    {this.state.checkRemplacant && <tr>
+                        <td className={stylescustom.key}>Vous êtes le remplaçant de {this.state.remplacantName}, donc pour qui choisir cette demande ?</td>
+                        <td className={stylescustom.value}>
+                          <ChoiceGroup 
+                            defaultSelectedKey="me" 
+                            defaultValue={'Pour Moi'}
+                            options={[
+                              { key: 'me', text: 'Pour Moi'},
+                              { key: this.state.remplacantID.toString(), text: `Pour ${this.state.remplacantName}` },
+                            ]}
+                            onChange={this._onChange} 
+                            required={true} 
+                          />
+                        </td>
+                      </tr>
+                    }
                   </tbody>
                 </table>
               </div>
@@ -960,9 +1121,10 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                         onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
                         onRenderCaretDown={this.onRenderCaretDown}
-                        options={this.getFamilleProduit()}
+                        options={this.state.familyProducts}
                         onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
                         defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                        style={{ width: '200px' }}
                       />
                     )}
                   </div>
@@ -976,10 +1138,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getSousFamilleProduit().filter(option => {
-                        return option.FamilleKey === this.state.FamilleID
-                      })}                      
+                      options={this.state.subFamilyProducts}                      
                       onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
+                      style={{ width: '200px' }}
                     />
                   </div>
 
@@ -994,10 +1155,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getArticle().filter(option => {
-                        return option.sousFamilleKey === this.state.SousFamilleID
-                      })}                       
+                      options={this.state.articles}                       
                       onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
+                      style={{ width: '200px' }} // Specify the width you desire
                     />
                   </div>
 
@@ -1014,6 +1174,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       onRenderCaretDown={this.onRenderCaretDown}
                       options={this.getBeneficaire()}                      
                       onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
+                      style={{ width: '200px' }} // Specify the width you desire
                     />
                   </div>
                 </div>
@@ -1131,6 +1292,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               imageHeight="200"
             /> */}
           </div>
+
+
+
           {this.state.spinnerShow && 
             <div className={stylescustom.modal}>
               <div className={stylescustom.modalContent}>
@@ -1141,6 +1305,25 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             </div>
           }
         </div>
+
+        {this.state.showAnotePopUp && (
+            <div className={styles.demandeurDashboard}>
+              <div className={styles.modal}>
+                <div className={styles.modalContent}>
+                  <span className={styles.close} onClick={() => this.setState({showAnotePopUp:false})}>&times;</span>
+                  <h3>À noter</h3>
+                  <ul>
+                      <li>
+                        Monsieur/Madame, vous avez été ajouté(e) en tant que remplaçant(e) de {this.state.remplacantName}, donc vous avez l'accès pour ajouter des demandes à sa place.
+                        <br></br>
+                        Vous avez également le droit de gérer toutes les anciennes et futures demandes.
+                      </li>
+                  </ul>
+                  <p> =&gt; Vous avez le droit d'effectuer des actions jusqu'à ce que la période de remplacement soit terminée.</p>
+                </div>
+              </div>
+            </div>
+          )}
       </Fabric>
     );
   }

@@ -12,3 +12,6 @@ export const SEND_PURCHASE_PRODUCTS = "https://apiintra-test.universitecentrale.
 
 // GET USER INFO PREPROD ENV (GET Method)
 export const EmployeeInfoURL = "https://apiintra-test.universitecentrale.net:84/ServiceUCG.svc/GetEmployeeinfo/";
+
+// GET USER Approuvers PREPROD ENV (POST Method)
+export const EmployeeApprouverURL = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/UsersPurchaseRequest";

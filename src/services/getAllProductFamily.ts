@@ -8,6 +8,7 @@ export async function getFamily() {
             headers: new Headers({ 'Authorization': `Basic ${btoa(`Achat_Mod_24:Achat$$Mod*%24`)}`, 'Content-Type': 'application/json', 'Accept': '*/*' }),
         });
         const data = await response.json();
+        console.log(data)
         return data;
     } catch (error) {
         console.log(error);

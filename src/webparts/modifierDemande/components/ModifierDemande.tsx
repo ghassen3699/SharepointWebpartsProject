@@ -25,7 +25,14 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
-import { getCurrentDate } from '../../../tools/FunctionTools';
+import { checkIfAxeExists, getApprobateurNiveau, getCurrentDate } from '../../../tools/FunctionTools';
+import { getUserInfo } from "../../../services/getUserInfo" ;
+import { getSubFamily } from "../../../services/getProductsSubFamily" ;
+import { getFamily } from "../../../services/getAllProductFamily" ;
+import { getProduct } from "../../../services/getProducts" ;
+import { getApprouverList } from "../../../services/getApprouveurs" ;
+import { getBenefList } from "../../../services/getListBenefPermissions" ;
+
 loadTheme({
   palette: {
   },
@@ -94,8 +101,16 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       fileName: "",
     }],
 
-    FamilleID: "",
-    SousFamilleID: "",
+    familyProducts: [],
+    subFamilyProducts: [],
+    articles: [],
+    // axePerBuget: [{Axe: "", BudgetAnnualAllocated: "", BudgetAnnualRemaining: "", BudgetAnnualUsed: ""}],
+    axePerBuget: [],
+
+
+    FamilleID : "",
+    SousFamilleID : "" ,
+    ArticleID : "" ,
 
     ID: 0,
     userUPN: "",
@@ -114,6 +129,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     MontantRestant: 0 ,
     counterProducts: 1 ,
     showValidationPopUp:false,
+    DisabledBenef: true,
     errors: { file: "" }
   };  
   private _graphService = new GraphService(this.props.context);
@@ -123,180 +139,28 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
   // private dropdownOptionsRefArticles: { key: string, text: string, data: any }[] = [];
   // private dropdownOptionsBeneficiaire: { key: string, text: string, data: any }[] = [];
 
-  private getFamilleProduit = () => {
-    var listFamilleProduit = [
-    {
-      key: "CARBURANT",
-      text: "CARBURANT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },{
-      key: "CONSOMMABLE LABO/STUDIO",
-      text: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },{
-      key: "CONSTRUCTION ET AMENAGEMENT",
-      text: "CONSTRUCTION ET AMENAGEMENT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },{
-      key: "DOCUMENTS IMPRIMABLE",
-      text: "DOCUMENTS IMPRIMABLE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listFamilleProduit
-  }
 
-  private getSousFamilleProduit = () => {
-    var listSousFamilleProduit = [{
-      key: "CARBURANT",
-      text: "CARBURANT",
-      FamilleKey: "CARBURANT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "ART & DECORATION",
-      text: "ART & DECORATION",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "AUDIOVISUEL",
-      text: "AUDIOVISUEL",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "BIOLOGIE",
-      text: "BIOLOGIE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "CONSOMMABLES PROTHESE",
-      text: "CONSOMMABLES PROTHESE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "NURSING",
-      text: "NURSING",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "OPTIQUES ET LUNETTERIES",
-      text: "OPTIQUES ET LUNETTERIES",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "TOPOGRAPHIQUE ET GEOLOGIQUE",
-      text: "TOPOGRAPHIQUE ET GEOLOGIQUE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "ELECTROMECANIQUE",
-      text: "ELECTROMECANIQUE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "VERRERIES",
-      text: "VERRERIES",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "PRODUITS CHIMIQUES",
-      text: "PRODUITS CHIMIQUES",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "SOUDURE",
-      text: "SOUDURE",
-      FamilleKey: "CONSOMMABLE LABO/STUDIO",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "AGENCEMENT ET AMENAGEMENT",
-      text: "AGENCEMENT ET AMENAGEMENT",
-      FamilleKey: "CONSTRUCTION ET AMENAGEMENT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "DOCUMENTS IMPRIMABLE",
-      text: "DOCUMENTS IMPRIMABLE",
-      FamilleKey: "DOCUMENTS IMPRIMABLE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listSousFamilleProduit
+
+  private getUserApprouvers = async(IdSubFamily, respCenter) => {
+    const approuverList = await getApprouverList(IdSubFamily, respCenter)
+    return approuverList
   }
 
 
-  getArticle = () => {
-    var listProduit = [
-      { key: "CHAUSSETTE_BASKET", text: "CHAUSSETTE BASKET", sousFamilleKey: "CARBURANT", Axe: "Fuel", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "BALLON", text: "BALLON", sousFamilleKey: "CARBURANT", Axe: "Fuel", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "LOCATION_TERRAIN", text: "LOCATION TERRAIN", sousFamilleKey: "CARBURANT", Axe: "Fuel", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "TENUE", text: "TENUE", sousFamilleKey: "ART & DECORATION", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "GASOIL", text: "GASOIL", sousFamilleKey: "AUDIOVISUEL", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "SERVICE_GASOIL", text: "SERVICE GASOIL", sousFamilleKey: "BIOLOGIE", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CARTE_PAYAGE", text: "CARTE PAYAGE", sousFamilleKey: "BIOLOGIE", Axe: "Lab furniture", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMMABLE_ART", text: "CONSOMMABLE ART", sousFamilleKey: "CONSOMMABLES PROTHESE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMABLES_AUDIOVISUEL", text: "CONSOMABLES AUDIOVISUEL", sousFamilleKey: "NURSING", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "PRODUITS_CHIMIQUE", text: "PRODUITS CHIMIQUE", sousFamilleKey: "OPTIQUES ET LUNETTERIES", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMMABLES_BCP", text: "CONSOMMABLES BCP", sousFamilleKey: "TOPOGRAPHIQUE ET GEOLOGIQUE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMMABLE_PROTHESE", text: "CONSOMMABLE PROTHESE", sousFamilleKey: "ELECTROMECANIQUE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMMABLE_NURSING", text: "CONSOMMABLE NURSING", sousFamilleKey: "VERRERIES", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "Consomables_OPTIQUES_ET_LUNETTERIES", text: "Consomables OPTIQUES ET LUNETTERIES", sousFamilleKey: "PRODUITS CHIMIQUES", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMABLES_TOPOGRAPHIQUE_ET_GEOLOGIQUE", text: "CONSOMABLES TOPOGRAPHIQUE ET GEOLOGIQUE", sousFamilleKey: "SOUDURE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMMABLE_ELECTROMECANIQUE", text: "CONSOMMABLE ELECTROMECANIQUE", sousFamilleKey: "SOUDURE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMABLES_VERRERIES", text: "CONSOMABLES VERRERIES", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CONSOMMABLES_PRODUITS_CHIMIQUES", text: "CONSOMMABLES PRODUITS CHIMIQUES", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "Consomable_SOUDURE", text: "Consomable SOUDURE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "Consomables_PHYSIOTHERAPIE", text: "Consomables PHYSIOTHERAPIE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "Consomables_Climatisation", text: "Consomables Climatisation", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: {icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "FOURNITURE_ET_POSE", text: "FOURNITURE ET POSE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "REAMENAGEMENT", text: "REAMENAGEMENT", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "PEINTURE_GENERALE", text: "PEINTURE GENERALE", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CLIMATISATION", text: "CLIMATISATION", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "ENSEIGNES", text: "ENSEIGNES", sousFamilleKey: "AGENCEMENT ET AMENAGEMENT", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "ETUDES", text: "ETUDES", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "AMENAGEMENT", text: "AMENAGEMENT", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "RIDEAUX", text: "RIDEAUX", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "CLIMATISEURS", text: "CLIMATISEURS", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "TRAVAUX_AMENAGEMENT_ET_INSTALLATION_ELECTRICITE", text: "TRAVAUX AMENAGEMENT ET INSTALLATION ELECTRICITE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "REGLEMENT_INTERIEUR", text: "REGLEMENT INTERIEUR", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "FORMULAIRE_DINSCRIPTION", text: "FORMULAIRE D'INSCRIPTION", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "JOURNAL_DE_STAGE", text: "JOURNAL DE STAGE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "RAPPORT_DE_STAGE", text: "RAPPORT DE STAGE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "FEUILLE_DE_EXAMEN", text: "FEUILLE D'EXAMEN", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "PAPIER_EN_TETE", text: "PAPIER EN TETE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "IMPRIME_DE_DIPLOME", text: "IMPRIME DE DIPLÔME", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "ATTESTATION", text: "ATTESTATION", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "BLOC_NOTE", text: "BLOC NOTE", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-      { key: "ETIQUETTES", text: "ETIQUETTES", sousFamilleKey: "DOCUMENTS IMPRIMABLE", Axe: "", data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } },
-    ];
-    return listProduit;
-  };
-
-
-  private getBeneficaire = () => {
-    var listBenef = [{
-      key: "BenefID1",
-      text: "BenefID1 1",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    },
-    {
-      key: "BenefID2",
-      text: "BenefID2 2",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
-    }]
-    return listBenef
+  private loadUserInfo() {
+    console.log(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
+    this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
+      .then(user => {
+        console.log(user)
+        this.setState({
+          userName:user["displayName"],
+          userEmail:user["mail"],
+          userRegistrationNumber:user["employeeId"],
+          userEstablishment:user["companyName"],
+          JobTitle:user["jobTitle"],
+        })
+      });
   }
-
-  
 
   public initDisableCommentsWrapper() {
     let CommentsWrapper = document.getElementById('CommentsWrapper');
@@ -395,33 +259,111 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
   }
 
 
-  private handleChangeFamilleDropdown = (event:any, index:any) => {
+  private handleChangeFamilleDropdown = async (event:any, index:any) => {
+    console.log(event)
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].FamilleSelected = [event]
+    console.log(updatedFormData)
+    updatedFormData[index-1].FamilleSelected = [event] ;
+    updatedFormData[index-1].ArticleSelected = [] ;
+
     this.setState({
       formData: updatedFormData,
       FamilleID: event.key,
-      SousFamilleID: ""
+      SousFamilleID: "",
+      ArticleID: "",
+      articles: [],
+      // axePerBuget: []
+      // updatedFormData[index - 1]["ArticleSelected"][0].key : ""
     });
+    await this.getSubFamilyData(event.key)
   }
 
 
-  private handleChangeSousFamilleDropdown = (event:any, index: any) => {
+  private handleChangeSousFamilleDropdown = async(event:any, index: any) => {
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].SousFamilleSelected = [event]
+    updatedFormData[index-1].ArticleSelected = [] ;
+
+    console.log(index)
     this.setState({
       formData: updatedFormData,
-      SousFamilleID: event.key
+      SousFamilleID: event.key,
+      ArticleID: "",
+      articles: [],
+      // axePerBuget: this.state.axePerBuget.slice(index, 1)
     });
+
+    // const items = await getProduct(event.key, this.state.userEstablishment) ;
+    const items = await getProduct("01001", "HEALTH") ;
+    const listArticles = items.Items.map(item => ({
+      key: item.RefItem, 
+      LatestPurchasePrice: item.LatestPurchasePrice,
+      text: item.DesignationItem, 
+      BudgetAnnualUsed: item.BudgetAnnualUsed,
+      BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
+      BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
+      Axe: item.Axe, 
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } 
+    }));
+    this.setState({articles:listArticles})
   }
 
 
-  private handleChangeArticleDropdown = (event:any, index: any) => {
+
+  private handleChangeArticleDropdown = (event: any, index: any) => {
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].ArticleSelected = [event]
-    this.setState({
-      formData: updatedFormData
+    updatedFormData[index - 1].ArticleSelected = [event];
+  
+    // if (this.state.axePerBuget.some(obj => obj.Axe === x))
+    var newAxeList = []
+    updatedFormData.forEach(article => {
+      if (!this.state.axePerBuget.some(obj => obj.Axe === article.ArticleSelected[0].Axe)) {
+        newAxeList.push({
+          "Axe": article.ArticleSelected[0].Axe,
+          "BudgetAnnualAllocated": article.ArticleSelected[0].BudgetAnnualAllocated,
+          "BudgetAnnualRemaining": article.ArticleSelected[0].BudgetAnnualRemaining,
+          "BudgetAnnualUsed": article.ArticleSelected[0].BudgetAnnualUsed,
+        });
+      }else {
+        newAxeList = this.state.axePerBuget
+      }
     });
+  
+    this.setState({
+      formData: updatedFormData,
+      axePerBuget: newAxeList
+    });
+
+    
+
+    // if (this.state.axePerBuget.length === 0 ){
+    //   const listAxes = [{
+    //     Axe: event.Axe,
+    //     BudgetAnnualAllocated: event.BudgetAnnualAllocated,
+    //     BudgetAnnualRemaining: event.BudgetAnnualRemaining,
+    //     BudgetAnnualUsed: event.BudgetAnnualUsed
+    //   }]
+    //   this.setState({
+    //     axePerBuget:listAxes,
+    //   })
+    // }else {
+    //   console.log(index)
+
+    //   if (checkIfAxeExists(this.state.axePerBuget,event.Axe) === false) {
+    //     const newAxeObject = {
+    //       Axe: event.Axe,
+    //       BudgetAnnualAllocated: event.BudgetAnnualAllocated,
+    //       BudgetAnnualRemaining: event.BudgetAnnualRemaining,
+    //       BudgetAnnualUsed: event.BudgetAnnualUsed
+    //     }
+    //     // console.log('axe',this.state.axePerBuget)
+    //     const updatedAxePerBudget = [...this.state.axePerBuget]
+    //     updatedAxePerBudget.push(newAxeObject)
+    //     this.setState({
+    //       axePerBuget: updatedAxePerBudget
+    //     })
+    //   }
+    // }
   }
 
 
@@ -520,6 +462,114 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     }
   };
 
+
+  private getSubFamilyData = async(FamilleID) => {
+    var sousFamilles = []
+    const sousFamilyData = await getSubFamily(FamilleID.toString()) ;
+    sousFamilyData.SubFamilies.map(sousFamily => {
+      sousFamilles.push({
+        key: sousFamily.IdSubFamily,
+        text: sousFamily.DescSubFamily,
+        FamilleKey: sousFamily.IdFamily,
+        data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+      })
+    })
+    this.setState({subFamilyProducts:sousFamilles})
+  }
+
+
+  private getBeneficaire = () => {
+    var listBenef = [{
+      key: "COM",
+      text: "COM",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "AAC_TUNIS",
+      text: "AAC TUNIS",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "IMSET_TUNIS",
+      text: "IMSET TUNIS",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "SIEGE",
+      text: "SIEGE",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "AAC_NABEUL",
+      text: "AAC NABEUL",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "POLYTECH",
+      text: "POLYTECH",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "CLC",
+      text: "CLC",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "HEALTH",
+      text: "HEALTH",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "DG",
+      text: "DG",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "EXECUTIVE",
+      text: "EXECUTIVE",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "IT",
+      text: "IT",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "DSP",
+      text: "DSP",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "IMSET_NABEUL",
+      text: "IMSET NABEUL",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "IMSET GABES",
+      text: "IMSET GABES",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "IMSET SOUSSE",
+      text: "IMSET SOUSSE",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "IMSET_SFAX",
+      text: "IMSET SFAX",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },
+    {
+      key: "CC",
+      text: "CC",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    },{
+      key: "MSC",
+      text: "MSC",
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+    }]
+    return listBenef
+  }
 
 
   private submitFormData = async () => {
@@ -962,22 +1012,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
   // }
 
   
-  private loadUserInfo() {
-    // console.log(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
-    this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
-      .then(user => {
-        console.log(user)
-        this.setState({
-          userName:user["displayName"],
-          userEmail:user["mail"],
-          userRegistrationNumber:user["employeeId"],
-          userEstablishment:user["companyName"],
-          JobTitle:user["jobTitle"],
-        })
-        // console.log('getUserInfoFromERP');
-        // this.getUserInfoFromERP1(user["companyName"], user["employeeId"])
-      });
-  }
+
 
   private getPrevDemandeInfo = async(demanedID) => {
     const data = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demanedID).get() ;
@@ -1010,7 +1045,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
         updatedFormData[index-1].FamilleSelected = [{"key":demandeData.FamilleProduitREF}]
         updatedFormData[index-1].SousFamilleSelected = [{"key":demandeData.SousFamilleProduitREF}]
         updatedFormData[index-1].ArticleSelected = [{"key":produit.ArticleREF}]
-        // updatedFormData[index-1].BeneficiareSelected = demandeData
+        updatedFormData[index-1].BeneficiareSelected = [{"key":demandeData.BeneficiaireID}]
         updatedFormData[index-1].Comment = produit.DescriptionTechnique
         updatedFormData[index-1].quantity = produit.quantité
         updatedFormData[index-1].price = produit.Prix
@@ -1080,10 +1115,37 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
 
   async componentDidMount() {
-    // this.fetchDataAndHandle()
-    // this.getDataTest() ;
     this.loadUserInfo() ;
     await this.getCurrentDemandeInfo() ;
+
+
+    // Get all famille products
+    const listFamilleProduit = [] ;
+    const familyProducts = await getFamily() ;
+    familyProducts.Families.map(famille => {
+      listFamilleProduit.push({
+        key: famille.IdFamily,
+        text: famille.DescFamily,
+        data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+      })
+    })
+    this.setState({familyProducts:listFamilleProduit})
+    await this.getSubFamilyData(this.state.FamilleID)
+
+    
+    // const items = await getProduct(event.key, this.state.userEstablishment) ;
+    const items = await getProduct("01001", "HEALTH") ;
+    const listArticles = items.Items.map(item => ({
+      key: item.RefItem, 
+      LatestPurchasePrice: item.LatestPurchasePrice,
+      text: item.DesignationItem, 
+      BudgetAnnualUsed: item.BudgetAnnualUsed,
+      BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
+      BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
+      Axe: item.Axe, 
+      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } 
+    }));
+    this.setState({articles:listArticles})
   }
 
   public render(): React.ReactElement<IModifierDemandeProps> {
@@ -1142,29 +1204,30 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Famille</p>
                     <Dropdown
+                      style={{ width: '200px' }} // Specify the width you desire
                       defaultValue={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
                       styles={dropdownStyles}
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getFamilleProduit()}
+                      options={this.state.familyProducts}
                       onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
                       defaultSelectedKey={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
                     />
                   </div>
 
+                  {console.log(this.state.formData[index - 1]["BeneficiareSelected"])}
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Sous famille</p>
                     <Dropdown
+                      style={{ width: '200px' }} // Specify the width you desire
                       defaultSelectedKey={this.state.formData[index - 1]['SousFamilleSelected'] && this.state.formData[index - 1]['SousFamilleSelected'][0] ? this.state.formData[index - 1]['SousFamilleSelected'][0].key : ""}
                       styles={dropdownStyles}
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getSousFamilleProduit().filter(option => {
-                        return option.FamilleKey === this.state.FamilleID
-                      })}                     
-                      onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
+                      options={this.state.subFamilyProducts} 
+                      onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}                                         
                     />
                   </div>
 
@@ -1173,15 +1236,15 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Réference de l'article</p>
                     <Dropdown
+                      style={{ width: '200px' }} // Specify the width you desire
                       styles={dropdownStyles}
+                      defaultValue={this.state.formData[index - 1]?.ArticleSelected?.[0]?.key || ""}
                       defaultSelectedKey={this.state.formData[index - 1]["ArticleSelected"] && this.state.formData[index - 1]["ArticleSelected"][0] ? this.state.formData[index - 1]["ArticleSelected"][0].key : ""}
                       onChange={this.onSelectionChanged}
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getArticle().filter(option => {
-                        return option.sousFamilleKey === this.state.SousFamilleID
-                      })}                      
+                      options={this.state.articles}                                             
                       onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
                     />
                   </div>
@@ -1191,13 +1254,14 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Bénificaire / Déstinataire</p>
                     <Dropdown
+                      style={{ width: '200px' }} // Specify the width you desire
                       styles={dropdownStyles}
                       defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
                       onChange={this.onSelectionChanged}
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getBeneficaire()}                      
+                      options={this.getBeneficaire()}                 
                       onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
                     />
                   </div>
@@ -1272,10 +1336,25 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                 <th className={stylescustom.title} >Autres détails</th>
               </thead>
               <tbody className={stylescustom.tbody}>
-                <tr>
-                  <td className={stylescustom.key}>Le montant du budget </td>
-                  <td className={stylescustom.value}></td>
-                </tr>
+                {console.log(this.state.formData)}
+                {this.state.axePerBuget.map((article, index) =>
+                  article &&
+                  <>
+                    {console.log("Axe data:",this.state.axePerBuget)}
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel alloué</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualAllocated}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel restant</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualRemaining}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel utilisé</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualUsed}</td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
 

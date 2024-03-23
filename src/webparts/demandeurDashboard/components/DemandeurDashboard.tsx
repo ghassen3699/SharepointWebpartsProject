@@ -12,6 +12,9 @@ import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import { convertDateFormat, getCurrentDate } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from '@pnp/spfx-controls-react/lib/PeoplePicker';
+import SweetAlert2 from 'react-sweetalert2';
+var img = require('../../../image/UCT_image.png');
+
 
 export default class DemandeurDashboard extends React.Component<IDemandeurDashboardProps, {}> {
   public state = {
@@ -66,7 +69,8 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     replacedBy: [] as any,
     replacedByUserName: "",
     checkActionCurrentUser: true,
-    showAnotePopUp: false  
+    showAnotePopUp: false,
+    showValidationPopUpRemplaçant: false
   }; 
 
   // private showContent = (e) => {
@@ -139,7 +143,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
       const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
       const now: string = new Date().toISOString(); // Format the current date to ISO 8601
       const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}'`)
+      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
       .orderBy('Created', false)
       .top(1)
       .get();
@@ -156,9 +160,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
   private checkUserActions = async() => {
     const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
-    const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+    const now: string = new Date().toISOString(); 
     const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}'`)
+    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
     .orderBy('Created', false)
     .top(1)
     .get();
@@ -317,7 +321,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     const currentUser = (await Web(this.props.url).currentUser.get()).Id ;
     const remplacant = this.state.replacedBy[0].ID ;
     const startDate = this.state.startDate ;
-    const  endDate = this.state.endDate ;
+    const endDate = this.state.endDate ;
 
 
     // Save data in Remplacant Module Achat list
@@ -325,10 +329,11 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
       "DemandeurId": currentUser ,
       "RemplacantId": remplacant,
       "DateDeDebut": startDate,
-      "DateDeFin": endDate
+      "DateDeFin": endDate,
+      "TypeRemplacement": "D"
     });
 
-    this.setState({RemplacantPoUp: false})  
+    this.setState({RemplacantPoUp: false, showValidationPopUpRemplaçant: true})  
   }
   
 
@@ -713,7 +718,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
                 </tr>
                 <tr>
                   <td >Prix estimatifs Total :</td>
@@ -889,6 +894,18 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
             </div>
           </div>
         }
+
+        <SweetAlert2
+          allowOutsideClick={false}
+          show={this.state.showValidationPopUpRemplaçant} 
+          title="Ajouter un remplaçant" 
+          text="Votre demande d'ajouter un remplaçant est enregistrer avec succés"
+          imageUrl={img}
+          confirmButtonColor='#7D2935'
+          onConfirm={() => window.location.reload()}
+          imageWidth="150"
+          imageHeight="150"
+        />
 
       </div>
     );

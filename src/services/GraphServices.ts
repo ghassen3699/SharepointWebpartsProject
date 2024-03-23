@@ -37,24 +37,18 @@ export default class GraphService {
         });
     }
 
-    public getUserId(userUPN: string): Promise<string> {
-        return new Promise<string>((resolve, reject) => {
-            this.context.msGraphClientFactory
-                .getClient("3") // Init Microsoft Graph Client
-                .then((client: MSGraphClientV3): Promise<IPresence> => {
-                    return client
-                        .api(`users/${userUPN}`) //Get Presence method
-                        .version("beta") // Beta version
-                        //.select("id") // Select only ID attribute
-                        .get((err, res) => {
-                            if (err) {
-                                reject(err);
-                                return;
-                            }
-                            // Resolve presence object
-                            resolve(res);
-                        });
-                });
-        });
+    public async getUserId(userUPN: string): Promise<string> {
+        try {
+          const client = await this.context.msGraphClientFactory.getClient("3");
+          const res = await client
+            .api(`users/${userUPN}`)
+            .version("beta")
+            .get();
+            
+          // Assuming 'res' is a string containing presence data
+          return res;
+        } catch (error) {
+          throw error; // Re-throw the error
+        }
     }
 }

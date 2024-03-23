@@ -1,5 +1,6 @@
 import * as React from 'react';
 import styles from './ApprobateurDashboard.module.scss';
+import styles2 from '../../demandeurDashboard/components/DemandeurDashboard.module.scss';
 import { IApprobateurDashboardProps } from './IApprobateurDashboardProps';
 import { DatePicker, Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
@@ -12,7 +13,8 @@ import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import { convertDateFormat, getCurrentDate } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
-
+import SweetAlert2 from 'react-sweetalert2';
+var img = require('../../../image/UCT_image.png');
 
 export default class ApprobateurDashboard extends React.Component<IApprobateurDashboardProps, {}> {
 
@@ -71,6 +73,14 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     endDate: null,
     replacedBy: [] as any,
     replacedByUserName: "",
+
+    remplacantName: "",
+    checkRemplacant: false,
+    showAnotePopUp: false,
+
+    checkActionCurrentUser: true,
+    checkActionCurrentUserPopUp: false,
+    showValidationPopUpRemplaçant: false
   }; 
 
 
@@ -235,10 +245,10 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     const DemandeIDs = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
       .filter(`
           ( 
-              (ApprobateurV1/Id eq ${currentUserID} and (StatusApprobateurV1 eq 'En cours' or StatusApprobateurV1 eq 'Approuver' or StatusApprobateurV1 eq 'Rejeter' or StatusApprobateurV1 eq 'A modifier')) or 
-              (ApprobateurV2/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuver' or StatusApprobateurV2 eq 'Rejeter' or StatusApprobateurV2 eq 'A modifier')) or 
-              (ApprobateurV3/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuver' or StatusApprobateurV3 eq 'Rejeter' or StatusApprobateurV3 eq 'A modifier')) or
-              (ApprobateurV4/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuver' or StatusApprobateurV4 eq 'Rejeter' or StatusApprobateurV4 eq 'A modifier'))
+            (ApprobateurV1/Id eq ${currentUserID} and (StatusApprobateurV1 eq 'En cours' or StatusApprobateurV1 eq 'Approuver' or StatusApprobateurV1 eq 'Rejeter' or StatusApprobateurV1 eq 'A modifier')) or 
+            (ApprobateurV2/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuver' or StatusApprobateurV2 eq 'Rejeter' or StatusApprobateurV2 eq 'A modifier')) or 
+            (ApprobateurV3/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuver' or StatusApprobateurV3 eq 'Rejeter' or StatusApprobateurV3 eq 'A modifier')) or
+            (ApprobateurV4/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuver' or StatusApprobateurV4 eq 'Rejeter' or StatusApprobateurV4 eq 'A modifier'))
           )
       `)
       .top(2000)
@@ -1103,9 +1113,142 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   }
 
 
+  private checkUserActions = async() => {
+    const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
+    const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+    const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
+    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
+    .orderBy('Created', false)
+    .top(1)
+    .get();
+
+    if (remplacantTest.length > 0) {
+      this.setState({checkActionCurrentUser : false, checkActionCurrentUserPopUp: true});
+    }
+  }
+
+
+  // Check if the current user in list of remplaçant if true get the list of demands of the other demander
+  private checkRemplacantDemandes = async (): Promise<any[]> => {
+    try {
+      const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
+      const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+      const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
+      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
+      .orderBy('Created', false)
+      .top(1)
+      .select("Demandeur/Title", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
+      .expand("Demandeur")
+      .get();
+
+      console.log(remplacantTest);
+      return remplacantTest;
+
+    } catch (error) {
+      console.error("Error checking remplacant demandes:", error);
+      return [];
+    }
+  }
+
+
+  private ajouterAutreApprobateur = async() => {
+    const currentUser = (await Web(this.props.url).currentUser.get()).Id ;
+    const remplacant = this.state.replacedBy[0].ID ;
+    const startDate = this.state.startDate ;
+    const endDate = this.state.endDate ;
+
+
+    // Save data in Remplacant Module Achat list
+    const data = await Web(this.props.url).lists.getByTitle("RemplacantsModuleAchat").items.add({
+      "DemandeurId": currentUser ,
+      "RemplacantId": remplacant,
+      "DateDeDebut": startDate,
+      "DateDeFin": endDate,
+      "TypeRemplacement": "AP"
+    });
+
+    const fieldName = `ApprobateurV${this.state.currentApprobateurOrder}Id`;
+
+    // Fetch items based on the current approver order
+    const demandes = await Web(this.props.url).lists.getByTitle('WorkflowApprobation').items.filter(`${fieldName} eq ${currentUser}`).get();
+
+    console.log(demandes);
+    if (demandes.length > 0) {
+      // Niveau 1
+      if (demandes[0].ApprobateurV1Id[0] === currentUser) {
+        for (const demande of demandes) {
+          try {
+            await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(demande.ID).update({
+              ApprobateurV1Id: {
+                results: [demande.ApprobateurV1Id[0], remplacant]
+              }
+            });
+            console.log(`Updated item with ID ${demande.ID}`);
+          } catch (error) {
+            console.error(`Error updating item with ID ${demande.ID}:`, error);
+          }
+        }
+        // Niveau 2
+      } else if (demandes[0].ApprobateurV2Id[0] === currentUser) {
+        for (const demande of demandes) {
+          try {
+            await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(demande.ID).update({
+              ApprobateurV2Id: {
+                results: [demande.ApprobateurV2Id[0], remplacant]
+              }
+            });
+            console.log(`Updated item with ID ${demande.ID}`);
+          } catch (error) {
+            console.error(`Error updating item with ID ${demande.ID}:`, error);
+          }
+        }
+        // Niveau 3
+      }else if (demandes[0].ApprobateurV3Id[0] === currentUser) {
+        for (const demande of demandes) {
+          try {
+            await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(demande.ID).update({
+              ApprobateurV3Id: {
+                results: [demande.ApprobateurV3Id[0], remplacant]
+              }
+            });
+            console.log(`Updated item with ID ${demande.ID}`);
+          } catch (error) {
+            console.error(`Error updating item with ID ${demande.ID}:`, error);
+          }
+        }
+      }else if (demandes[0].ApprobateurV4Id[0] === currentUser) {
+        for (const demande of demandes) {
+          try {
+            await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(demande.ID).update({
+              ApprobateurV4Id: {
+                results: [demande.ApprobateurV4Id[0], remplacant]
+              }
+            });
+            console.log(`Updated item with ID ${demande.ID}`);
+          } catch (error) {
+            console.error(`Error updating item with ID ${demande.ID}:`, error);
+          }
+        }
+      }
+    }
+    
+    this.setState({RemplacantPoUp: false, showValidationPopUpRemplaçant: true})  
+  }
+
+
 
   async componentDidMount() {
-    this.getApprobateurOrder()
+
+    // Check the permissions of current user
+    this.checkUserActions() ;
+    // Check if user have remplacant or not
+    const checkTestRemplacant = await this.checkRemplacantDemandes() ;
+    if (checkTestRemplacant.length > 0){
+      this.setState({checkRemplacant: true, showAnotePopUp: true, remplacantName: checkTestRemplacant[0].Demandeur.Title, remplacantID:checkTestRemplacant[0].DemandeurId})
+    }
+
+    
+    this.getApprobateurOrder() ;
     this.getAllDemandeListData() ;
     this.getDemandeListData() ;
     setTimeout(() => {
@@ -1219,7 +1362,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                       {demande.StatusDemandeV1.includes("Rejeter") && (
                         <>
                           <div className={styles.cercleRouge}></div>
-                          &nbsp;{demande.StatusDemandeV1} par vous
+                          &nbsp;{demande.StatusDemandeV1}
                         </>
                       )}
                       {demande.StatusDemandeV1.includes("Annuler") && (
@@ -1231,13 +1374,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                       {demande.StatusDemandeV1.includes("A modifier") && (
                         <>
                           <div className={styles.cercleVert}></div>
-                          &nbsp;{demande.StatusDemandeV1} par vous
+                          &nbsp;{demande.StatusDemandeV1}
                         </>
                       )}
                       {demande.StatusDemandeV1.includes("Approuver") && (
                         <>
                           <div className={styles.cercleYellow}></div>
-                          &nbsp;{demande.StatusDemandeV1} par vous
+                          &nbsp;{demande.StatusDemandeV1}
                         </>
                       )}
                     </>
@@ -1254,7 +1397,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     {demande.StatusDemandeV2.includes("Rejeter") && (
                       <>
                         <div className={styles.cercleRouge}></div>
-                        &nbsp;{demande.StatusDemandeV2} par vous
+                        &nbsp;{demande.StatusDemandeV2}
                       </>
                     )}
                     {demande.StatusDemandeV2.includes("Annuler") && (
@@ -1266,13 +1409,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     {demande.StatusDemandeV2.includes("A modifier") && (
                       <>
                         <div className={styles.cercleVert}></div>
-                        &nbsp;{demande.StatusDemandeV2} par vous
+                        &nbsp;{demande.StatusDemandeV2}
                       </>
                     )}
                     {demande.StatusDemandeV2.includes("Approuver") && (
                       <>
                         <div className={styles.cercleYellow}></div>
-                        &nbsp;{demande.StatusDemandeV2} par vous
+                        &nbsp;{demande.StatusDemandeV2}
                       </>
                     )}
                   </>
@@ -1282,13 +1425,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     {demande.StatusDemandeV3.includes("En cours") && (
                       <>
                         <div className={styles.cercleBleu}></div>
-                        &nbsp;{demande.StatusDemandeV3} de votre action
+                        &nbsp;{demande.StatusDemandeV3}
                       </>
                     )}
                     {demande.StatusDemandeV3.includes("Rejeter") && (
                       <>
                         <div className={styles.cercleRouge}></div>
-                        &nbsp;{demande.StatusDemandeV3} par vous
+                        &nbsp;{demande.StatusDemandeV3}
                       </>
                     )}
                     {demande.StatusDemandeV3.includes("Annuler") && (
@@ -1300,13 +1443,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     {demande.StatusDemandeV3.includes("A modifier") && (
                       <>
                         <div className={styles.cercleVert}></div>
-                        &nbsp;{demande.StatusDemandeV3} par vous
+                        &nbsp;{demande.StatusDemandeV3}
                       </>
                     )}
                     {demande.StatusDemandeV3.includes("Approuver") && (
                       <>
                         <div className={styles.cercleYellow}></div>
-                        &nbsp;{demande.StatusDemandeV3} par vous
+                        &nbsp;{demande.StatusDemandeV3}
                       </>
                     )}
                   </>
@@ -1316,13 +1459,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     {demande.StatusDemandeV4.includes("En cours") && (
                       <>
                         <div className={styles.cercleBleu}></div>
-                        &nbsp;{demande.StatusDemandeV4} de votre action
+                        &nbsp;{demande.StatusDemandeV4}
                       </>
                     )}
                     {demande.StatusDemandeV4.includes("Rejeter") && (
                       <>
                         <div className={styles.cercleRouge}></div>
-                        &nbsp;{demande.StatusDemandeV4} par vous
+                        &nbsp;{demande.StatusDemandeV4}
                       </>
                     )}
                     {demande.StatusDemandeV4.includes("Annuler") && (
@@ -1334,13 +1477,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     {demande.StatusDemandeV4.includes("A modifier") && (
                       <>
                         <div className={styles.cercleVert}></div>
-                        &nbsp;{demande.StatusDemandeV4} par vous
+                        &nbsp;{demande.StatusDemandeV4}
                       </>
                     )}
                     {demande.StatusDemandeV4.includes("Approuver") && (
                       <>
                         <div className={styles.cercleYellow}></div>
-                        &nbsp;{demande.StatusDemandeV4} par vous
+                        &nbsp;{demande.StatusDemandeV4}
                       </>
                     )}
                   </>
@@ -1453,7 +1596,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
                      {console.log(produit, index)}
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                        <h4>{produit.ArticleREF}</h4>
+                        <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
                         <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
@@ -1465,7 +1608,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
                 </tr>
                 <tr>
                   <td >Prix estimatifs Total :</td>
@@ -1487,6 +1630,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                 </tr>
                 <tr>
                   <td >Status actuel :</td>
+                  {console.log("Status :",this.state.detailsListDemande.StatusDemande)}
                   { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Approuver")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
@@ -1514,12 +1658,12 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   )}
                 </tr>
                 <br></br>
-                {this.state.listDemandeDataForCurrentUser.includes(this.state.detailsListDemande.ID) && (
+                {this.state.checkActionCurrentUser && this.state.listDemandeDataForCurrentUser.includes(this.state.detailsListDemande.ID) && (
                   <>
                     <tr>
-                      <td >Commentaire</td>
+                      <td>Commentaire</td>
                       <td className={styles.value}>
-                      <TextField 
+                        <TextField 
                           className={controlClass.TextField} 
                           value={this.state.commentAction}
                           multiline 
@@ -1530,15 +1674,15 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     <tr>
                       <td>Approbation</td>
                       <td className={styles.value}>
-                        <button style={{ backgroundColor: "green"}}className={styles.btnRef} onClick={() => this.ApprouveValidation()}>                          
+                        <button style={{ backgroundColor: "green"}} className={styles.btnRef} onClick={() => this.ApprouveValidation()}>                          
                           Approuver
                         </button>
                         &nbsp;
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "red" : "gray" }}className={styles.btnRef} onClick={() => this.RejectValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
+                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "red" : "gray" }} className={styles.btnRef} onClick={() => this.RejectValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
                           Rejeter
                         </button>
                         &nbsp;
-                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "blue" : "gray" }}className={styles.btnRef} onClick={() => this.ModifierValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
+                        <button style={{ backgroundColor: this.state.commentAction.length > 0 ? "blue" : "gray" }} className={styles.btnRef} onClick={() => this.ModifierValidation()} disabled={this.state.commentAction.length > 0 ? false : true}>                          
                           Demande de modification
                         </button>
                       </td>
@@ -1599,7 +1743,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                 <br></br>
                 <tr>
                   <td>
-                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => console.log('clicked')}>                          
+                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => this.ajouterAutreApprobateur()}>                          
                       Envoyer
                     </button>
                   </td>
@@ -1644,6 +1788,57 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             </span>
           </div>
         }
+
+        
+        
+        {this.state.showAnotePopUp && (
+          <div className={styles2.demandeurDashboard}>
+            <div className={styles2.modal}>
+              <div className={styles2.modalContent}>
+                <span className={styles2.close} onClick={() => this.setState({showAnotePopUp:false})}>&times;</span>
+                <h3>À noter</h3>
+                <ul>
+                    <li>
+                      Monsieur/Madame, vous avez été ajouté(e) en tant que remplaçant(e) de {this.state.remplacantName}, donc vous avez l'accès pour ajouter des demandes à sa place.
+                      <br></br>
+                      Vous avez également le droit de gérer toutes les anciennes et futures demandes.
+                    </li>
+                </ul>
+                <p> =&gt; Vous avez le droit d'effectuer des actions jusqu'à ce que la période de remplacement soit terminée.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {this.state.checkActionCurrentUserPopUp && (
+          <div className={styles2.demandeurDashboard}>
+            <div className={styles2.modal}>
+              <div className={styles2.modalContent}>
+                <span className={styles2.close} onClick={() => this.setState({checkActionCurrentUserPopUp:false})}>&times;</span>
+                <h3>À noter</h3>
+                <ul>
+                    <li>
+                      Monsieur/Madame, vous n'avez pas de faire des actions sur des demandes d'achat car vous avez déja un remplaçant
+                    </li>
+                </ul>
+                <p> =&gt; Vous avez le droit d'effectuer des actions quand la période de remplacement est terminée.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <SweetAlert2
+          allowOutsideClick={false}
+          show={this.state.showValidationPopUpRemplaçant} 
+          title="Ajouter un remplaçant d'approbation" 
+          text="Votre demande d'ajouter un remplaçant d'approbation est enregistrer avec succés"
+          imageUrl={img}
+          confirmButtonColor='#7D2935'
+          onConfirm={() => window.location.reload()}
+          imageWidth="150"
+          imageHeight="150"
+        />
       </div>
     );
   }

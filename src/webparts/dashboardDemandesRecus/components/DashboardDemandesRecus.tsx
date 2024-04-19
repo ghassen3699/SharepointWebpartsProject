@@ -62,7 +62,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     disableButtonUpdateDate: true,
     showSpinner: true,
     isOpen: false,
-    currentAccordion: 0
+    currentAccordion: 0,
+    filenames: [],
   };
 
 
@@ -100,7 +101,6 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     var DemandeID = this.state.detailsListDemande.ID
     // Save historique block
     const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
-
     if (historyData.length > 0) {
       var resultArray = JSON.parse(historyData[0].Actions);
       const date = this.state.DateAction.getDate().toString() + "/" + (this.state.DateAction.getMonth() + 1).toString() + "/" + this.state.DateAction.getFullYear().toString();
@@ -108,6 +108,11 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
       resultArray.push("L'equipe finance a modifier la date souhaitée de la demande pour le " + date);
       const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
         Actions: JSON.stringify(resultArray)
+      });
+
+      const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
+      const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+        DateSouhaiteEquipeFinance: date
       });
 
       window.location.reload()
@@ -136,9 +141,9 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         .orderBy("Created", false)
         .expand("Ecole")
         .filter(`
-          ((StatusDemandeV1 eq 'Approuver') and (StatusDemandeV2 eq 'Approuver') and (StatusDemandeV3 eq 'Approuver') and ((StatusDemandeV4 eq 'Approuver') or (StatusDemandeV4 eq '***')))
+          ((StatusDemandeV1 eq 'Approuvée') and (StatusDemandeV2 eq 'Approuvée') and (StatusDemandeV4 eq 'Approuvée') and ((StatusDemandeV3 eq 'Approuvée') or (StatusDemandeV3 eq '***')))
         `)
-        .select("Attachments", "Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar")
+        .select("Attachments", "Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar", "ReferenceDemande","CentreDeGestion")
         .get();
       this.setState({ listDemandeData });
     } catch (error) {
@@ -207,6 +212,40 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   }
 
 
+  private downloadAttachmentFile = async (itemID: number, index) => {
+    if (itemID > 0) {
+      try {
+        const itemData = await Web(this.props.url)
+          .lists.getByTitle("DemandeAchat")
+          .items.getById(itemID)
+          .select("AttachmentFiles")
+          .expand("AttachmentFiles")
+          .get();
+  
+        const attachmentFiles = itemData.AttachmentFiles;
+  
+        if (attachmentFiles.length > 0) {
+          const attachmentUrl = attachmentFiles[index].ServerRelativeUrl;
+          const currentURL = this.props.url;
+          const tenantUrl = currentURL.split("/sites/")[0];
+  
+          const absoluteUrl = `${tenantUrl}${attachmentUrl}`;
+  
+          // Create a hidden link to trigger the download
+          const downloadLink = document.createElement("a");
+          downloadLink.href = absoluteUrl;
+          downloadLink.download = attachmentFiles[index].FileName; // Use the original file name
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+      } catch (error) {
+        console.log("Error downloading attachment file:", error);
+      }
+    }
+  };
+
+
   async componentDidMount() {
     this.getAllDemandeListData();
 
@@ -271,9 +310,9 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
               placeholder="Selectionner votre status"
               options={[
                 { key: 'En cours', text: 'En cours' },
-                { key: 'Rejeter', text: 'Rejeter' },
+                { key: 'Rejetée', text: 'Rejetée' },
                 { key: 'A modifier', text: 'A modifier' },
-                { key: 'Approuver', text: 'Approuver' },
+                { key: 'Approuvée', text: 'Approuvée' },
               ]}
               defaultSelectedKey={this.state.StatusFilter}
               style={{ width: '189.84px' }} // Specify the width you desire
@@ -289,7 +328,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         {(listDemandeData.length > 0 && !this.state.showSpinner) &&
           <div id="spListContainer">
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
-              <tr><th className={styles.textCenter}>#</th> <th>Demandeur</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
+              <tr><th className={styles.textCenter}>#</th><th>Référence de la demande</th><th>Demandeur</th><th>Centre de gestion</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
               {currentItems.map((demande: any) =>
                 <tr>
                   <td>
@@ -308,12 +347,14 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                       </g>
                     </svg>}
                   </td>
+                  <td>{demande.ReferenceDemande}</td>
                   <td>{demande.CreerPar}</td>
+                  <td>{demande.CentreDeGestion}</td>
                   <td>{convertDateFormat(demande.Created)}</td>
                   <td className={styles.statut}>
                     <>
                       <div className={styles.cercleYellow}></div>
-                      &nbsp;Approuver
+                      &nbsp;Approuvée
                     </>
                   </td>
                   <td>
@@ -424,35 +465,43 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                     {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
                       {console.log(produit, index)}
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                        <h4>{produit.ArticleREF}</h4>
+                      <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
-                        <p className={styles.value}>Prix: {produit.Prix}</p>
-                        <p className={styles.value}>Quantité: {produit.quantité}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
+                        <p className={styles.value}><b> Description Technique: </b>{produit.DescriptionTechnique}</p>
+                        <p className={styles.value}><b> Prix: {produit.Prix} </b></p>
+                        <p className={styles.value}><b> Quantité: {produit.quantité} </b></p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
                   </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
                 </tr>
-                <tr>
+                {/* <tr>
                   <td >Prix estimatifs Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
                 <tr>
                   <td >Délais de livraison souhaité :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr>
+                </tr> */}
                 <tr>
                   <td >Piéce jointe :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value} > 
+                    {this.state.filenames.map((file, index) => (
+                        <span key={file} style={{ cursor: 'pointer', color:"black" }} onClick={()=>this.downloadAttachmentFile(this.state.detailsListDemande.ID, index)}>
+                          - {file}
+                        </span>
+                      ))}                  
+                  </td>
                 </tr>
                 <tr>
                   <td >Status De la demande :</td>
-                  {<td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; Approuver</td>}
+                  {<td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; Approuvée</td>}
                 </tr>
                 <tr>
                   <td>Historique de la demande :</td>
@@ -497,7 +546,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                       onClick={() => this.updateDateSouhaite()}
                       disabled={this.state.disableButtonUpdateDate}
                     >
-                      Modifier la demande
+                      Valider la modification
                     </button>
                   </td>
                 </tr>

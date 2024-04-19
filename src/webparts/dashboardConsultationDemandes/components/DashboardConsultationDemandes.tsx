@@ -166,7 +166,8 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
           "StatusDemandeV1",
           "StatusDemandeV2",
           "StatusDemandeV3",
-          "StatusDemandeV4"
+          "StatusDemandeV4",
+          "CentreDeGestion"
         )
         .get();
         console.log(listDemandeData)
@@ -319,9 +320,9 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
               placeholder="Selectionner votre status"
               options={[
                 { key: 'En cours', text: 'En cours' },
-                { key: 'Rejeter', text: 'Rejeter' },
+                { key: 'Rejetée', text: 'Rejetée' },
                 { key: 'A modifier', text: 'A modifier' },
-                { key: 'Approuver', text: 'Approuver' },
+                { key: 'Approuvée', text: 'Approuvée' },
               ]}
               defaultSelectedKey={this.state.StatusFilter}
               style={{ width: '189.84px' }} // Specify the width you desire
@@ -342,10 +343,10 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
               <th>Demandeur</th>
               <th>Centre de gestion</th>
               <th>Date de la Demande</th>
-              <th>Status V1</th>
-              <th>Status V2</th>
-              <th>Status V3</th>
-              <th>Status V4</th>
+              <th>Approbateur 1</th>
+              <th>Approbateur 2</th>
+              <th>Approbateur 3</th>
+              <th>Approbateur 4</th>
               <th>Détail</th>
             </tr>
             {currentItems.map((demande:any) =>
@@ -365,9 +366,9 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                       </g>
                     </g>
                   </svg>}
-                </td>                
+                </td>     
                 <td>{demande.CreerPar}</td>
-                <td>Centre de gestion</td>
+                <td>{demande.CentreDeGestion}</td>
                 <td>{convertDateFormat(demande.Created)}</td>
                 <td className={styles.statut}>
                   {(demande.StatusDemandeV1 !== null) ? (
@@ -378,7 +379,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV1}
                         </>
                       )}
-                      {demande.StatusDemandeV1.includes("Rejeter") && (
+                      {demande.StatusDemandeV1.includes("Rejetée") && (
                         <>
                           <div className={styles.cercleRouge}></div>
                           &nbsp;{demande.StatusDemandeV1}
@@ -396,7 +397,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV1}
                         </>
                       )}
-                      {demande.StatusDemandeV1.includes("Approuver") && (
+                      {demande.StatusDemandeV1.includes("Approuvée") && (
                         <>
                           <div className={styles.cercleYellow}></div>
                           &nbsp;{demande.StatusDemandeV1}
@@ -415,7 +416,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV2}
                         </>
                       )}
-                      {demande.StatusDemandeV2.includes("Rejeter") && (
+                      {demande.StatusDemandeV2.includes("Rejetée") && (
                         <>
                           <div className={styles.cercleRouge}></div>
                           &nbsp;{demande.StatusDemandeV2}
@@ -433,7 +434,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV2}
                         </>
                       )}
-                      {demande.StatusDemandeV2.includes("Approuver") && (
+                      {demande.StatusDemandeV2.includes("Approuvée") && (
                         <>
                           <div className={styles.cercleYellow}></div>
                           &nbsp;{demande.StatusDemandeV2}
@@ -441,10 +442,10 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                       )}
                     </>
                   ):"---"}
-                </td>
+                </td>   
 
                 <td className={styles.statut}>
-                  {(demande.StatusDemandeV3 !== null) ? (
+                  {((demande.StatusDemandeV3 !== null) && (demande.StatusDemandeV3 !== '***')) ? (
                     <>
                       {demande.StatusDemandeV3.includes("En cours") && (
                         <>
@@ -452,7 +453,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV3}
                         </>
                       )}
-                      {demande.StatusDemandeV3.includes("Rejeter") && (
+                      {demande.StatusDemandeV3.includes("Rejetée") && (
                         <>
                           <div className={styles.cercleRouge}></div>
                           &nbsp;{demande.StatusDemandeV3}
@@ -470,18 +471,17 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV3}
                         </>
                       )}
-                      {demande.StatusDemandeV3.includes("Approuver") && (
+                      {demande.StatusDemandeV3.includes("Approuvée") && (
                         <>
                           <div className={styles.cercleYellow}></div>
                           &nbsp;{demande.StatusDemandeV3}
                         </>
                       )}
                     </>
-                  ): "---"}
-                </td>    
-
+                  ): "***"}
+                </td> 
                 <td className={styles.statut}>
-                  {((demande.StatusDemandeV4 !== null) && (demande.StatusDemandeV4 !== '***')) ? (
+                  {(demande.StatusDemandeV4 !== null) ? (
                     <>
                       {demande.StatusDemandeV4.includes("En cours") && (
                         <>
@@ -489,7 +489,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV4}
                         </>
                       )}
-                      {demande.StatusDemandeV4.includes("Rejeter") && (
+                      {demande.StatusDemandeV4.includes("Rejetée") && (
                         <>
                           <div className={styles.cercleRouge}></div>
                           &nbsp;{demande.StatusDemandeV4}
@@ -507,14 +507,14 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                           &nbsp;{demande.StatusDemandeV4}
                         </>
                       )}
-                      {demande.StatusDemandeV4.includes("Approuver") && (
+                      {demande.StatusDemandeV4.includes("Approuvée") && (
                         <>
                           <div className={styles.cercleYellow}></div>
                           &nbsp;{demande.StatusDemandeV4}
                         </>
                       )}
                     </>
-                  ): "***"}
+                  ): "---"}
                 </td> 
 
                 <td>
@@ -620,33 +620,39 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                   <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
                 </tr>
                 <tr>
+                  <td >Centre de Gestion :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.CentreDeGestion}</td>
+                </tr>
+                <tr>
                   <td >Article :</td>
                   <td className={styles.value}>
                   {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
                      {console.log(produit, index)}
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                        <h4>{produit.ArticleREF}</h4>
+                        <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
-                        <p className={styles.value}>Prix: {produit.Prix}</p>
-                        <p className={styles.value}>Quantité: {produit.quantité}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
+                        <p className={styles.value}><b>Description Technique: </b>{produit.DescriptionTechnique}</p>
+                        <p className={styles.value}><b>Prix: </b>{produit.Prix}</p>
+                        <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
                   </td>
                 </tr>
                 <tr>
                   <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>data</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
                 </tr>
-                <tr>
+                {/* <tr>
                   <td >Prix estimatifs Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
                 <tr>
                   <td >Délais de livraison souhaité :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr>
+                </tr> */}
                 <tr>
                   <td >Piéce jointe :</td>
                   <td className={styles.value} > 
@@ -660,9 +666,9 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                 <tr>
                   <td >Status actuel :</td>
                   { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Approuver")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Approuvée")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Rejeter")) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Rejetée")) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("A modifier" )) && <td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                 </tr>
                 <tr>

@@ -13,6 +13,7 @@ import "@pnp/sp/site-users/web";
 import { convertDateFormat, getCurrentDate } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from '@pnp/spfx-controls-react/lib/PeoplePicker';
 import SweetAlert2 from 'react-sweetalert2';
+import { getFamily } from '../../../services/getAllProductFamily';
 var img = require('../../../image/UCT_image.png');
 
 
@@ -181,13 +182,13 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     if (checkRemplacant.length > 0) {
       const demandeurId = checkRemplacant[0].DemandeurId;
       listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-      .filter(`AuthorId eq ${currentUserID} or AuthorId eq ${demandeurId}`)
+      .filter(`DemandeurId eq ${currentUserID} or DemandeurId eq ${demandeurId}`)
       .orderBy('Created', false)
       .top(1000)
       .get();
     } else {
       listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-      .filter(`AuthorId eq ${currentUserID}`)
+      .filter(`DemandeurId eq ${currentUserID}`)
       .orderBy('Created', false)
       .top(1000)
       .get();
@@ -335,6 +336,11 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
     this.setState({RemplacantPoUp: false, showValidationPopUpRemplaçant: true})  
   }
+
+
+  private getAllFamilleDemande = async() => {
+    const familyProducts = await getFamily() ;
+  }
   
 
   async componentDidMount() {
@@ -344,6 +350,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     setTimeout(() => {
       this.setState({ showSpinner: false});
     }, 4000);
+
+
+
   }
 
 
@@ -382,8 +391,33 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               styles={dropdownStyles}
               placeholder="Selectionner votre famille"
               options={[
-                { key: 'test', text: 'test' },
-                { key: 'test 2', text: 'test 2' },
+                { key: 'MATERIEL INFORMATIQUE', text: 'MATERIEL INFORMATIQUE' },
+                { key: 'SOFTWARE', text: 'SOFTWARE' },
+                { key: 'CONSOMATION LABO/STUDIO', text: 'CONSOMATION LABO/STUDIO' },
+                { key: 'QUIAINCAILLERIE', text: 'QUIAINCAILLERIE' },
+                { key: 'PRODUIT DE NETTOYAGE', text: 'PRODUIT DE NETTOYAGE' },
+                { key: 'PUBLICITE', text: 'PUBLICITE' },
+                { key: 'RESTAURATION / PATISSERIE', text: 'RESTAURATION / PATISSERIE' },
+                { key: 'SEJOUR ET BILLETERIE', text: 'SEJOUR ET BILLETERIE' },
+                { key: 'ENTRETIEN & REPARATION', text: 'ENTRETIEN & REPARATION' },
+                { key: 'MATERIEL PEDAGOGIQUE  DE FORMATION', text: 'MATERIEL PEDAGOGIQUE  DE FORMATION' },
+                { key: 'FOURNITURE DE BUREAU', text: 'FOURNITURE DE BUREAU' },
+                { key: 'DOCUMENTS IMPRIMABLE', text: 'DOCUMENTS IMPRIMABLE' },
+                { key: 'MEUBLES ET MOBILIERS SCOLAIRES', text: 'MEUBLES ET MOBILIERS SCOLAIRES' },
+                { key: 'ETUDE, CONSULTING ,ASSISTANCE ET FORMATION', text: 'ETUDE, CONSULTING ,ASSISTANCE ET FORMATION' },
+                { key: 'ARTICLES DE SPORT', text: 'ARTICLES DE SPORT' },
+                { key: 'MATERIEL DE TRANSPORT', text: 'MATERIEL DE TRANSPORT' },
+                { key: 'CONSTRUCTION ET AMENAGEMENT', text: 'CONSTRUCTION ET AMENAGEMENT' },
+                { key: 'ACHATS DIVERS', text: 'ACHATS DIVERS' },
+                { key: 'HONORAIRES ET INTERMEDIATIONS', text: 'HONORAIRES ET INTERMEDIATIONS' },
+                { key: 'ASSURANCES', text: 'ASSURANCES' },
+                { key: 'MATERIEL DE SECURITE', text: 'MATERIEL DE SECURITE' },
+                { key: 'GARDIENNAGE', text: 'GARDIENNAGE' },
+                { key: 'NETTOYAGE', text: 'NETTOYAGE' },
+                { key: 'CARBURANT', text: 'CARBURANT' },
+                { key: 'SERVICE', text: 'SERVICE' },
+                { key: 'Achat stocké', text: 'Achat stocké' },
+                { key: 'Articles de vacation', text: 'Articles de vacation' },
               ]}
               defaultSelectedKey={this.state.FamilleFilter}
               onChanged={(value) => this.setState({FamilleFilter:value.key, currentPage: 1})}
@@ -397,9 +431,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               placeholder="Selectionner votre status"
               options={[
                 { key: 'En cours', text: 'En cours' },
-                { key: 'Rejeter', text: 'Rejeter' },
+                { key: 'Rejetée', text: 'Rejetée' },
                 { key: 'A modifier', text: 'A modifier' },
-                { key: 'Approuver', text: 'Approuver' },
+                { key: 'Approuvée', text: 'Approuvée' },
               ]}
               defaultSelectedKey={this.state.StatusFilter}
               onChanged={(value) => this.setState({StatusFilter:value.key , currentPage: 1})}
@@ -411,7 +445,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
             &nbsp;
             <button className={styles.btnRef} onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/FormulaireDemandeAchat.aspx")}>Creer une demande</button>
           </div>
-          <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Un Demandeur</button>        
+          {this.state.checkActionCurrentUser && <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Un Demandeur</button> }
         </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
@@ -449,7 +483,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                       &nbsp;{demande.StatusDemande}
                     </>
                   )}
-                  { (demande.StatusDemande.includes("Rejeter")) && (
+                  { (demande.StatusDemande.includes("Rejetée")) && (
                     <>
                       <div className={styles.cercleRouge}></div>
                       &nbsp;{demande.StatusDemande}
@@ -467,7 +501,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                       &nbsp;{demande.StatusDemande}
                     </>
                   )}
-                  { (demande.StatusDemande.includes("Approuver")) && (
+                  { (demande.StatusDemande.includes("Approuvée")) && (
                     <>
                       <div className={styles.cercleYellow}></div>
                       &nbsp;{demande.StatusDemande}
@@ -529,7 +563,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                           )}
                         </>
                       )}
-                      {(demande.StatusDemande.includes("Rejeter")) && (
+                      {(demande.StatusDemande.includes("Rejetée")) && (
                         <>
                         <span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -563,7 +597,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                         </span>
                       </>
                       )}
-                      {(demande.StatusDemande.includes("Approuver")) && (
+                      {(demande.StatusDemande.includes("Approuvée")) && (
                         <>
                         <span>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -696,10 +730,10 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                   <td >Famille :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
-                <tr>
+                {/* <tr>
                   <td >Sous famille :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
-                </tr>
+                </tr> */}
                 <tr>
                   <td >Article :</td>
                   <td className={styles.value}>
@@ -709,9 +743,11 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}>Description Technique: {produit.DescriptionTechnique}</p>
-                        <p className={styles.value}>Prix: {produit.Prix}</p>
-                        <p className={styles.value}>Quantité: {produit.quantité}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
+                        <p className={styles.value}><b>Description Technique:</b> {produit.DescriptionTechnique}</p>
+                        <p className={styles.value}><b>Prix: </b>{produit.Prix}</p>
+                        <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
                   </td>
@@ -720,14 +756,14 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                   <td >Bénéficiaire / Destination :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
                 </tr>
-                <tr>
+                {/* <tr>
                   <td >Prix estimatifs Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
-                </tr>
-                <tr>
+                </tr> */}
+                {/* <tr>
                   <td >Délais de livraison souhaité :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr>
+                </tr> */}
                 <tr>
                   <td >Piéce jointe :</td>
                   <td className={styles.value} > 
@@ -741,9 +777,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                 <tr>
                   <td >Status actuel :</td>
                   { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Approuver")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Approuvée")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
-                  { (this.state.detailsListDemande.StatusDemande.includes("Rejeter")) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
+                  { (this.state.detailsListDemande.StatusDemande.includes("Rejetée")) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("A modifier" )) && <td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                 </tr>
                 <tr>

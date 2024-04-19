@@ -51,4 +51,26 @@ export default class GraphService {
           throw error; // Re-throw the error
         }
     }
+
+    public async getUserEmailByDisplayName(displayName: string): Promise<string> {
+        try {
+            const client = await this.context.msGraphClientFactory.getClient("3");
+            
+            // Filter query to search for the user by display name
+            const res = await client
+                .api('/users')
+                .filter(`displayName eq '${displayName}'`)
+                .version('beta')
+                .get();
+            
+            // Assuming 'res' contains the user details
+            if (res && res.value && res.value.length > 0) {
+                return res.value[0].mail; // Assuming 'mail' is the property containing the user's email address
+            } else {
+                throw new Error('User not found');
+            }
+        } catch (error) {
+            throw error; // Re-throw the error
+        }
+    }
 }

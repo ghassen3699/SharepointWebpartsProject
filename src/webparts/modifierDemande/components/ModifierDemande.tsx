@@ -106,6 +106,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     articles: [],
     // axePerBuget: [{Axe: "", BudgetAnnualAllocated: "", BudgetAnnualRemaining: "", BudgetAnnualUsed: ""}],
     axePerBuget: [],
+    CentreDeGestion: "",
 
 
     FamilleID : "",
@@ -302,8 +303,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       BudgetAnnualUsed: item.BudgetAnnualUsed,
       BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
       BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
-      Axe: item.Axe, 
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } 
+      Axe: item.Axe,  
     }));
     this.setState({articles:listArticles})
   }
@@ -418,7 +418,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       formData.FamilleSelected.length === 0 ||
       formData.SousFamilleSelected.length === 0 ||
       formData.ArticleSelected.length === 0 ||
-      formData.BeneficiareSelected.length === 0 ||
       formData.quantity.length === 0 ||
       formData.price.length === 0 ||
       formData.Comment.length === 0 || 
@@ -471,7 +470,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
         key: sousFamily.IdSubFamily,
         text: sousFamily.DescSubFamily,
         FamilleKey: sousFamily.IdFamily,
-        data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+
       })
     })
     this.setState({subFamilyProducts:sousFamilles})
@@ -482,91 +481,73 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     var listBenef = [{
       key: "COM",
       text: "COM",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "AAC_TUNIS",
       text: "AAC TUNIS",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "IMSET_TUNIS",
       text: "IMSET TUNIS",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "SIEGE",
       text: "SIEGE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "AAC_NABEUL",
       text: "AAC NABEUL",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "POLYTECH",
       text: "POLYTECH",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "CLC",
       text: "CLC",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "HEALTH",
       text: "HEALTH",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "DG",
       text: "DG",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "EXECUTIVE",
       text: "EXECUTIVE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "IT",
       text: "IT",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "DSP",
       text: "DSP",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "IMSET_NABEUL",
       text: "IMSET NABEUL",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "IMSET GABES",
       text: "IMSET GABES",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "IMSET SOUSSE",
       text: "IMSET SOUSSE",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "IMSET_SFAX",
       text: "IMSET SFAX",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },
     {
       key: "CC",
       text: "CC",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     },{
       key: "MSC",
       text: "MSC",
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
     }]
     return listBenef
   }
@@ -622,7 +603,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
         var formData: {
           DemandeurId: number;
-          EcoleId: number;
           FamilleProduit: any;
           PrixTotal: string;
           DelaiLivraisionSouhaite: number;
@@ -644,9 +624,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             console.log(1);
             var UserDisplayNameV1 = "";
 
-            if (getProbateurs[0].ApprobateurV1Id.length > 1){
+            if (Demande[0].ApprobateurV1Id.length > 1){
               await Promise.all(
-                getProbateurs[0].ApprobateurV1Id.map(async (approbateur) => {
+                Demande[0].ApprobateurV1Id.map(async (approbateur) => {
                   try {
                     const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
                     const UserDisplayNameV1Title = user.Title;
@@ -668,7 +648,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
             formData = {
               "DemandeurId":currentUser.Id ,
-              "EcoleId":getProbateurs[0].ID ,
               "FamilleProduit": data[0].FamilleSelected[0].text,
               "PrixTotal":prixTotal.toString(),
               "DelaiLivraisionSouhaite":data[0].numberOfDays,
@@ -724,9 +703,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             console.log(2);
             var UserDisplayNameV2 = "";
 
-            if (getProbateurs[0].ApprobateurV2Id.length > 1){
+            if (Demande[0].ApprobateurV2Id.length > 1){
               await Promise.all(
-                getProbateurs[0].ApprobateurV2Id.map(async (approbateur) => {
+                Demande[0].ApprobateurV2Id.map(async (approbateur) => {
                   try {
                     const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
                     const UserDisplayNameV2Title = user.Title;
@@ -748,7 +727,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
             formData = {
               "DemandeurId":currentUser.Id ,
-              "EcoleId":getProbateurs[0].ID ,
               "FamilleProduit": data[0].FamilleSelected[0].text,
               "PrixTotal":prixTotal.toString(),
               "DelaiLivraisionSouhaite":data[0].numberOfDays,
@@ -799,9 +777,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             console.log(3);
             var UserDisplayNameV3 = "";
 
-            if (getProbateurs[0].ApprobateurV3Id.length > 1){
+            if (Demande[0].ApprobateurV3Id.length > 1){
               await Promise.all(
-                getProbateurs[0].ApprobateurV3Id.map(async (approbateur) => {
+                Demande[0].ApprobateurV3Id.map(async (approbateur) => {
                   try {
                     const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
                     const UserDisplayNameV3Title = user.Title;
@@ -822,7 +800,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             }
             formData = {
               "DemandeurId":currentUser.Id ,
-              "EcoleId":getProbateurs[0].ID ,
               "FamilleProduit": data[0].FamilleSelected[0].text,
               "PrixTotal":prixTotal.toString(),
               "DelaiLivraisionSouhaite":data[0].numberOfDays,
@@ -873,13 +850,12 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   StatusApprobateurV3: "En cours",
                   Notif: "Y"
               });
-        }else if (Demande[0].StatusApprobateurV4 === "A modifier") {
+        } else if (Demande[0].StatusApprobateurV4 === "A modifier") {
           console.log(3);
           var UserDisplayNameV4 = "";
-
-          if (getProbateurs[0].ApprobateurV4Id.length > 1){
+          if (Demande[0].ApprobateurV4Id.length > 1){
             await Promise.all(
-              getProbateurs[0].ApprobateurV4Id.map(async (approbateur) => {
+              Demande[0].ApprobateurV4Id.map(async (approbateur) => {
                 try {
                   const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
                   const UserDisplayNameV4Title = user.Title;
@@ -900,15 +876,14 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
           }
           formData = {
             "DemandeurId":currentUser.Id ,
-            "EcoleId":getProbateurs[0].ID ,
             "FamilleProduit": data[0].FamilleSelected[0].text,
             "PrixTotal":prixTotal.toString(),
             "DelaiLivraisionSouhaite":data[0].numberOfDays,
             "Prix": "test ...." ,
             "Quantite": "test ....",
             "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-            StatusDemande: "En cours de " + UserDisplayNameV4,
-            StatusDemandeV4: "En cours",
+            "StatusDemande": "En cours de " + UserDisplayNameV4,
+            "StatusDemandeV4": "En cours",
             "Produit": JSON.stringify(ArticleList),
           };
           const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
@@ -956,31 +931,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       this.setState({ showValidationPopUp: true });
     }
   };
-
-
-
-  // private fetchDataAndHandle = async () => {
-  //   try {
-  //     const data = await getFamilyProduct();
-  //     console.log('Data:', data);
-  //     // Do something with the data here
-  //   } catch (error) {
-  //     // Handle the error
-  //     console.error('Error in fetchDataAndHandle:', error.message);
-  //   }
-  // };
-
-
-  // private getDataTest = async() => {
-  //   const vacationRequestsData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-  //     .top(2000)
-  //     .orderBy("Created", false)
-  //     .expand("Ecole")
-  //     .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
-  //     .get();    
-  //   console.log(vacationRequestsData) ;
-  // }
-
 
   private handleInputChange = (event:any, index: any) => {
     const updatedFormData = [...this.state.formData];
@@ -1061,6 +1011,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
           formData: updatedFormData,
           FamilleID: updatedFormData[0].FamilleSelected[0].key,
           SousFamilleID : updatedFormData[0].SousFamilleSelected[0].key,
+          CentreDeGestion: demandeData.CentreDeGestion
         });
       }else {
         var nullObject
@@ -1126,7 +1077,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       listFamilleProduit.push({
         key: famille.IdFamily,
         text: famille.DescFamily,
-        data: { icon: 'CircleShapeSolid', colorName: "#ff0000" }
+
       })
     })
     this.setState({familyProducts:listFamilleProduit})
@@ -1134,7 +1085,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
     
     // const items = await getProduct(event.key, this.state.userEstablishment) ;
-    const items = await getProduct("01001", "HEALTH") ;
+    const items = await getProduct(this.state.SousFamilleID, this.state.CentreDeGestion) ;
     const listArticles = items.Items.map(item => ({
       key: item.RefItem, 
       LatestPurchasePrice: item.LatestPurchasePrice,
@@ -1142,8 +1093,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       BudgetAnnualUsed: item.BudgetAnnualUsed,
       BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
       BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
-      Axe: item.Axe, 
-      data: { icon: 'CircleShapeSolid', colorName: "#ff0000" } 
+      Axe: item.Axe,  
     }));
     this.setState({articles:listArticles})
   }
@@ -1216,7 +1166,6 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                     />
                   </div>
 
-                  {console.log(this.state.formData[index - 1]["BeneficiareSelected"])}
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Sous famille</p>
                     <Dropdown
@@ -1232,7 +1181,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   </div>
 
 
-
+                  {/* {console.log(this.state.formData[index - 1].ArticleSelected[0]['key'])} */}
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Réference de l'article</p>
                     <Dropdown
@@ -1282,6 +1231,8 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Prix estimatifs :</p>
                     <TextField 
+                      type='number'
+                      min={0}
                       className={controlClass.TextField} 
                       onChange={(e) => this.handleChangePrice(e, index)}
                       value={this.state.formData[index - 1]["price"]} 
@@ -1292,6 +1243,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
                     <TextField 
+                      min={0}
                       type='number'
                       value={String(this.state.formData[index - 1]["numberOfDays"])} 
                       onChange={(e) => this.handleInputChange(e, index)}
@@ -1318,7 +1270,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
 
                 <div className={stylescustom.row}>
                   <div className={stylescustom.comment}>
-                    <p className={stylescustom.title}>Commentaire :</p>
+                    <p className={stylescustom.title}>* Description :</p>
                     <TextField 
                       className={controlClass.TextField} 
                       value={this.state.formData[index - 1]["Comment"]} 

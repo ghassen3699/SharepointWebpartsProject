@@ -5,8 +5,8 @@ import { EmployeeInfoURL } from "../API_END_POINTS/AchatModuleEndPoints";
 export async function getUserInfo(establishment, registrationNumber) {
   try {
       const response = await fetch(EmployeeInfoURL + "/" + registrationNumber + "/" + establishment, {
-        method: 'POST',
-        headers: new Headers({ "Authorization": `Basic ${btoa(`testUCG:testUCG`)}`, 'Content-Type': 'application/json', 'Accept': '*/*' }),
+        method: 'GET',
+        headers: new Headers({ "Authorization": `Basic ${btoa(`TestUCG:TestUCG`)}`, 'Content-Type': 'application/json', 'Accept': '*/*' }),
       });
       const data = await response.json();
       console.log(data)

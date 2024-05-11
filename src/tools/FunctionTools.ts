@@ -50,16 +50,16 @@ export async function getUserIdByEmail(userID: string){
 
 export function getApprobateurNiveau(currentUserId, data){
   console.log(data[0].ApprobateurV1Id);
-  if (currentUserId === data[0].ApprobateurV1Id){
+  if (currentUserId === data[0].ApprobateurV1Id[0]){
     console.log(1);
     return 1;
-  } else if (currentUserId === data[0].ApprobateurV2Id){
+  } else if (currentUserId === data[0].ApprobateurV2Id[0]){
     console.log(2);
     return 2;
-  } else if (data[0].ApprobateurV3Id !== null && currentUserId === data[0].ApprobateurV3Id){
+  } else if (data[0].ApprobateurV3Id !== null && currentUserId === data[0].ApprobateurV3Id[0]){
     console.log(3);
     return 3;
-  } else if (currentUserId === data[0].ApprobateurV4Id){
+  } else if (currentUserId === data[0].ApprobateurV4Id[0]){
     console.log(4);
     return 4;
   } else {
@@ -112,9 +112,52 @@ export function convertProductListSchema(listProducts) {
         "ItemDescription": product.DescriptionTechnique,
         "Quantity": product.quantité,
         "EstimatePrice": product.Prix,
-        "DesiredDeliveryTime": "0"
+        "DesiredDeliveryTime": product.DelaiLivraisionSouhaite,
+        "BeneficiaryCenter": product.Beneficiaire
       })
     })
   }
   return newListProductSchema
+}
+
+
+export function createObjectFile(ArticleFileData){
+  const file = new File([], ArticleFileData.name, { type: ArticleFileData.type });
+  return file ;
+}
+
+
+export async function convertFileToBase64(file) {
+  if (!(file instanceof Blob)) {
+    throw new TypeError("Parameter 'file' must be a Blob object.");
+  }
+
+  try {
+    const reader = new FileReader();
+    const result = await new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(file);
+    });
+    console.log(result)
+    return result.toString();
+  } catch (error) {
+    throw error;
+  }
+}
+
+export function getAllArticles(formData) {
+  let allArticles = [] ;
+  formData.map(article => {
+    if (article.ArticleSelected.length > 0){
+      allArticles.push(article.ArticleSelected[0])
+    }
+  })
+  return allArticles
+}
+
+export function removeDuplicates2(array) {
+  return array.filter((obj, index, self) => {
+    return self.findIndex(item => item.Axe === obj.Axe) === index;
+  });
 }

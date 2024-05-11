@@ -424,7 +424,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               style={{ width: '194.49px' }} // Specify the width you desire
             />
           </div>
-          <label className={styles.title}>Status : </label>
+          <label className={styles.title}>Statut : </label>
           <div className={styles.statusWrapper}>
             <Dropdown
               styles={dropdownStyles}
@@ -445,7 +445,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
             &nbsp;
             <button className={styles.btnRef} onClick={() => window.open("https://universitecentrale.sharepoint.com/sites/Intranet-preprod/SitePages/FormulaireDemandeAchat.aspx")}>Creer une demande</button>
           </div>
-          {this.state.checkActionCurrentUser && <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Un Demandeur</button> }
+          {this.state.checkActionCurrentUser && <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Choisir un remplaçant</button> }
         </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
@@ -454,8 +454,8 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
         {(listDemandeData.length > 0 && !this.state.showSpinner)&& 
           <div id="spListContainer"> 
             <table style={{borderCollapse: "collapse", width:"100%"}}>
-              <tr><th className={styles.textCenter}>#</th> <th>Famille demande</th><th>Date de la Demande</th><th>Status de la demande</th>{this.state.checkActionCurrentUser && <th>Action</th>}<th>Détail</th></tr>
-              {currentItems.map((demande:any) =>
+              <tr><th className={styles.textCenter}>#</th> <th>№</th><th>Famille demande</th><th>Centre de gestion</th><th>Date de la Demande</th><th>Statut de la demande</th>{this.state.checkActionCurrentUser && <th>Action</th>}<th>Détail</th></tr>
+              {currentItems.map((demande:any, index:any) =>
                 <tr>
                   {console.log(demande)}
                   <td>
@@ -474,7 +474,9 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                       </g>
                     </svg>}
                   </td>
+                  <td>{index + 1}</td>
                   <td>{demande.FamilleProduit}</td>
+                  <td>{demande.CentreDeGestion}</td>
                   <td>{convertDateFormat(demande.Created)}</td>
                   <td className={styles.statut}>
                   { (demande.StatusDemande.includes("En cours")) && (
@@ -730,10 +732,6 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                   <td >Famille :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
-                {/* <tr>
-                  <td >Sous famille :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
-                </tr> */}
                 <tr>
                   <td >Article :</td>
                   <td className={styles.value}>
@@ -743,27 +741,21 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
-                        <p className={styles.value}><b>Description Technique:</b> {produit.DescriptionTechnique}</p>
-                        <p className={styles.value}><b>Prix: </b>{produit.Prix}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
+                        <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
+                        <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
                   </td>
                 </tr>
                 <tr>
-                  <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
-                </tr>
-                {/* <tr>
-                  <td >Prix estimatifs Total :</td>
+                  <td>Prix unitaire estimatif Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
-                </tr> */}
-                {/* <tr>
-                  <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr> */}
+                </tr>
                 <tr>
                   <td >Piéce jointe :</td>
                   <td className={styles.value} > 
@@ -775,7 +767,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                   </td>
                 </tr>
                 <tr>
-                  <td >Status actuel :</td>
+                  <td >Statut actuel :</td>
                   { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Approuvée")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}

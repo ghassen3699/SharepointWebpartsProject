@@ -11,7 +11,7 @@ import "@pnp/sp/webs";
 import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
-import { convertDateFormat, convertProductListSchema, getCurrentDate } from '../../../tools/FunctionTools';
+import { convertDateFormat, convertFileToBase64, convertProductListSchema, createObjectFile, getCurrentDate } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import SweetAlert2 from 'react-sweetalert2';
 import { sendPerchaseRequest } from '../../../services/postPerchaseRequest';
@@ -149,28 +149,26 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   // Get if the current approbateur is Approbateur 1, 2 or 3 (the order)
   private getApprobateurOrder = async () => {
     const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
-  
+    console.log(currentUserID)
     const DemandeIDs = await Web(this.props.url)
-      .lists.getByTitle("WorkflowApprobation")
-      .items.filter(`
-        ( 
-          (ApprobateurV1/Id eq ${currentUserID} and (StatusApprobateurV1 eq 'En cours' or StatusApprobateurV1 eq 'Approuvée' or StatusApprobateurV1 eq 'Rejetée' or StatusApprobateurV1 eq 'A modifier' or StatusApprobateurV1 eq ''))
-        )
-      `)
-      .top(2000)
-      .orderBy("Created", false)
-      .select('DemandeID', 'StatusApprobateurV1', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id', 'ApprobateurV4Id')
-      .get();
+    .lists.getByTitle("WorkflowApprobation")
+    .items.filter(`ApprobateurV1Id/Id eq ${currentUserID} and (StatusApprobateurV1 eq 'En cours' or StatusApprobateurV1 eq 'Approuvée' or StatusApprobateurV1 eq 'Rejetée' or StatusApprobateurV1 eq 'A modifier' or StatusApprobateurV1 eq '')`)
+    .top(1) // Limit to only the first item
+    .select('DemandeID', 'StatusApprobateurV1','ApprobateurV1Id','ApprobateurV2Id', 'ApprobateurV3Id', 'ApprobateurV4Id')
+    .get();
+
     console.log("data1",DemandeIDs)
   
     if (DemandeIDs.length > 0){
-      this.setState({ currentApprobateurOrder:1 });
-    }else {
-      const DemandeIDs = await Web(this.props.url)
+      if (DemandeIDs[0].ApprobateurV1Id[0] === currentUserID) {
+        console.log(DemandeIDs[0].ApprobateurV1Id[0])
+        this.setState({ currentApprobateurOrder:1 });
+      }else{
+        const DemandeIDs = await Web(this.props.url)
         .lists.getByTitle("WorkflowApprobation")
         .items.filter(`
           ( 
-            (ApprobateurV2/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuvée' or StatusApprobateurV2 eq 'Rejetée' or StatusApprobateurV2 eq 'A modifier' or StatusApprobateurV2 eq ''))
+            (ApprobateurV2Id/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuvée' or StatusApprobateurV2 eq 'Rejetée' or StatusApprobateurV2 eq 'A modifier' or StatusApprobateurV2 eq ''))
           )
         `)
         .top(2000)
@@ -178,30 +176,36 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id', 'ApprobateurV4Id')
         .get();
         console.log(DemandeIDs)
-      if (DemandeIDs.length > 0){
-        this.setState({ currentApprobateurOrder:2 });
-      }else {
-        const DemandeIDs = await Web(this.props.url)
-        .lists.getByTitle("WorkflowApprobation")
-        .items.filter(`
-          ( 
-            (ApprobateurV3/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuvée' or StatusApprobateurV3 eq 'Rejetée' or StatusApprobateurV3 eq 'A modifier' or StatusApprobateurV3 eq ''))
-          )
-        `)
-        .top(2000)
-        .orderBy("Created", false)
-        .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
-        .get();
-        console.log(DemandeIDs)
-
         if (DemandeIDs.length > 0){
-          this.setState({ currentApprobateurOrder:3 });
+          if (DemandeIDs[0].ApprobateurV2Id[0] === currentUserID) {
+            console.log(DemandeIDs[0].ApprobateurV2Id[0])
+            this.setState({ currentApprobateurOrder:2 });
+          }
         }else {
           const DemandeIDs = await Web(this.props.url)
+          .lists.getByTitle("WorkflowApprobation")
+          .items.filter(`
+            ( 
+              (ApprobateurV3Id/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuvée' or StatusApprobateurV3 eq 'Rejetée' or StatusApprobateurV3 eq 'A modifier' or StatusApprobateurV3 eq ''))
+            )
+          `)
+          .top(2000)
+          .orderBy("Created", false)
+          .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
+          .get();
+          console.log(DemandeIDs)
+
+          if (DemandeIDs.length > 0){
+            if (DemandeIDs[0].ApprobateurV3Id[0] === currentUserID) {
+              console.log(DemandeIDs[0].ApprobateurV3Id[0])
+              this.setState({ currentApprobateurOrder:3 });
+            }
+          }else {
+            const DemandeIDs = await Web(this.props.url)
             .lists.getByTitle("WorkflowApprobation")
             .items.filter(`
               ( 
-                (ApprobateurV4/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuvée' or StatusApprobateurV4 eq 'Rejetée' or StatusApprobateurV4 eq 'A modifier' or StatusApprobateurV4 eq ''))
+                (ApprobateurV4Id/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuvée' or StatusApprobateurV4 eq 'Rejetée' or StatusApprobateurV4 eq 'A modifier' or StatusApprobateurV4 eq ''))
               )
             `)
             .top(2000)
@@ -211,8 +215,131 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             console.log(DemandeIDs)
 
             if (DemandeIDs.length > 0){
+              if (DemandeIDs[0].ApprobateurV4Id[0] === currentUserID) {
+                console.log(DemandeIDs[0].ApprobateurV4Id[0])
+                this.setState({ currentApprobateurOrder:4 });
+              }
+            }
+          }
+        }
+      }
+    }else {
+      const DemandeIDs = await Web(this.props.url)
+      .lists.getByTitle("WorkflowApprobation")
+      .items.filter(`
+        ( 
+          (ApprobateurV2Id/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuvée' or StatusApprobateurV2 eq 'Rejetée' or StatusApprobateurV2 eq 'A modifier' or StatusApprobateurV2 eq ''))
+        )
+      `)
+      .top(2000)
+      .orderBy("Created", false)
+      .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id', 'ApprobateurV4Id')
+      .get();
+      console.log(DemandeIDs)
+      if (DemandeIDs.length > 0){
+        if (DemandeIDs[0].ApprobateurV2Id[0] === currentUserID) {
+          console.log(DemandeIDs[0].ApprobateurV2Id[0])
+          this.setState({ currentApprobateurOrder:2 });
+        }else {
+          const DemandeIDs = await Web(this.props.url)
+          .lists.getByTitle("WorkflowApprobation")
+          .items.filter(`
+            ( 
+              (ApprobateurV3Id/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuvée' or StatusApprobateurV3 eq 'Rejetée' or StatusApprobateurV3 eq 'A modifier' or StatusApprobateurV3 eq ''))
+            )
+          `)
+          .top(2000)
+          .orderBy("Created", false)
+          .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
+          .get();
+          console.log(DemandeIDs)
+
+          if (DemandeIDs.length > 0){
+            if (DemandeIDs[0].ApprobateurV3Id[0] === currentUserID) {
+              console.log(DemandeIDs[0].ApprobateurV3Id[0])
+              this.setState({ currentApprobateurOrder:3 });
+            }
+          }else {
+            const DemandeIDs = await Web(this.props.url)
+            .lists.getByTitle("WorkflowApprobation")
+            .items.filter(`
+              ( 
+                (ApprobateurV4Id/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuvée' or StatusApprobateurV4 eq 'Rejetée' or StatusApprobateurV4 eq 'A modifier' or StatusApprobateurV4 eq ''))
+              )
+            `)
+            .top(2000)
+            .orderBy("Created", false)
+            .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
+            .get();
+            console.log(DemandeIDs)
+
+            if (DemandeIDs.length > 0){
+              if (DemandeIDs[0].ApprobateurV4Id[0] === currentUserID) {
+                console.log(DemandeIDs[0].ApprobateurV4Id[0])
+                this.setState({ currentApprobateurOrder:4 });
+              }
+            }
+          }
+        }
+      }else {
+        const DemandeIDs = await Web(this.props.url)
+        .lists.getByTitle("WorkflowApprobation")
+        .items.filter(`
+          ( 
+            (ApprobateurV3Id/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuvée' or StatusApprobateurV3 eq 'Rejetée' or StatusApprobateurV3 eq 'A modifier' or StatusApprobateurV3 eq ''))
+          )
+        `)
+        .top(2000)
+        .orderBy("Created", false)
+        .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
+        .get();
+        console.log(DemandeIDs)
+
+        if (DemandeIDs.length > 0){
+          if (DemandeIDs[0].ApprobateurV3Id[0] === currentUserID) {
+            console.log(DemandeIDs[0].ApprobateurV3Id[0])
+            this.setState({ currentApprobateurOrder:3 });
+          }else {
+            const DemandeIDs = await Web(this.props.url)
+            .lists.getByTitle("WorkflowApprobation")
+            .items.filter(`
+              ( 
+                (ApprobateurV4Id/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuvée' or StatusApprobateurV4 eq 'Rejetée' or StatusApprobateurV4 eq 'A modifier' or StatusApprobateurV4 eq ''))
+              )
+            `)
+            .top(2000)
+            .orderBy("Created", false)
+            .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
+            .get();
+            console.log(DemandeIDs)
+
+            if (DemandeIDs.length > 0){
+              if (DemandeIDs[0].ApprobateurV4Id[0] === currentUserID) {
+                console.log(DemandeIDs[0].ApprobateurV4Id[0])
+                this.setState({ currentApprobateurOrder:4 });
+              }
+            }
+          }
+        }else {
+          const DemandeIDs = await Web(this.props.url)
+          .lists.getByTitle("WorkflowApprobation")
+          .items.filter(`
+            ( 
+              (ApprobateurV4Id/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuvée' or StatusApprobateurV4 eq 'Rejetée' or StatusApprobateurV4 eq 'A modifier' or StatusApprobateurV4 eq ''))
+            )
+          `)
+          .top(2000)
+          .orderBy("Created", false)
+          .select('DemandeID', 'StatusApprobateurV2', 'ApprobateurV1Id', 'ApprobateurV2Id', 'ApprobateurV3Id' , 'ApprobateurV4Id')
+          .get();
+          console.log(DemandeIDs)
+
+          if (DemandeIDs.length > 0){
+            if (DemandeIDs[0].ApprobateurV4Id[0] === currentUserID) {
+              console.log(DemandeIDs[0].ApprobateurV4Id[0])
               this.setState({ currentApprobateurOrder:4 });
             }
+          }
         }
       }
     }
@@ -266,7 +393,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         .top(2000)
         .orderBy("Created", false)
         .expand("Ecole")
-        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title")
+        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CentreDeGestion")
         .getById(demande.DemandeID)();
     });
     
@@ -315,19 +442,34 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   private sendDemandeToErp = async(demandeID) => {
     const demande = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.select('*,Demandeur/Title,Demandeur/EMail').expand('Demandeur').filter(`ID eq ${demandeID}`).get();
     const user = await this._graphService.getUserId(demande[0].Demandeur['EMail']); 
-    console.log(demande)     
-    const dataFromERP = await sendPerchaseRequest(
-      user["employeeId"],
-      demande[0].CreerPar,
-      demande[0].CentreDeGestion,
-      demande[0].Beneficiaire ? demande[0].Beneficiaire : "",
-      demande[0].FamilleProduitREF,
-      convertProductListSchema(JSON.parse(demande[0].Produit)),
-      "",
-      ""
-    )
+    const ArticleFileName = JSON.parse(demande[0].Produit)[0].ArticleFileData.name ;
+    var dataFromERP
+
+    console.log(ArticleFileName)     
+    console.log(demande[0].FileBase64)
+
+    if (demande[0].FileBase64.length > 0){
+      dataFromERP = await sendPerchaseRequest(
+        user["employeeId"],
+        demande[0].CreerPar,
+        demande[0].CentreDeGestion,
+        demande[0].FamilleProduitREF,
+        convertProductListSchema(JSON.parse(demande[0].Produit)),
+        ArticleFileName.toString(),
+        demande[0].FileBase64
+      )
+    }else {
+      dataFromERP = await sendPerchaseRequest(
+        user["employeeId"],
+        demande[0].CreerPar,
+        demande[0].CentreDeGestion,
+        demande[0].FamilleProduitREF,
+        convertProductListSchema(JSON.parse(demande[0].Produit)),
+        "",
+        ""
+      )
+    }
     return dataFromERP
-    // console.log(eprResonse)
   }
 
 
@@ -468,11 +610,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           StatusApprobateurV4: "Approuvée",
           CommentaireApprobateurV4: this.state.commentAction,
         });
-
-
-        // const sendDemandeERP = await sendPerchaseRequest("","","","","","","","");
-        // console.log(sendDemandeERP)
-        // window.location.reload()
 
         const sendDemandeToErp = await this.sendDemandeToErp(DemandeID) ;
         console.log(sendDemandeToErp)
@@ -655,6 +792,8 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV4: this.state.commentAction,
         });
 
+
+        
         const sendDemandeToErp = await this.sendDemandeToErp(DemandeID) ;
         console.log(sendDemandeToErp)
         if(sendDemandeToErp['Status'] === "200"){
@@ -1383,7 +1522,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
               style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
-          <label className={styles.title}>Status : </label>
+          <label className={styles.title}>Statut : </label>
           <div className={styles.statusWrapper}>
             <Dropdown
               styles={dropdownStyles}
@@ -1402,7 +1541,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           <div className={styles.statusWrapper}>
             <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
           </div>
-            <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Ajouter Un Approbateur</button>        
+            <button className={styles.btnRef} onClick={() => this.setState({RemplacantPoUp: !this.state.RemplacantPoUp})}>Choisir un remplaçant</button>        
           </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
@@ -1411,7 +1550,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         {(listDemandeData.length > 0 && !this.state.showSpinner) && 
           <div id="spListContainer"> 
             <table style={{borderCollapse: "collapse", width:"100%"}}>
-              <tr><th className={styles.textCenter}>#</th> <th>Demandeur</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
+              <tr><th className={styles.textCenter}>#</th> <th>Demandeur</th> <th>Centre de gestion</th> <th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
               {currentItems.map((demande:any) =>
                 <tr>
                   <td>
@@ -1431,6 +1570,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     </svg>}
                   </td>                  
                   <td>{demande.CreerPar}</td>
+                  <td>{demande.CentreDeGestion}</td>
                   {console.log(demande)}
                   <td>{convertDateFormat(demande.Created)}</td>
                   <td className={styles.statut}>
@@ -1671,10 +1811,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Sous famille :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
-                </tr>
-                <tr>
                   <td >Centre de Gestion :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.CentreDeGestion}</td>
                 </tr>
@@ -1687,27 +1823,21 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
-                        <p className={styles.value}><b>Description Technique: </b>{produit.DescriptionTechnique}</p>
-                        <p className={styles.value}><b>Prix: </b>{produit.Prix}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
+                        <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
+                        <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
                   </td>
                 </tr>
                 <tr>
-                  <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
-                </tr>
-                {/* <tr>
-                  <td >Prix estimatifs Total :</td>
+                <td>Prix unitaire estimatif Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
-                <tr>
-                  <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr> */}
                 <tr>
                   <td >Piéce jointe :</td>
                   <td className={styles.value} > 
@@ -1719,7 +1849,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   </td>
                 </tr>
                 <tr>
-                  <td >Status actuel :</td>
+                  <td >Statut actuel :</td>
                   {console.log("Status :",this.state.detailsListDemande.StatusDemande)}
                   { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Approuvée")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}

@@ -985,6 +985,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
     var index = 0
 
     console.log(demandeData)
+    console.log(listProduits)
 
     listProduits.map(produit => {
       index = index + 1 ;
@@ -1077,14 +1078,11 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       listFamilleProduit.push({
         key: famille.IdFamily,
         text: famille.DescFamily,
-
       })
     })
     this.setState({familyProducts:listFamilleProduit})
     await this.getSubFamilyData(this.state.FamilleID)
 
-    
-    // const items = await getProduct(event.key, this.state.userEstablishment) ;
     const items = await getProduct(this.state.SousFamilleID, this.state.CentreDeGestion) ;
     const listArticles = items.Items.map(item => ({
       key: item.RefItem, 
@@ -1151,19 +1149,40 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
             {this.intToList(this.state.counterProducts).map((index) => 
               <div className='productsDiv'>
                 <div className={stylescustom.row}>
+
                   <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Famille</p>
+                    <p className={stylescustom.title}>Bénificaire / Déstinataire</p>
                     <Dropdown
-                      style={{ width: '200px' }} // Specify the width you desire
-                      defaultValue={this.state.formData[0]?.FamilleSelected?.[0]?.key || ""}
+                      disabled={!this.state.DisabledBenef}
                       styles={dropdownStyles}
+                      defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
+                      onChange={this.onSelectionChanged}
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.state.familyProducts}
-                      onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
-                      defaultSelectedKey={this.state.formData[index - 1]['FamilleSelected'] && this.state.formData[index - 1]['FamilleSelected'][0] ? this.state.formData[index - 1]['FamilleSelected'][0].key : ""}
+                      options={this.getBeneficaire()}                      
+                      onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
+                      style={{ width: '200px' }} // Specify the width you desire
                     />
+                  </div>
+
+                  <div className={stylescustom.data}>
+                    <p className={stylescustom.title}>* Famille</p>
+                    {index > 1 ? (
+                      <label className={stylescustom.btn} style={{width: '180px'}}>{this.state.formData[0].FamilleSelected[0].text}</label>
+                    ) : (
+                      <Dropdown
+                        defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                        styles={dropdownStyles}
+                        onRenderTitle={this.onRenderTitle}
+                        onRenderOption={this.onRenderOption}
+                        onRenderCaretDown={this.onRenderCaretDown}
+                        options={this.state.familyProducts}
+                        onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
+                        defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                        style={{ width: '200px' }}
+                      />
+                    )}
                   </div>
 
                   <div className={stylescustom.data}>
@@ -1181,11 +1200,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   </div>
 
 
-                  {/* {console.log(this.state.formData[index - 1].ArticleSelected[0]['key'])} */}
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Réference de l'article</p>
                     <Dropdown
-                      style={{ width: '200px' }} // Specify the width you desire
                       styles={dropdownStyles}
                       defaultValue={this.state.formData[index - 1]?.ArticleSelected?.[0]?.key || ""}
                       defaultSelectedKey={this.state.formData[index - 1]["ArticleSelected"] && this.state.formData[index - 1]["ArticleSelected"][0] ? this.state.formData[index - 1]["ArticleSelected"][0].key : ""}
@@ -1193,25 +1210,9 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                       onRenderTitle={this.onRenderTitle}
                       onRenderOption={this.onRenderOption}
                       onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.state.articles}                                             
+                      options={this.state.articles}                       
                       onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
-                    />
-                  </div>
-
-
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Bénificaire / Déstinataire</p>
-                    <Dropdown
                       style={{ width: '200px' }} // Specify the width you desire
-                      styles={dropdownStyles}
-                      defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
-                      onChange={this.onSelectionChanged}
-                      onRenderTitle={this.onRenderTitle}
-                      onRenderOption={this.onRenderOption}
-                      onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getBeneficaire()}                 
-                      onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
                     />
                   </div>
                 </div>
@@ -1224,6 +1225,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                       className={controlClass.TextField} 
                       type='number'
                       onChange={(e) => this.handleChangeQuantity(e, index)}
+                      min={0}
                       value={ this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""} 
                     />
                   </div>
@@ -1243,28 +1245,28 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                   <div className={stylescustom.data}>
                     <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
                     <TextField 
-                      min={0}
                       type='number'
+                      min={0}
                       value={String(this.state.formData[index - 1]["numberOfDays"])} 
                       onChange={(e) => this.handleInputChange(e, index)}
                     />
                   </div>
 
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}> Piéce jointe :</p>
-                    <label htmlFor="uploadFile" className={stylescustom.btn}>Choisir un élément</label>
-                    <input type="file" id="uploadFile" style={{ display: 'none' }}
-                      accept=".jpg, .jpeg, .png , .pdf , .doc ,.docx"
-                      onChange={(e) => { 
-                        this.addFile(e); 
-                        this.setState({ errors: { ...this.state.errors, file: "" } });}} 
-                      />
-                    {this.state.formData[index - 1].fileData && <span style={{ marginLeft: 10, fontSize: 14 }}>{this.state.formData[index - 1].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(index); }}>&#10006;</span></span>}
-                    <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400, display: 'block' }}>
-                      {this.state.errors.file !== "" ? this.state.errors.file : ""}
-                    </span>
-                  </div>
+                  {index-1 === 0 && <div className={stylescustom.data}>
+                      <p className={stylescustom.title}> Piéce jointe :</p>
+                      <label htmlFor="uploadFile" className={stylescustom.btn}>Choisir un élément</label>
+                      <input type="file" id="uploadFile" style={{ display: 'none' }}
+                        accept=".jpg, .jpeg, .png , .pdf , .doc ,.docx"
+                        onChange={(e) => { 
+                          this.addFile(e); 
+                          this.setState({ errors: { ...this.state.errors, file: "" } });}} 
+                        />
+                      {this.state.formData[index - 1].fileData && <span style={{ marginLeft: 10, fontSize: 14 }}>{this.state.formData[index - 1].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(index); }}>&#10006;</span></span>}
+                      <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400, display: 'block' }}>
+                        {this.state.errors.file !== "" ? this.state.errors.file : ""}
+                      </span>
+                    </div>
+                  }
                 </div>
 
 

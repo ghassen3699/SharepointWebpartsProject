@@ -27,7 +27,7 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
-import { checkIfAxeExists, checkRodondanceApprouvers, getApprobateurNiveau, getCurrentDate } from '../../../tools/FunctionTools';
+import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
 import { getUserInfo } from "../../../services/getUserInfo" ;
 import { getSubFamily } from "../../../services/getProductsSubFamily" ;
 import { getFamily } from "../../../services/getAllProductFamily" ;
@@ -96,6 +96,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     formData : [{
       FamilleSelected: [] as any,
       SousFamilleSelected : [] as any,
+      AllArticleData: [] as any,
       ArticleSelected: [] as any,
       BeneficiareSelected : [] as any,
       Comment: "",
@@ -161,7 +162,10 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     checkActionCurrentUserPopUp: false,
     DisabledBenef: true,
     condition: 0,    
-    showPopUpApprouver4: false
+    showPopUpApprouver4: false,
+    totalPrixErrorMessage: 0,
+    fileBase64: "",
+    axeBudgets: []
   };  
   private _graphService = new GraphService(this.props.context);
 
@@ -244,7 +248,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  public addFile = (content: any) => {
+  public addFile = async (content: any) => {
     console.log(this.state.counterProducts);
   
     const fileName = content.target.files[0].name;
@@ -254,11 +258,14 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
   
     const updatedFormData = [...this.state.formData];
-    updatedFormData[this.state.counterProducts - 1].fileName = fileName; // Store the original file name
-    updatedFormData[this.state.counterProducts - 1].fileData = newFile;
+    updatedFormData[0].fileName = fileName; // Store the original file name
+    updatedFormData[0].fileData = newFile;
+
+    const data = await convertFileToBase64(newFile)
   
     this.setState({
-      formData: updatedFormData
+      formData: updatedFormData,
+      fileBase64: data
     });
   };
 
@@ -327,27 +334,21 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].SousFamilleSelected = [event]
     updatedFormData[index-1].ArticleSelected = [] ;
-
-    console.log(index)
-    this.setState({
-      formData: updatedFormData,
-      SousFamilleID: event.key,
-      ArticleID: "",
-      articles: [],
-      // axePerBuget: this.state.axePerBuget.slice(index, 1)
-    });
-    console.log(event.key)
-    console.log(this.state.userRespCenter)
+    
 
     var items
-    if (this.state.demandeAffectation === "me"){
-      items = await getProduct(event.key, this.state.userRespCenter) ;
+    if (this.state.DisabledBenef){
+      items = await getProduct(event.key, updatedFormData[index - 1].BeneficiareSelected[0].text) ;
       console.log(items)
     }else {
-      items = await getProduct(event.key, this.state.RemplacantRespCenter) ;
-      console.log(items)
+      if (this.state.demandeAffectation === "me"){
+        items = await getProduct(event.key, this.state.userRespCenter) ;
+        console.log(items)
+      }else {
+        items = await getProduct(event.key, this.state.RemplacantRespCenter) ;
+        console.log(items)
+      }
     }
-
 
     const listArticles = items.Items.map(item => ({
       key: item.RefItem, 
@@ -358,73 +359,53 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
       Axe: item.Axe,  
     }));
+
+    console.log(index)
+    console.log(updatedFormData)
+    updatedFormData[index-1].AllArticleData = listArticles
+    this.setState({
+      formData: updatedFormData,
+      SousFamilleID: event.key,
+      // ArticleID: "",
+      // articles: [],
+      // axePerBuget: this.state.axePerBuget.slice(index, 1)
+    });
+    console.log(event.key)
+    console.log(this.state.userRespCenter)
     this.setState({articles:listArticles})
   }
 
 
   private handleChangeArticleDropdown = (event: any, index: any) => {
+    console.log(event)
     const updatedFormData = [...this.state.formData];
     updatedFormData[index - 1].ArticleSelected = [event];
   
-    // if (this.state.axePerBuget.some(obj => obj.Axe === x))
-    var newAxeList = []
-    updatedFormData.forEach(article => {
-      if (!this.state.axePerBuget.some(obj => obj.Axe === article.ArticleSelected[0].Axe)) {
-        newAxeList.push({
-          "Axe": article.ArticleSelected[0].Axe,
-          "BudgetAnnualAllocated": article.ArticleSelected[0].BudgetAnnualAllocated,
-          "BudgetAnnualRemaining": article.ArticleSelected[0].BudgetAnnualRemaining,
-          "BudgetAnnualUsed": article.ArticleSelected[0].BudgetAnnualUsed,
-        });
-      }else {
-        newAxeList = this.state.axePerBuget
-      }
-    });
-  
     this.setState({
       formData: updatedFormData,
-      axePerBuget: newAxeList
+      // axePerBuget: newAxeList
     });
-
-    
-
-    // if (this.state.axePerBuget.length === 0 ){
-    //   const listAxes = [{
-    //     Axe: event.Axe,
-    //     BudgetAnnualAllocated: event.BudgetAnnualAllocated,
-    //     BudgetAnnualRemaining: event.BudgetAnnualRemaining,
-    //     BudgetAnnualUsed: event.BudgetAnnualUsed
-    //   }]
-    //   this.setState({
-    //     axePerBuget:listAxes,
-    //   })
-    // }else {
-    //   console.log(index)
-
-    //   if (checkIfAxeExists(this.state.axePerBuget,event.Axe) === false) {
-    //     const newAxeObject = {
-    //       Axe: event.Axe,
-    //       BudgetAnnualAllocated: event.BudgetAnnualAllocated,
-    //       BudgetAnnualRemaining: event.BudgetAnnualRemaining,
-    //       BudgetAnnualUsed: event.BudgetAnnualUsed
-    //     }
-    //     // console.log('axe',this.state.axePerBuget)
-    //     const updatedAxePerBudget = [...this.state.axePerBuget]
-    //     updatedAxePerBudget.push(newAxeObject)
-    //     this.setState({
-    //       axePerBuget: updatedAxePerBudget
-    //     })
-    //   }
-    // }
   }
 
 
-  private handleChangeDestinataireDropdown = (event:any, index: any) => {
+  private handleChangeDestinataireDropdown = async (event:any, index: any) => {
     const updatedFormData = [...this.state.formData];
     updatedFormData[index-1].BeneficiareSelected = [event]
     this.setState({
       formData: updatedFormData
     });
+
+    // Get all famille products
+    const listFamilleProduit = [] ;
+    const familyProducts = await getFamily() ;
+    familyProducts.Families.map(famille => {
+      listFamilleProduit.push({
+        key: famille.IdFamily,
+        text: famille.DescFamily,
+
+      })
+    })
+    this.setState({familyProducts:listFamilleProduit})
   }
 
 
@@ -443,6 +424,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const nullObject = {
       FamilleSelected: this.state.formData[0].FamilleSelected,
       SousFamilleSelected: []as any,
+      AllArticleData: [],
       ArticleSelected: []as any,
       BeneficiareSelected: []as any,
       Comment: "",
@@ -464,17 +446,44 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     })
   }
 
+  private deleteArticle = (index: number) => {
+    // Make a copy of the current formData array
+    const updatedFormData = [...this.state.formData];
+    
+    // Remove the article at the specified index
+    updatedFormData.splice(index, 1);
+  
+    // Update the state with the new formData array and decrement the counterProducts
+    this.setState({
+      formData: updatedFormData,
+      counterProducts: this.state.counterProducts - 1,
+    });
+  }
+
 
   private disabledSubmitButton = () => {
-    return this.state.formData.some(formData => (
-      formData.FamilleSelected.length === 0 ||
-      formData.SousFamilleSelected.length === 0 ||
-      formData.ArticleSelected.length === 0 ||
-      formData.quantity.length === 0 ||
-      formData.price.length === 0 ||
-      formData.Comment.length === 0 || 
-      formData.numberOfDays.length === 0
-    ));
+    if (!this.state.DisabledBenef){
+      return this.state.formData.some(formData => (
+        formData.FamilleSelected.length === 0 ||
+        formData.SousFamilleSelected.length === 0 ||
+        formData.ArticleSelected.length === 0 ||
+        formData.quantity.length === 0 ||
+        formData.price.length === 0 ||
+        formData.Comment.length === 0 || 
+        formData.numberOfDays.length === 0
+      ));
+    }else {
+      return this.state.formData.some(formData => (
+        formData.FamilleSelected.length === 0 ||
+        formData.SousFamilleSelected.length === 0 ||
+        formData.BeneficiareSelected.length === 0 ||
+        formData.ArticleSelected.length === 0 ||
+        formData.quantity.length === 0 ||
+        formData.price.length === 0 ||
+        formData.Comment.length === 0 || 
+        formData.numberOfDays.length === 0
+      ));
+    }
   }
 
 
@@ -638,7 +647,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     const currentUser = await Web(this.props.url).currentUser.get() ;
     var ArticleList = [];
     var prixTotal = 0;
-    // var checkApprobateur4 = false
 
     if (!disabledSubmit) {
 
@@ -706,8 +714,14 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         console.log('all Data:', data)  
         data.map(Article => {
           console.log("Article", Article)
-          prixTotal = prixTotal + parseInt(Article.price);
+          prixTotal = prixTotal + (parseInt(Article.price) * parseInt(Article.quantity));
           ArticleList.push({
+            "SousFamille":Article.SousFamilleSelected[0].text,
+            "SousFamilleID":Article.SousFamilleSelected[0].key,
+            "Beneficiaire": Article.BeneficiareSelected[0].text,
+            "BeneficiaireID":Article.BeneficiareSelected[0].key,
+            "DelaiLivraisionSouhaite": Article.numberOfDays,
+            "comment": Article.Comment,
             "Prix": Article.price,
             "quantité": Article.quantity,
             "DescriptionTechnique": Article.ArticleSelected[0].text,
@@ -752,7 +766,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 "StatusDemandeV3":"***",
                 "Produit": JSON.stringify(ArticleList),
                 "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                "FileBase64":this.state.fileBase64
               }
             }else if (this.state.checkRemplacant && this.state.condition === 1) {
               formData = {
@@ -774,7 +789,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 "StatusDemandeV3":"***",
                 "Produit": JSON.stringify(ArticleList),
                 "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.RemplacantRespCenter
+                "CentreDeGestion": this.state.RemplacantRespCenter,
+                "FileBase64":this.state.fileBase64
               }
             }else {
               formData = {
@@ -796,7 +812,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 "StatusDemandeV3":"***",
                 "Produit": JSON.stringify(ArticleList),
                 "CreerPar": currentUser.Title,
-                "CentreDeGestion": this.state.userRespCenter
+                "CentreDeGestion": this.state.userRespCenter,
+                "FileBase64":this.state.fileBase64
               }
             }
             
@@ -820,7 +837,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 "StatusDemandeV1":"En cours",
                 "Produit": JSON.stringify(ArticleList),
                 "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                "FileBase64":this.state.fileBase64
               }
             }else if (this.state.checkRemplacant && this.state.condition === 1){
               formData = {
@@ -841,7 +859,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 "StatusDemandeV1":"En cours",
                 "Produit": JSON.stringify(ArticleList),
                 "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.RemplacantRespCenter
+                "CentreDeGestion": this.state.RemplacantRespCenter,
+                "FileBase64":this.state.fileBase64
               }
             }
             else {
@@ -864,7 +883,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 "StatusDemandeV3":"***",
                 "Produit": JSON.stringify(ArticleList),
                 "CreerPar": currentUser.Title,
-                "CentreDeGestion": this.state.userRespCenter
+                "CentreDeGestion": this.state.userRespCenter,
+                "FileBase64":this.state.fileBase64
               }
             }
           }
@@ -1080,7 +1100,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1104,7 +1124,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1122,6 +1142,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }
             }else {
+              console.log(currentUser.Id)
               const checkUserNiveau = getApprobateurNiveau(currentUser.Id ,getProbateurs)
               console.log(checkUserNiveau)
               if (checkUserNiveau === 0){
@@ -1132,7 +1153,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1144,7 +1165,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"***",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 1){
                 formData = {
@@ -1154,7 +1176,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1167,7 +1189,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"***",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 2){
                 formData = {
@@ -1177,7 +1200,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1191,7 +1214,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"***",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 4){
                 formData = {
@@ -1201,7 +1225,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1215,7 +1239,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"***",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }
             }
@@ -1232,7 +1257,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1243,7 +1268,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV1":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 1) {
                 formData = {
@@ -1253,7 +1279,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1265,7 +1291,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV2":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 2) {
                 formData = {
@@ -1275,7 +1302,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1288,7 +1315,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 3) {
                 formData = {
@@ -1298,7 +1326,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1312,7 +1340,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV4":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 4) {
                 formData = {
@@ -1322,7 +1351,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1336,7 +1365,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV4":"Approuvée",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }
               
@@ -1350,7 +1380,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1361,7 +1391,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV1":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 1) {
                 formData = {
@@ -1371,7 +1402,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1383,7 +1414,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV2":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 2) {
                 formData = {
@@ -1393,7 +1425,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1406,7 +1438,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 3) {
                 formData = {
@@ -1416,7 +1449,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1430,7 +1463,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV4":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 4) {
                 formData = {
@@ -1440,7 +1474,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1454,7 +1488,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV4":"Approuvée",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }
 
@@ -1469,7 +1504,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1480,7 +1515,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV1":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 1) {
                 formData = {
@@ -1490,7 +1526,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1502,7 +1538,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV2":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 2) {
                 formData = {
@@ -1512,7 +1549,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1525,7 +1562,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV3":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 3) {
                 formData = {
@@ -1535,7 +1573,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1549,7 +1587,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV4":"En cours",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }else if (checkUserNiveau === 4) {
                 formData = {
@@ -1559,7 +1598,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "FamilleProduit": data[0].FamilleSelected[0].text,
                   "FamilleProduitREF": data[0].FamilleSelected[0].key,
                   "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
                   "PrixTotal":prixTotal.toString(),
                   "DelaiLivraisionSouhaite":data[0].numberOfDays,
                   "Prix": "test ...." ,
@@ -1573,7 +1612,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   "StatusDemandeV4":"Approuvée",
                   "Produit": JSON.stringify(ArticleList),
                   "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter
+                  "CentreDeGestion": this.state.userRespCenter,
+                  "FileBase64":this.state.fileBase64
                 }
               }
             }
@@ -1870,13 +1910,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  // En cours ....
-  // private getApprobateurIdByUCTemail = async(approbateurEmail) => {
-  //   const userInfo = await Web(this.props.url).ensureUser(approbateurEmail);
-  //   return userInfo.data.Id;
-  // }
-
-
   private handleInputChange = (event: any, index: any) => {
     const inputValue = event.target.value;
   
@@ -1901,27 +1934,27 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   private async loadUserInfo() {
     try {
-        console.log(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
-        
-        const user = await this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
-        
-        console.log(user);
-        
-        this.setState({
-            userName: user["displayName"],
-            userEmail: user["mail"],
-            userRegistrationNumber: user["employeeId"],
-            userEstablishment: user["companyName"],
-            JobTitle: user["jobTitle"],
-        });
+      console.log(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
+      
+      const user = await this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
+      
+      console.log(user);
+      
+      this.setState({
+          userName: user["displayName"],
+          userEmail: user["mail"],
+          userRegistrationNumber: user["employeeId"],
+          userEstablishment: user["companyName"],
+          JobTitle: user["jobTitle"],
+      });
     } catch (error) {
-        console.error("Error loading user info:", error);
+      console.error("Error loading user info:", error);
     }
-}
+  }
 
 
-private async loadRemplacantUserRemplacant(userPrincipalName) {
-  try {
+  private async loadRemplacantUserRemplacant(userPrincipalName) {
+    try {
       console.log(userPrincipalName);
       
       const user = await this._graphService.getUserId(userPrincipalName);
@@ -1929,16 +1962,16 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
       console.log(user);
       
       this.setState({
-          RemplacantUserName: user["displayName"],
-          RemplacantUserEmail: user["mail"],
-          RemplacantUserRegistrationNumber: user["employeeId"],
-          RemplacantUserEstablishment: user["companyName"],
-          RemplacantJobTitle: user["jobTitle"],
+        RemplacantUserName: user["displayName"],
+        RemplacantUserEmail: user["mail"],
+        RemplacantUserRegistrationNumber: user["employeeId"],
+        RemplacantUserEstablishment: user["companyName"],
+        RemplacantJobTitle: user["jobTitle"],
       });
-  } catch (error) {
+    } catch (error) {
       console.error("Error loading remplacant user info:", error);
+    }
   }
-}
 
   private getDemandeurAcces = async(userPrincipalName) => {
     const userInfo = await this._graphService.getUserId(userPrincipalName) ;
@@ -1963,13 +1996,15 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
     }
   }
 
+
+
   public async getUserByEmail(userDisplayName){
     try {
-        const userEmailMSgraph = await this._graphService.getUserEmailByDisplayName(userDisplayName)
-        const user = await Web(this.props.url).ensureUser(userEmailMSgraph);
-        return user.data.Id;
+      const userEmailMSgraph = await this._graphService.getUserEmailByDisplayName(userDisplayName)
+      const user = await Web(this.props.url).ensureUser(userEmailMSgraph);
+      return user.data.Id;
     } catch (error) {
-        throw error; // Re-throw the error
+      throw error; // Re-throw the error
     }
   }
 
@@ -2017,8 +2052,6 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
       window.location.href = REDIRECTION_URL;
     }else {
 
-    
- 
       const DemandeurAcces = await this.getDemandeurAcces(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
       const checkTestRemplacant = await this.checkRemplacantDemandes();
 
@@ -2084,35 +2117,22 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
         }
       }
 
-    
+      if (!this.state.DisabledBenef){
+        // Get all famille products
+        const listFamilleProduit = [] ;
+        const familyProducts = await getFamily() ;
+        familyProducts.Families.map(famille => {
+          listFamilleProduit.push({
+            key: famille.IdFamily,
+            text: famille.DescFamily,
 
-
-      // // Check if user have remplacant or not
-      // const checkTestRemplacant = await this.checkRemplacantDemandes() ;
-      // if (checkTestRemplacant.length > 0){
-      //   console.log(checkTestRemplacant)
-
-      //   // Get status All in form by demandeur data
-      //   await this.checkUserPermissionsPerchaseModule(checkTestRemplacant[0]['Demandeur']['EMail'])
-      //   this.setState({checkRemplacant: true, showAnotePopUp: true, remplacantName: checkTestRemplacant[0].Demandeur.Title, remplacantID:checkTestRemplacant[0].DemandeurId})
-      // }else {
-      //   // Get status All in form by remplacant data
-      //   await this.checkUserPermissionsPerchaseModule(this.props.context.pageContext.legacyPageContext["userPrincipalName"])
-      // }
+          })
+        })
+        this.setState({familyProducts:listFamilleProduit})
+      }
+      
 
       await this.checkUserActions() ;
-
-      // Get all famille products
-      const listFamilleProduit = [] ;
-      const familyProducts = await getFamily() ;
-      familyProducts.Families.map(famille => {
-        listFamilleProduit.push({
-          key: famille.IdFamily,
-          text: famille.DescFamily,
-
-        })
-      })
-      this.setState({familyProducts:listFamilleProduit})
     }
   }
   
@@ -2132,7 +2152,12 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
       TextField: { backgroundColor: "white", }
     });
 
-    const disabledSubmit = this.disabledSubmitButton()
+    const disabledSubmit = this.disabledSubmitButton();
+    
+    // Created but not implemented
+    var AllArticleData = getAllArticles(this.state.formData)
+    const uniqueArray = removeDuplicates2(AllArticleData);
+    console.log(uniqueArray);
 
 
 
@@ -2194,144 +2219,163 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
             <p className={stylescustom.indique}>* Indique un champ obligatoire</p>
 
             {this.intToList(this.state.counterProducts).map((index) => 
-              <div className='productsDiv'>
-                <div className={stylescustom.row}>
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Famille</p>
-                    {index > 1 ? (
-                      <label className={stylescustom.btn}>{this.state.formData[0].FamilleSelected[0].text}</label>
-                    ) : (
+              <div>
+                { this.state.counterProducts  > 1 && 
+                  <p className={stylescustom.indique}>
+                    <button style={{float:"right"}} className={stylescustom.btn} onClick={() => this.deleteArticle(index - 1)}>-</button>
+                  </p>
+                }
+                <div className='productsDiv'>
+                  <div className={stylescustom.row}>
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>Bénificaire / Déstinataire</p>
                       <Dropdown
-                        defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                        disabled={!this.state.DisabledBenef}
+                        styles={dropdownStyles}
+                        defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
+                        onChange={this.onSelectionChanged}
+                        onRenderTitle={this.onRenderTitle}
+                        onRenderOption={this.onRenderOption}
+                        onRenderCaretDown={this.onRenderCaretDown}
+                        options={this.getBeneficaire()}                      
+                        onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
+                        style={{ width: '200px' }} // Specify the width you desire
+                      />
+                    </div>
+
+
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>* Famille</p>
+                      {index > 1 ? (
+                        <label className={stylescustom.btn} style={{width: '180px'}}>{this.state.formData[0].FamilleSelected[0].text}</label>
+                      ) : (
+                        <Dropdown
+                          defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                          styles={dropdownStyles}
+                          onRenderTitle={this.onRenderTitle}
+                          onRenderOption={this.onRenderOption}
+                          onRenderCaretDown={this.onRenderCaretDown}
+                          options={this.state.familyProducts}
+                          onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
+                          defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                          style={{ width: '200px' }}
+                        />
+                      )}
+                    </div>
+
+
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>* Sous famille</p>
+                      <Dropdown
+                        defaultSelectedKey={this.state.formData[index - 1]['SousFamilleSelected'] && this.state.formData[index - 1]['SousFamilleSelected'][0] ? this.state.formData[index - 1]['SousFamilleSelected'][0].key : ""}
                         styles={dropdownStyles}
                         onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
                         onRenderCaretDown={this.onRenderCaretDown}
-                        options={this.state.familyProducts}
-                        onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
-                        defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                        options={this.state.subFamilyProducts}                      
+                        onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
                         style={{ width: '200px' }}
                       />
-                    )}
-                  </div>
-
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Sous famille</p>
-                    <Dropdown
-                      defaultSelectedKey={this.state.formData[index - 1]['SousFamilleSelected'] && this.state.formData[index - 1]['SousFamilleSelected'][0] ? this.state.formData[index - 1]['SousFamilleSelected'][0].key : ""}
-                      styles={dropdownStyles}
-                      onRenderTitle={this.onRenderTitle}
-                      onRenderOption={this.onRenderOption}
-                      onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.state.subFamilyProducts}                      
-                      onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
-                      style={{ width: '200px' }}
-                    />
-                  </div>
+                    </div>
 
 
 
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Réference de l'article</p>
-                    <Dropdown
-                      styles={dropdownStyles}
-                      defaultValue={this.state.formData[index - 1]?.ArticleSelected?.[0]?.key || ""}
-                      defaultSelectedKey={this.state.formData[index - 1]["ArticleSelected"] && this.state.formData[index - 1]["ArticleSelected"][0] ? this.state.formData[index - 1]["ArticleSelected"][0].key : ""}
-                      onChange={this.onSelectionChanged}
-                      onRenderTitle={this.onRenderTitle}
-                      onRenderOption={this.onRenderOption}
-                      onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.state.articles}                       
-                      onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
-                      style={{ width: '200px' }} // Specify the width you desire
-                    />
-                  </div>
-
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>Bénificaire / Déstinataire</p>
-                    <Dropdown
-                      disabled={!this.state.DisabledBenef}
-                      styles={dropdownStyles}
-                      defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
-                      onChange={this.onSelectionChanged}
-                      onRenderTitle={this.onRenderTitle}
-                      onRenderOption={this.onRenderOption}
-                      onRenderCaretDown={this.onRenderCaretDown}
-                      options={this.getBeneficaire()}                      
-                      onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
-                      style={{ width: '200px' }} // Specify the width you desire
-                    />
-                  </div>
-                </div>
-
-
-                <div className={stylescustom.row}>
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Quantité demandée :</p>
-                    <TextField 
-                      className={controlClass.TextField} 
-                      type='number'
-                      onChange={(e) => this.handleChangeQuantity(e, index)}
-                      min={0}
-                      value={ this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""} 
-                    />
-                  </div>
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Prix estimatifs :</p>
-                    <TextField 
-                      type='number'
-                      min={0}
-                      className={controlClass.TextField} 
-                      onChange={(e) => this.handleChangePrice(e, index)}
-                      value={this.state.formData[index - 1]["price"]} 
-                    />
-                  </div>
-
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
-                    <TextField 
-                      type='number'
-                      min={0}
-                      value={String(this.state.formData[index - 1]["numberOfDays"])} 
-                      onChange={(e) => this.handleInputChange(e, index)}
-                    />
-                  </div>
-
-                  <div className={stylescustom.data}>
-                    <p className={stylescustom.title}> Piéce jointe :</p>
-                    <label htmlFor="uploadFile" className={stylescustom.btn}>Choisir un élément</label>
-                    <input type="file" id="uploadFile" style={{ display: 'none' }}
-                      accept=".jpg, .jpeg, .png , .pdf , .doc ,.docx"
-                      onChange={(e) => { 
-                        this.addFile(e); 
-                        this.setState({ errors: { ...this.state.errors, file: "" } });}} 
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>* Réference de l'article</p>
+                      <Dropdown
+                        styles={dropdownStyles}
+                        defaultValue={this.state.formData[index - 1]?.ArticleSelected?.[0]?.key || ""}
+                        defaultSelectedKey={this.state.formData[index - 1]["ArticleSelected"] && this.state.formData[index - 1]["ArticleSelected"][0] ? this.state.formData[index - 1]["ArticleSelected"][0].key : ""}
+                        onChange={this.onSelectionChanged}
+                        onRenderTitle={this.onRenderTitle}
+                        onRenderOption={this.onRenderOption}
+                        onRenderCaretDown={this.onRenderCaretDown}
+                        options={this.state.formData[index - 1].AllArticleData}                       
+                        onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
+                        style={{ width: '200px' }} // Specify the width you desire
                       />
-                    {this.state.formData[index - 1].fileData && <span style={{ marginLeft: 10, fontSize: 14 }}>{this.state.formData[index - 1].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(index); }}>&#10006;</span></span>}
-                    <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400, display: 'block' }}>
-                      {this.state.errors.file !== "" ? this.state.errors.file : ""}
-                    </span>
+                    </div>
                   </div>
-                </div>
 
 
-                <div className={stylescustom.row}>
-                  <div className={stylescustom.comment}>
-                    <p className={stylescustom.title}>* Description :</p>
-                    <TextField 
-                      className={controlClass.TextField} 
-                      value={this.state.formData[index - 1]["Comment"]} 
-                      multiline 
-                      onChange={(e) => this.handleChangeComment(e, index)}
-                    />
+                  <div className={stylescustom.row}>
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>* Quantité demandée :</p>
+                      <TextField 
+                        className={controlClass.TextField} 
+                        type='number'
+                        onChange={(e) => this.handleChangeQuantity(e, index)}
+                        min={0}
+                        value={ this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""} 
+                      />
+                    </div>
+
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>* Prix estimatifs :</p>
+                      <TextField 
+                        type='number'
+                        min={0}
+                        className={controlClass.TextField} 
+                        onChange={(e) => this.handleChangePrice(e, index)}
+                        value={this.state.formData[index - 1]["price"]} 
+                      />
+                    </div>
+
+
+                    <div className={stylescustom.data}>
+                      <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
+                      <TextField 
+                        type='number'
+                        min={0}
+                        value={String(this.state.formData[index - 1]["numberOfDays"])} 
+                        onChange={(e) => this.handleInputChange(e, index)}
+                      />
+                    </div>
+                  </div>
+
+
+                  <div className={stylescustom.row}>
+                    <div className={stylescustom.comment}>
+                      <p className={stylescustom.title}>* Description :</p>
+                      <TextField 
+                        className={controlClass.TextField} 
+                        value={this.state.formData[index - 1]["Comment"]} 
+                        multiline 
+                        onChange={(e) => this.handleChangeComment(e, index)}
+                      />
+                    </div>
                   </div>
                 </div>
+                <br></br>
+                {this.state.counterProducts > 1 && <div className={stylescustom.line}></div>}
               </div>
             )}
-
+  
+            {console.log(this.state.formData)}
+            {this.state.formData.map((article, index) =>
+              article.ArticleSelected.length > 0 && article && (
+                parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated) && 
+                <p key={index} className={stylescustom.indique}>-<b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.</p>
+              )
+            )}
+            
+            <div className={stylescustom.row}>
+              <div className={stylescustom.data}>
+                <p className={stylescustom.title}> Piéce jointe :</p>
+                <label htmlFor="uploadFile" className={stylescustom.btn}>Choisir un élément</label>
+                <input type="file" id="uploadFile" style={{ display: 'none' }}
+                  accept=".jpg, .jpeg, .png , .pdf , .doc ,.docx"
+                  onChange={(e) => { 
+                    this.addFile(e); 
+                    this.setState({ errors: { ...this.state.errors, file: "" } });}} 
+                  />
+                {this.state.formData[0].fileData && <span style={{ marginLeft: 10, fontSize: 16, whiteSpace:"pre" }}>{this.state.formData[0].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(1); }}>&#10006;</span></span>}
+                <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400, display: 'block' }}>
+                  {this.state.errors.file !== "" ? this.state.errors.file : ""}
+                </span>
+              </div>
+            </div>
+                    
 
             <table className={stylescustom.ad}>
               <thead>
@@ -2339,21 +2383,26 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
               </thead>
               <tbody className={stylescustom.tbody}>
                 {console.log(this.state.formData)}
-                {this.state.axePerBuget.map((article, index) =>
-                  article &&
+                {console.log(this.state.formData)}
+                {this.state.formData.map((article, index) =>
+                  article.ArticleSelected.length > 0 && article &&
                   <>
                     {console.log("Axe data:",this.state.axePerBuget)}
                     <tr>
+                      <td className={stylescustom.key}>Le budget de l'article: </td>
+                      <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].text}</td>
+                    </tr>
+                    <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel alloué</td>
-                      <td className={stylescustom.value}>{article.BudgetAnnualAllocated}</td>
+                      <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].BudgetAnnualAllocated}</td>
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel restant</td>
-                      <td className={stylescustom.value}>{article.BudgetAnnualRemaining}</td>
+                      <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].BudgetAnnualRemaining}</td>
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel utilisé</td>
-                      <td className={stylescustom.value}>{article.BudgetAnnualUsed}</td>
+                      <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].BudgetAnnualUsed}</td>
                     </tr>
                   </>
                 )}
@@ -2363,7 +2412,7 @@ private async loadRemplacantUserRemplacant(userPrincipalName) {
 
             {this.state.checkActionCurrentUser && 
               <div className={stylescustom.btncont}>
-                <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.addArticle()}>AJOUTER UNE AUTRE ARTICLE</button>
+                <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.addArticle()}>AJOUTER UN ARTICLE</button>
                 <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.submitFormData()}>soumettre la demande</button>
               </div>
             }

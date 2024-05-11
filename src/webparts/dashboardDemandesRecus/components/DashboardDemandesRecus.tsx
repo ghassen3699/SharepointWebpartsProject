@@ -58,7 +58,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     historiqueDemande: [] as any,
     cancelPopUp: false,
     demandeSelectedID: 0,
-    DateAction: new Date(),
+    DateAction: [],
     disableButtonUpdateDate: true,
     showSpinner: true,
     isOpen: false,
@@ -90,32 +90,48 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
 
-  private handleChangeDate = (date) => {
+  private handleChangeDate = (date, index) => {
     const newDateFormat = new Date(date);
-    this.setState({ DateAction: newDateFormat, disableButtonUpdateDate: false })
+    const updatedDateAction = [...this.state.DateAction];
+    updatedDateAction.splice(index, 0, newDateFormat);
+    this.setState({ DateAction: updatedDateAction, disableButtonUpdateDate: false });
   };
 
-  // const date = year.toString() + "-" + month.toString() + "-" + day.toString();
 
-  private updateDateSouhaite = async () => {
+  private updateDateSouhaite = async (index) => {
     var DemandeID = this.state.detailsListDemande.ID
     // Save historique block
     const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
     if (historyData.length > 0) {
       var resultArray = JSON.parse(historyData[0].Actions);
-      const date = this.state.DateAction.getDate().toString() + "/" + (this.state.DateAction.getMonth() + 1).toString() + "/" + this.state.DateAction.getFullYear().toString();
+      const date = this.state.DateAction[index].getDate().toString() + "/" + (this.state.DateAction[index].getMonth() + 1).toString() + "/" + this.state.DateAction[index].getFullYear().toString();
 
-      resultArray.push("L'equipe finance a modifier la date souhaitée de la demande pour le " + date);
+      resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} pour le ${date}`);
       const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
         Actions: JSON.stringify(resultArray)
       });
 
       const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
-      const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-        DateSouhaiteEquipeFinance: date
-      });
-
-      window.location.reload()
+      console.log(demandeData[0].DateSouhaiteEquipeFinance)
+      if (demandeData[0].DateSouhaiteEquipeFinance !== null){
+        var resultDemandeArray = []
+        resultDemandeArray = JSON.parse(demandeData[0].DateSouhaiteEquipeFinance);
+        console.log(resultDemandeArray)
+        let deletedItem = resultDemandeArray.splice(index, 1)[0];
+        resultDemandeArray.splice(index,0,date);
+        const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray)
+        });
+        window.location.reload();
+      }else {
+        var resultDemandeArray = [] ;
+        resultDemandeArray.push(date)
+        const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray)
+        });
+        window.location.reload();
+      }
+      
     };
   }
 
@@ -303,7 +319,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
               style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
-          <label className={styles.title}>Status : </label>
+          <label className={styles.title}>Statut : </label>
           <div className={styles.statusWrapper}>
             <Dropdown
               styles={dropdownStyles}
@@ -328,7 +344,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         {(listDemandeData.length > 0 && !this.state.showSpinner) &&
           <div id="spListContainer">
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
-              <tr><th className={styles.textCenter}>#</th><th>Référence de la demande</th><th>Demandeur</th><th>Centre de gestion</th><th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
+              <tr><th className={styles.textCenter}>#</th><th>Référence de la demande</th><th>Demandeur</th><th>Centre de gestion</th><th>Date de la Demande</th><th>Statut de la demande</th><th>Détail</th></tr>
               {currentItems.map((demande: any) =>
                 <tr>
                   <td>
@@ -446,7 +462,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         }
 
         {this.state.openDetailsDiv && <div className={styles.modal}>
-          <div className={styles.modalContent}>
+          <div className={styles.modalContent} style={{margin:"5% auto 0"}}>
             <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDiv: false })}>&times;</span>
             {/* <p className={styles.titleComment}>Détails :</p> */}
             <table className={styles.table}>
@@ -456,39 +472,62 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Sous famille :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
-                </tr>
-                <tr>
                   <td >Article :</td>
                   <td className={styles.value}>
                     {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
                       {console.log(produit, index)}
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                      <h4>{produit.DescriptionTechnique}</h4>
+                        <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
-                        <p className={styles.value}><b> Description Technique: </b>{produit.DescriptionTechnique}</p>
-                        <p className={styles.value}><b> Prix: {produit.Prix} </b></p>
-                        <p className={styles.value}><b> Quantité: {produit.quantité} </b></p>
-                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
+                        <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
+                        <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
+                        <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
+                        <p className={styles.value}>
+                          <b>Modifier la date souhaité: </b>
+                        </p>
+                        <p className={styles.value}>
+                          {console.log(index)}
+                          <div style={{display:"inline", float:"left"}}>
+                            <b>
+                              <DatePicker
+                                style={{width:'250px'}}
+                                isRequired={true}
+                                allowTextInput={true}
+                                // className={controlClass.TextField}
+                                value={this.state.DateAction[index]}
+                                onSelectDate={(e) => { this.handleChangeDate(e, index) }}
+                              />
+                            </b>
+                          </div>
+                          <div style={{display:"inline", float:"right"}}>
+                            <button
+                              style={{
+                                backgroundColor: this.state.disableButtonUpdateDate ? "gray" : "#7d2935",
+                              }}
+                              className={styles.btnRef}
+                              onClick={() => this.updateDateSouhaite(index)}
+                              disabled={this.state.disableButtonUpdateDate}
+                            >
+                              Valider la modification
+                            </button>
+                          </div>
+                        </p>
                       </div>
+
+
+
                     </div>)}
                   </td>
                 </tr>
                 <tr>
-                  <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
-                </tr>
-                {/* <tr>
-                  <td >Prix estimatifs Total :</td>
+                <td>Prix unitaire estimatif Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
-                <tr>
-                  <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr> */}
                 <tr>
                   <td >Piéce jointe :</td>
                   <td className={styles.value} > 
@@ -500,7 +539,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   </td>
                 </tr>
                 <tr>
-                  <td >Status De la demande :</td>
+                  <td >Statut De la demande :</td>
                   {<td className={styles.value}><div className={styles.cercleYellow}></div> &nbsp; Approuvée</td>}
                 </tr>
                 <tr>
@@ -522,33 +561,6 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                       </td>
                     </div>
                   )}
-                </tr>
-                <tr>
-                  <td >Modifier la date souhaité</td>
-                  <td className={styles.value}>
-                    <DatePicker
-                      isRequired={true}
-                      allowTextInput={true}
-                      className={controlClass.TextField}
-                      value={this.state.DateAction}
-                      onSelectDate={(e) => { this.handleChangeDate(e) }}
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <td>Valider la modification</td>
-                  <td className={styles.value}>
-                    <button
-                      style={{
-                        backgroundColor: this.state.disableButtonUpdateDate ? "gray" : "#7d2935",
-                      }}
-                      className={styles.btnRef}
-                      onClick={() => this.updateDateSouhaite()}
-                      disabled={this.state.disableButtonUpdateDate}
-                    >
-                      Valider la modification
-                    </button>
-                  </td>
                 </tr>
               </tbody>
             </table>

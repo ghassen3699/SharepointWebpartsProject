@@ -313,7 +313,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
               style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
-          <label className={styles.title}>Status : </label>
+          <label className={styles.title}>Statut : </label>
           <div className={styles.statusWrapper}>
             <Dropdown
               styles={dropdownStyles}
@@ -616,10 +616,6 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Sous famille :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.SousFamilleProduit}</td>
-                </tr>
-                <tr>
                   <td >Centre de Gestion :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.CentreDeGestion}</td>
                 </tr>
@@ -632,27 +628,21 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {this.state.detailsListDemande.SousFamilleProduit}</p>
-                        <p className={styles.value}><b>Description Technique: </b>{produit.DescriptionTechnique}</p>
-                        <p className={styles.value}><b>Prix: </b>{produit.Prix}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
+                        <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
+                        <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
                   </td>
                 </tr>
                 <tr>
-                  <td >Bénéficiaire / Destination :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.Beneficiaire}</td>
-                </tr>
-                {/* <tr>
-                  <td >Prix estimatifs Total :</td>
+                <td>Prix unitaire estimatif Total :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
                 </tr>
-                <tr>
-                  <td >Délais de livraison souhaité :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.DelaiLivraisionSouhaite} Jours</td>
-                </tr> */}
                 <tr>
                   <td >Piéce jointe :</td>
                   <td className={styles.value} > 
@@ -664,7 +654,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                   </td>
                 </tr>
                 <tr>
-                  <td >Status actuel :</td>
+                  <td >Statut actuel :</td>
                   { (this.state.detailsListDemande.StatusDemande.includes("En cours")) && <td className={styles.value}><div className={styles.cercleBleu}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Approuvée")) && <td className={styles.value}><div className={styles.cercleVert}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}
                   { (this.state.detailsListDemande.StatusDemande.includes("Annuler" )) && <td className={styles.value}><div className={styles.cercleRouge}></div> &nbsp; {this.state.detailsListDemande.StatusDemande}</td>}

@@ -15,3 +15,6 @@ export const EmployeeInfoURL = "https://apiintra-test.universitecentrale.net:84/
 
 // GET USER Approuvers PREPROD ENV (POST Method)
 export const EmployeeApprouverURL = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/UsersPurchaseRequest";
+
+// GET CLOSED PURCHASE REQUESTS PREPROD ENV
+export const ClosedPurchaseOrderURL = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/ClosedPurchaseOrder";

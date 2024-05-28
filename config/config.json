@@ -65,6 +65,14 @@
           "manifest": "./src/webparts/dashboardConsultationDemandes/DashboardConsultationDemandesWebPart.manifest.json"
         }
       ]
+    },
+    "update-demande-achat-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/updateDemandeAchat/UpdateDemandeAchatWebPart.js",
+          "manifest": "./src/webparts/updateDemandeAchat/UpdateDemandeAchatWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
@@ -77,6 +85,7 @@
     "DashboardDemandesRecusWebPartStrings": "lib/webparts/dashboardDemandesRecus/loc/{locale}.js",
     "DashboardDemandeClotureesWebPartStrings": "lib/webparts/dashboardDemandeCloturees/loc/{locale}.js",
     "ModifierDemandeWebPartStrings": "lib/webparts/modifierDemande/loc/{locale}.js",
-    "DashboardConsultationDemandesWebPartStrings": "lib/webparts/dashboardConsultationDemandes/loc/{locale}.js"
+    "DashboardConsultationDemandesWebPartStrings": "lib/webparts/dashboardConsultationDemandes/loc/{locale}.js",
+    "UpdateDemandeAchatWebPartStrings": "lib/webparts/updateDemandeAchat/loc/{locale}.js"
   }
 }

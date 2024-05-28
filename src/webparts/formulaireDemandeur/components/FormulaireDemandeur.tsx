@@ -165,7 +165,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     showPopUpApprouver4: false,
     totalPrixErrorMessage: 0,
     fileBase64: "",
-    axeBudgets: []
+    axeBudgets: [],
+    popUpApprobateurs: false
   };  
   private _graphService = new GraphService(this.props.context);
 
@@ -208,7 +209,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     updatedFormData[index-1].fileData = null
     updatedFormData[index-1].fileName = null
     this.setState({
-      formData: updatedFormData
+      formData: updatedFormData,
+      fileBase64: ""
     });
     (document.getElementById('uploadFile') as HTMLInputElement).value = "";
   }
@@ -337,7 +339,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     
 
     var items
-    if (this.state.DisabledBenef){
+    if (!this.state.DisabledBenef){
       items = await getProduct(event.key, updatedFormData[index - 1].BeneficiareSelected[0].text) ;
       console.log(items)
     }else {
@@ -462,7 +464,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   private disabledSubmitButton = () => {
-    if (!this.state.DisabledBenef){
+    if (this.state.DisabledBenef){
       return this.state.formData.some(formData => (
         formData.FamilleSelected.length === 0 ||
         formData.SousFamilleSelected.length === 0 ||
@@ -626,8 +628,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   };
 
 
-  private _onChange = (ev: React.FormEvent<HTMLInputElement>, option: IChoiceGroupOption) => {
+  private _onChange = async (ev: React.FormEvent<HTMLInputElement>, option: IChoiceGroupOption) => {
     console.log(option)
+    if (option.key === "me"){
+      await this.checkUserPermissionsPerchaseModule(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
+    }else {
+      const checkTestRemplacant = await this.checkRemplacantDemandes();
+      const remplacantEmail = checkTestRemplacant[0]['Demandeur']['EMail'];
+      await this.checkUserPermissionsPerchaseModule(remplacantEmail);
+    }
     this.setState({demandeAffectation:option.key})
   }
 
@@ -718,8 +727,16 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           ArticleList.push({
             "SousFamille":Article.SousFamilleSelected[0].text,
             "SousFamilleID":Article.SousFamilleSelected[0].key,
-            "Beneficiaire": Article.BeneficiareSelected[0].text,
-            "BeneficiaireID":Article.BeneficiareSelected[0].key,
+            "Beneficiaire": !this.state.DisabledBenef && Article.BeneficiareSelected[0]?.text 
+            ? Article.BeneficiareSelected[0].text 
+            : (this.state.demandeAffectation === "me" 
+              ? this.state.userRespCenter 
+              : this.state.RemplacantRespCenter),            
+            "BeneficiaireID":!this.state.DisabledBenef && Article.BeneficiareSelected[0]?.key 
+            ? Article.BeneficiareSelected[0].text 
+            : (this.state.demandeAffectation === "me" 
+              ? this.state.userRespCenter 
+              : this.state.RemplacantRespCenter),
             "DelaiLivraisionSouhaite": Article.numberOfDays,
             "comment": Article.Comment,
             "Prix": Article.price,
@@ -748,6 +765,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           if (getProbateurs[0].ApprobateurV3Id === null){
             if (this.state.checkRemplacant && this.state.condition === 2){
               formData = {
+                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                 "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                 "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                 "EcoleId":getProbateurs[0].ID ,
@@ -771,6 +789,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               }
             }else if (this.state.checkRemplacant && this.state.condition === 1) {
               formData = {
+                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                 "AuthorId": this.state.remplacantID,
                 "DemandeurId": this.state.remplacantID,
                 "EcoleId":getProbateurs[0].ID ,
@@ -794,6 +813,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               }
             }else {
               formData = {
+                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                 "AuthorId": currentUser.Id,
                 "DemandeurId":currentUser.Id ,
                 "EcoleId":getProbateurs[0].ID ,
@@ -820,6 +840,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           }else {
             if (this.state.checkRemplacant && this.state.condition === 2){
               formData = {
+                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                 "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                 "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                 "EcoleId":getProbateurs[0].ID ,
@@ -842,6 +863,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               }
             }else if (this.state.checkRemplacant && this.state.condition === 1){
               formData = {
+                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                 "AuthorId": this.state.remplacantID,
                 "DemandeurId": this.state.remplacantID,
                 "EcoleId":getProbateurs[0].ID ,
@@ -865,6 +887,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             }
             else {
               formData = {
+                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                 "AuthorId": currentUser.Id ,
                 "DemandeurId":currentUser.Id ,
                 "EcoleId":getProbateurs[0].ID ,
@@ -951,6 +974,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               console.log(checkUserNiveau)
               if (checkUserNiveau === 0){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -973,6 +997,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 1){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -996,6 +1021,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 2){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1020,6 +1046,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 4){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1049,6 +1076,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               console.log(checkUserNiveau)
               if (checkUserNiveau === 0){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1071,6 +1099,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 1){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1094,6 +1123,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 2){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1118,6 +1148,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 4){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1147,6 +1178,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               console.log(checkUserNiveau)
               if (checkUserNiveau === 0){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1170,6 +1202,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 1){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1194,6 +1227,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 2){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1219,6 +1253,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 4){
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1251,6 +1286,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,getProbateurs) ;
               if (checkUserNiveau === 0) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1273,6 +1309,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 1) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1296,6 +1333,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 2) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1320,6 +1358,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 3) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1345,6 +1384,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 4) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1374,6 +1414,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID,getProbateurs) ;
               if (checkUserNiveau === 0) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1396,6 +1437,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 1) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1419,6 +1461,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 2) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1443,6 +1486,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 3) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1468,6 +1512,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 4) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": this.state.remplacantID,
                   "DemandeurId": this.state.remplacantID,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1498,6 +1543,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               console.log(checkUserNiveau)
               if (checkUserNiveau === 0) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1520,6 +1566,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 1) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1543,6 +1590,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 2) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1567,6 +1615,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 3) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1592,6 +1641,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 }
               }else if (checkUserNiveau === 4) {
                 formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
                   "AuthorId": currentUser.Id ,
                   "DemandeurId":currentUser.Id ,
                   "EcoleId":getProbateurs[0].ID ,
@@ -1882,6 +1932,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           }
         }
         this.setState({showValidationPopUp:true, spinnerShow : false})
+      }else {
+        this.setState({popUpApprobateurs: true})
       }
     }
   }
@@ -1985,10 +2037,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   private checkUserPermissionsPerchaseModule = async(userPrincipalName) => {
     const userInfo = await this._graphService.getUserId(userPrincipalName)
     const permissions = await getBenefList(userInfo["employeeId"])
+    console.log(permissions['StatusAll'])
     if(permissions['Status'] !== "200"){
       window.location.href = REDIRECTION_URL;
     }else {
-      if (permissions['StatusAll'] === true){
+      if (permissions['StatusAll'] === "True"){
         this.setState({DisabledBenef: false})
       }else {
         this.setState({DisabledBenef: true})
@@ -2117,7 +2170,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         }
       }
 
-      if (!this.state.DisabledBenef){
+      if (this.state.DisabledBenef){
         // Get all famille products
         const listFamilleProduit = [] ;
         const familyProducts = await getFamily() ;
@@ -2125,7 +2178,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           listFamilleProduit.push({
             key: famille.IdFamily,
             text: famille.DescFamily,
-
           })
         })
         this.setState({familyProducts:listFamilleProduit})
@@ -2220,17 +2272,16 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
             {this.intToList(this.state.counterProducts).map((index) => 
               <div>
-                { this.state.counterProducts  > 1 && 
+                { (this.state.counterProducts  > 1) && (index !== 1) && 
                   <p className={stylescustom.indique}>
                     <button style={{float:"right"}} className={stylescustom.btn} onClick={() => this.deleteArticle(index - 1)}>-</button>
                   </p>
                 }
                 <div className='productsDiv'>
                   <div className={stylescustom.row}>
-                    <div className={stylescustom.data}>
+                    {!this.state.DisabledBenef && <div className={stylescustom.data}>
                       <p className={stylescustom.title}>Bénificaire / Déstinataire</p>
                       <Dropdown
-                        disabled={!this.state.DisabledBenef}
                         styles={dropdownStyles}
                         defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
                         onChange={this.onSelectionChanged}
@@ -2241,7 +2292,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                         onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
                         style={{ width: '200px' }} // Specify the width you desire
                       />
-                    </div>
+                    </div>}
+                    
 
 
                     <div className={stylescustom.data}>
@@ -2311,7 +2363,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     </div>
 
                     <div className={stylescustom.data}>
-                      <p className={stylescustom.title}>* Prix estimatifs :</p>
+                      <p className={stylescustom.title}>* prix unitaire estimatif :</p>
                       <TextField 
                         type='number'
                         min={0}
@@ -2351,13 +2403,35 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               </div>
             )}
   
-            {console.log(this.state.formData)}
-            {this.state.formData.map((article, index) =>
-              article.ArticleSelected.length > 0 && article && (
-                parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated) && 
-                <p key={index} className={stylescustom.indique}>-<b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.</p>
-              )
-            )}
+            {
+              !this.state.DisabledBenef 
+                ? this.state.formData.map((article, index) => {
+                    if (article.ArticleSelected.length > 0 && article) {
+                      if (parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated)) {
+                        return (
+                          <p key={index} className={stylescustom.indique}>
+                            - <b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
+                          </p>
+                        );
+                      }
+                    }
+                    return null;
+                  })
+                : this.state.formData.map((article, index) => {
+                    if (article.ArticleSelected.length > 0 && article) {
+                      if (parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated)) {
+                        return (
+                          <div key={index}>
+                            <p className={stylescustom.indique}>
+                              - <b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
+                            </p>
+                          </div>
+                        );
+                      }
+                    }
+                    return null;})
+            }
+
             
             <div className={stylescustom.row}>
               <div className={stylescustom.data}>
@@ -2384,7 +2458,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               <tbody className={stylescustom.tbody}>
                 {console.log(this.state.formData)}
                 {console.log(this.state.formData)}
-                {this.state.formData.map((article, index) =>
+                {this.state.DisabledBenef && this.state.formData.map((article, index) =>
                   article.ArticleSelected.length > 0 && article &&
                   <>
                     {console.log("Axe data:",this.state.axePerBuget)}
@@ -2403,6 +2477,27 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel utilisé</td>
                       <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].BudgetAnnualUsed}</td>
+                    </tr>
+                  </>
+                )}
+                {!this.state.DisabledBenef && uniqueArray.map((article, index) =>
+                  <>
+                    {console.log(article)}
+                    <tr>
+                      <td className={stylescustom.key}>Le budget de l'article: </td>
+                      <td className={stylescustom.value}>{article.text}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel alloué</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualAllocated}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel restant</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualRemaining}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel utilisé</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualUsed}</td>
                     </tr>
                   </>
                 )}
@@ -2481,7 +2576,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           <div className={styles.demandeurDashboard}>
             <div className={styles.modal}>
               <div className={styles.modalContent}>
-                <span className={styles.close} onClick={() => this.setState({checkActionCurrentUserPopUp:false})}>&times;</span>
+                <span className={styles.close} onClick={() => location.reload()}>&times;</span>
                 <h3>À noter</h3>
                 <ul>
                     <li>
@@ -2489,6 +2584,25 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     </li>
                 </ul>
                 <p> =&gt; Vous avez le droit d'effectuer des actions quand la période de remplacement est terminée.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
+        {this.state.popUpApprobateurs && (
+          <div className={styles.demandeurDashboard}>
+            <div className={styles.modal}>
+              <div className={styles.modalContent}>
+                <span className={styles.close} onClick={() => this.setState({popUpApprobateurs:false})}>&times;</span>
+                <h3>À noter</h3>
+                <ul>
+                    <li>
+                      Je vous prie de m'excuser, Monsieur/Madame. Nous n'avons pas de liste d'approbateurs pour cette demande.
+                    </li>
+                </ul>
+                <p> =&gt; Veuillez fournir d'autres données.</p>
               </div>
             </div>
           </div>

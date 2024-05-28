@@ -83,7 +83,10 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     checkActionCurrentUser: true,
     checkActionCurrentUserPopUp: false,
     showValidationPopUpRemplaçant: false,
-    demandeurs: []
+    demandeurs: [],
+    showApprobationPopUp: false,
+    showModificationPopUp: false,
+    showRejectionPopUp: false,
   }; 
 
   private _graphService = new GraphService(this.props.context);
@@ -535,7 +538,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           StatusApprobateurV2: "En cours",
         });
   
-        window.location.reload()
+        
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -585,7 +588,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           StatusApprobateurV4: "En cours"
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV4Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -619,7 +621,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             ReferenceDemande: sendDemandeToErp['PurchaseRequestNo']
           });
         }
-        window.location.reload()
       }
     }else {
       if(Demande[0].ApprobateurV1Id.includes(currentUserID)){
@@ -718,7 +719,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           StatusApprobateurV3: "En cours"
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV3Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -767,7 +767,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           StatusApprobateurV4: "En cours"
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV4Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -802,11 +801,10 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             ReferenceDemande: sendDemandeToErp['PurchaseRequestNo']
           });
         }
-        window.location.reload()
   
       }
     }
-    
+    this.setState({showApprobationPopUp: true})
   }
 
 
@@ -847,7 +845,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV1: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -873,7 +870,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV2: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV4Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -899,7 +895,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV4: this.state.commentAction
         });
   
-        window.location.reload()
   
       }  
     }else {
@@ -927,7 +922,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV1: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -953,7 +947,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV2: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV3Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -979,7 +972,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV3: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV4Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -1005,11 +997,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV4: this.state.commentAction
         });
   
-        window.location.reload()
   
       }  
     }
  
+    this.setState({showRejectionPopUp: true})
   }
 
 
@@ -1051,7 +1043,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV1: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -1080,7 +1071,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV2: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV4Id.includes(currentUserID)){
   
@@ -1108,7 +1098,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV4: this.state.commentAction
         });
   
-        window.location.reload()
       }
     }else {
       if(Demande[0].ApprobateurV1Id.includes(currentUserID)){
@@ -1136,7 +1125,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV1: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV2Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -1165,7 +1153,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV2: this.state.commentAction
         });
   
-        window.location.reload()
   
       }else if (Demande[0].ApprobateurV3Id.includes(currentUserID)){
   
@@ -1193,7 +1180,6 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV3: this.state.commentAction
         });
   
-        window.location.reload()
       }else if (Demande[0].ApprobateurV4Id.includes(currentUserID)){
   
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ;
@@ -1220,10 +1206,10 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           CommentaireApprobateurV4: this.state.commentAction
         });
   
-        window.location.reload()
       }
     }
-    
+
+    this.setState({showModificationPopUp: true})
   }
 
 
@@ -1456,7 +1442,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     } catch (error) {
         console.error("Error fetching demandes:", error);
     }
-}
+  }
 
 
 
@@ -2053,6 +2039,45 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           show={this.state.showValidationPopUpRemplaçant} 
           title="Ajouter un remplaçant d'approbation" 
           text="Votre demande d'ajouter un remplaçant d'approbation est enregistrer avec succés"
+          imageUrl={img}
+          confirmButtonColor='#7D2935'
+          onConfirm={() => window.location.reload()}
+          imageWidth="150"
+          imageHeight="150"
+        />
+
+        {/* PopUp Approuver demande */}
+        <SweetAlert2
+          allowOutsideClick={false}
+          show={this.state.showApprobationPopUp} 
+          title="Approbation d'une demande" 
+          text="Votre action est enregistrer avec succés."
+          imageUrl={img}
+          confirmButtonColor='#7D2935'
+          onConfirm={() => window.location.reload()}
+          imageWidth="150"
+          imageHeight="150"
+        />
+
+        {/* PopUp Modifier demande */}
+        <SweetAlert2
+          allowOutsideClick={false}
+          show={this.state.showModificationPopUp} 
+          title="Demande de modification d'une demande" 
+          text="Votre action est enregistrer avec succés."
+          imageUrl={img}
+          confirmButtonColor='#7D2935'
+          onConfirm={() => window.location.reload()}
+          imageWidth="150"
+          imageHeight="150"
+        />
+
+        {/* PopUp rejeter demande */}
+        <SweetAlert2
+          allowOutsideClick={false}
+          show={this.state.showRejectionPopUp} 
+          title="Rejeter d'une demande" 
+          text="Votre action est enregistrer avec succés."
           imageUrl={img}
           confirmButtonColor='#7D2935'
           onConfirm={() => window.location.reload()}

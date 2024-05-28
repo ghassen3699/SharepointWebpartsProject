@@ -8,6 +8,61 @@
     margin-bottom: 20px;
   }
 
+  .loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid;
+    border-color:#7d2935 transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+    position: absolute;
+  }
+  
+  @keyframes rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  } 
+
+  .accordion {
+    margin-bottom: 10px;
+  }
+  
+  .accordionButton {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    border: none;
+    outline: none;
+    transition: 0.4s;
+  }
+  
+  .active, .accordionButton:hover {
+    background-color: #ccc;
+  }
+  
+  .panel {
+    padding: 0 18px;
+    background-color: white;
+    display: none;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+  }
+  
+  .panelOpen {
+    display: block;
+    text-align: left;
+  }
+  
+
+  
   .paginations {
     text-align: center;
     margin-top: 30px;
@@ -18,6 +73,17 @@
       display: inline-block;
       cursor: pointer;
       font-size: 16px;
+    }
+
+    .pagination2 {
+      padding: 4px 12px;
+      border: 1px solid #700d1f;
+      margin-right: 6px;
+      display: inline-block;
+      cursor: pointer;
+      font-size: 16px;
+      background-color: #7d2935;
+      color: white;
     }
   }
 
@@ -32,9 +98,25 @@
     background-color: rgb(0, 0, 0); /* Fallback color */
     background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
     text-align: center;
-
+    .entete{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top:30px
+    }
+    .titledetail{
+      font-weight: 600;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
     /* Modal Content/Box */
     .modalContent {
+      width: 100%;
+      direction: flex;
+      flex-direction: column;
+      max-width: 750px;
+ 
+      min-height: 410px;
       background-color: #fefefe;
       margin: 10% auto 0; /* 15% from the top and centered */
       padding: 0 20px 20px;
@@ -48,6 +130,7 @@
         float: right;
         font-size: 28px;
         font-weight: bold;
+        height: 68px;
       }
 
       .close:hover,
@@ -176,7 +259,13 @@
       
     }
   }
-
+  .contentmodal{
+    overflow-y: auto;
+    max-height: 47vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
   tr:nth-of-type(2n) {
     font-size: 12px;
     background-color: #f3f2f2;

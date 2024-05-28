@@ -63,7 +63,8 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
     showSpinner: true,
     filenames: [],
     isOpen: false,
-    currentAccordion : 0
+    currentAccordion : 0,
+    demandeurs: []
   }; 
 
 
@@ -258,9 +259,50 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
     this.setState({isOpen: !isStatePrev, currentAccordion:Accordionindex})
   };
 
+  private async getAllDemandeurs() {
+    try {
+        const demandes = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+            .select("Demandeur/Id", "Demandeur/Title") // Select the fields from the "Demandeur" lookup field
+            .expand("Demandeur") // Expand the "Demandeur" lookup field
+            .getAll();
+
+        console.log(demandes);
+
+         // Group demands by DemandeurID
+         const groupedDemandes = {};
+         demandes.forEach(demande => {
+             const demandeur = demande.Demandeur;
+             const demandeurID = demandeur.Id;
+             const demandeurName = demandeur.Title;
+ 
+             if (!groupedDemandes[demandeurID]) {
+                groupedDemandes[demandeurID] = { key: demandeurID.toString(), text: demandeurName };
+             }
+         });
+ 
+         // Convert groupedDemandes object into array of objects
+         const result = [];
+         for (const key in groupedDemandes) {
+             if (groupedDemandes.hasOwnProperty(key)) {
+                 result.push(groupedDemandes[key]);
+             }
+         }
+ 
+         // Now 'result' holds the demands grouped by DemandeurID
+         console.log(result);
+         return result;
+    } catch (error) {
+        console.error("Error fetching demandes:", error);
+    }
+  }
+
 
 
   async componentDidMount() {
+    const demandeurs = await this.getAllDemandeurs()
+    console.log(demandeurs)
+    this.setState({demandeurs})
+
     this.getAllDemandeListData() ;
     setTimeout(() => {
       this.setState({ showSpinner: false});
@@ -304,10 +346,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
             <Dropdown
               styles={dropdownStyles}
               placeholder="Selectionner votre demandeur"
-              options={[
-                { key: 'demandeur 1', text: 'demandeur 1' },
-                { key: 'demandeur 2', text: 'demandeur 2' },
-              ]}
+              options={this.state.demandeurs}
               defaultSelectedKey={this.state.FamilleFilter}
               onChanged={(value) => this.setState({FamilleFilter:value.key, currentPage: 1})}
               style={{ width: '224.45px' }} // Specify the width you desire

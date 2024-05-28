@@ -474,7 +474,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                       </g>
                     </svg>}
                   </td>
-                  <td>{index + 1}</td>
+                  <td>{demande.Id}</td>
                   <td>{demande.FamilleProduit}</td>
                   <td>{demande.CentreDeGestion}</td>
                   <td>{convertDateFormat(demande.Created)}</td>

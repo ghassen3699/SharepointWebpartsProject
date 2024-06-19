@@ -769,7 +769,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
         console.log(data) ;
         data.map(Article => {
           console.log("Article", Article)
-          prixTotal = prixTotal + (parseInt(Article.price) * parseInt(Article.quantity));
+          prixTotal = prixTotal + (parseFloat(Article.price) * parseInt(Article.quantity));
           console.log(!this.state.DisabledBenef)
           if (!this.state.DisabledBenef){
             console.log(1)

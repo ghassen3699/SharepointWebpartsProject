@@ -66,16 +66,47 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     filenames: [],
   };
 
+  private getPageNumbers = (totalPages) => {
+    const { currentPage } = this.state;
+    const maxPagesToShow = 5; // Adjust this number to show more/less page numbers
+    const halfPagesToShow = Math.floor(maxPagesToShow / 2);
+    let startPage = Math.max(1, currentPage - halfPagesToShow);
+    let endPage = Math.min(totalPages, currentPage + halfPagesToShow);
+
+    if (currentPage - 1 <= halfPagesToShow) {
+      endPage = Math.min(totalPages, maxPagesToShow);
+    }
+    if (totalPages - currentPage <= halfPagesToShow) {
+      startPage = Math.max(1, totalPages - maxPagesToShow + 1);
+    }
+
+    const pageNumbers = [];
+    for (let page = startPage; page <= endPage; page++) {
+      pageNumbers.push(page);
+    }
+
+    return { pageNumbers, totalPages };
+  };
+
 
   handleNextPage = () => {
     const { currentPage } = this.state;
-    const { listDemandeData, itemsPerPage } = this.state;
-    const totalPages = Math.ceil(listDemandeData.length / itemsPerPage);
+    const totalPages = Math.ceil(this.getFilteredData().length / this.state.itemsPerPage);
     if (currentPage < totalPages) {
       this.setState({ currentPage: currentPage + 1 });
     }
   };
 
+  getFilteredData = () => {
+    const { listDemandeData, FamilleFilter, StatusFilter } = this.state;
+    if (FamilleFilter.length > 0 || StatusFilter.length > 0) {
+      return listDemandeData.filter((item) => {
+        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && 
+        item.StatusDemande.toString().includes(StatusFilter);
+      });
+    }
+    return listDemandeData;
+  };
 
   handlePrevPage = () => {
     const { currentPage } = this.state;
@@ -85,7 +116,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
 
-  handlePageClick = (page: any) => {
+  handlePageClick = (page:any) => {
     this.setState({ currentPage: page });
   };
 
@@ -282,25 +313,22 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
     const { currentPage, itemsPerPage, listDemandeData, FamilleFilter, StatusFilter } = this.state;
     var filteredData
-    console.log(FamilleFilter)
-    console.log(StatusFilter)
-
-    if (FamilleFilter !== "" || StatusFilter !== "") {
+    if(FamilleFilter.length > 0 || StatusFilter.length > 0){
       console.log(FamilleFilter)
       console.log(StatusFilter)
-      filteredData = listDemandeData.filter((item: any) => {
-        console.log(item)
+      filteredData = listDemandeData.filter((item:any) => {
         return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
-      });
-    } else {
+      }); 
+    }else {
       filteredData = listDemandeData
     }
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const { pageNumbers } = this.getPageNumbers(totalPages);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-
+    
     return (
       <div className={styles.dashboardDemandesRecus}>
         <div className={styles.title}><strong>Filtres</strong></div>
@@ -569,39 +597,58 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
         {!this.state.showSpinner &&
           <div className={styles.paginations}>
-            <span
-              id="btn_prev"
-              className={styles.pagination}
-              onClick={this.handlePrevPage}>
-              Prev
-            </span>
+          <span
+            id="btn_prev"
+            className={styles.pagination}
+            onClick={this.handlePrevPage}>
+            Prev
+          </span>
 
-            <span id="page">
-              {(() => {
-                const pageButtons = [];
-                for (let page = 0; page < totalPages; page++) {
-                  pageButtons.push(
-                    <span
-                      key={page + 1}
-                      onClick={() => this.handlePageClick(page + 1)}
-                      className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
-                    >
-                      {page + 1}
-                    </span>
-                  );
-                }
-                return pageButtons;
-              })()
-              }
-            </span>
+          <span id="page">
+            {pageNumbers[0] > 1 && (
+              <>
+                <span
+                  onClick={() => this.handlePageClick(1)}
+                  className={currentPage === 1 ? styles.pagination2 : styles.pagination}
+                >
+                1
+                </span>
+                {pageNumbers[0] > 2 && <span className={styles.pagination}>...</span>}
+              </>
+            )}
 
-            <span
-              id="btn_prev"
-              className={styles.pagination}
-              onClick={this.handleNextPage}>
-              Next
-            </span>
-          </div>
+            {pageNumbers.map((page) => (
+              <span
+                key={page}
+                onClick={() => this.handlePageClick(page)}
+                className={currentPage === page ? styles.pagination2 : styles.pagination}
+              >
+                {page}
+              </span>
+            ))}
+
+            {pageNumbers[pageNumbers.length - 1] < totalPages && (
+              <>
+                {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
+                  <span className={styles.pagination}>...</span>
+                )}
+                <span
+                  onClick={() => this.handlePageClick(totalPages)}
+                  className={currentPage === totalPages ? styles.pagination2 : styles.pagination}
+                >
+                  {totalPages}
+                </span>
+              </>
+            )}
+          </span>
+
+          <span
+            id="btn_prev"
+            className={styles.pagination}
+            onClick={this.handleNextPage}>
+            Next
+          </span>
+        </div>
         }
       </div>
     );

@@ -662,23 +662,53 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       this.setState({spinnerShow : true}) ;
 
       var listApprouvers
-      if (this.state.demandeAffectation === "me"){
-        listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.userRespCenter)
+      const data = this.state.formData;
+      if (!this.state.DisabledBenef && data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0){
+        listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, data[0].BeneficiareSelected[0].text)
       }else {
-        listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.RemplacantRespCenter)
+        if (this.state.demandeAffectation === "me"){
+          listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.userRespCenter)
+        }else {
+          listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.RemplacantRespCenter)
+        }
       }
+      
 
 
 
-      console.log(listApprouvers)
-      if (listApprouvers['Status'] === "200") {
+      console.log(listApprouvers['approvalsList'][0].MailApp1)
+      if (listApprouvers['Status'] === "200" && listApprouvers['approvalsList'][0].MailApp1 !== "") {
         var getProbateurs = [] ;
 
+        // const promises = listApprouvers['approvalsList'].map(async approuver => {
+        //   const approbateurV1Id = await this.getUserByEmail(approuver.NameApp1.trim().replace(/\s+/g, ' '));
+        //   const approbateurV2Id = await this.getUserByEmail(approuver.NameApp2.trim().replace(/\s+/g, ' '));
+        //   const approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail(approuver.NameApp3.trim().replace(/\s+/g, ' ')) : null;
+        //   const approbateurV4Id = await this.getUserByEmail(approuver.NameApp4.trim().replace(/\s+/g, ' '));
+      
+        //   return {
+        //       ApprobateurV1Id: [approbateurV1Id],
+        //       UserDisplayNameV1: approuver.NameApp1,
+        //       ApprobateurV2Id: [approbateurV2Id],
+        //       UserDisplayNameV2: approuver.NameApp2,
+        //       ApprobateurV3Id: approbateurV3Id !== null ? [approbateurV3Id] : null,
+        //       UserDisplayNameV3: approuver.NameApp3 !== "" ? approuver.NameApp3 : null,
+        //       ApprobateurV4Id: [approbateurV4Id],
+        //       UserDisplayNameV4: approuver.NameApp4,
+        //   };
+        // });
+
         const promises = listApprouvers['approvalsList'].map(async approuver => {
-          const approbateurV1Id = await this.getUserByEmail(approuver.NameApp1);
-          const approbateurV2Id = await this.getUserByEmail(approuver.NameApp2);
-          const approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail(approuver.NameApp3) : null;
-          const approbateurV4Id = await this.getUserByEmail(approuver.NameApp4);
+          var approbateurV1Id, approbateurV2Id, approbateurV3Id, approbateurV4Id
+          try {
+            approbateurV1Id = await this.getUserByEmail2(approuver.MailApp1);
+            approbateurV2Id = await this.getUserByEmail2(approuver.MailApp2);
+            approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail2(approuver.MailApp3) : null;
+            approbateurV4Id = await this.getUserByEmail2(approuver.MailApp4);
+          } catch (error) {
+            this.setState({popUpApprobateurs: true})
+          }
+
       
           return {
               ApprobateurV1Id: [approbateurV1Id],
@@ -719,11 +749,10 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           }
         }
 
-        const data = this.state.formData;
         console.log('all Data:', data)  
         data.map(Article => {
           console.log("Article", Article)
-          prixTotal = prixTotal + (parseInt(Article.price) * parseInt(Article.quantity));
+          prixTotal = prixTotal + (parseFloat(Article.price) * parseInt(Article.quantity));
           ArticleList.push({
             "SousFamille":Article.SousFamilleSelected[0].text,
             "SousFamilleID":Article.SousFamilleSelected[0].key,
@@ -2053,8 +2082,21 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
   public async getUserByEmail(userDisplayName){
     try {
+      console.log(userDisplayName)
       const userEmailMSgraph = await this._graphService.getUserEmailByDisplayName(userDisplayName)
+      console.log(userEmailMSgraph)
       const user = await Web(this.props.url).ensureUser(userEmailMSgraph);
+      console.log(user)
+      return user.data.Id;
+    } catch (error) {
+      throw error; // Re-throw the error
+    }
+  }
+
+  public async getUserByEmail2(userEmail){
+    try {
+      const user = await Web(this.props.url).ensureUser(userEmail);
+      console.log(user)
       return user.data.Id;
     } catch (error) {
       throw error; // Re-throw the error
@@ -2160,6 +2202,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
           // Get Resp Centre of current user
           const currentUserDataFromERP = await getUserInfo(this.state.userEstablishment,this.state.userRegistrationNumber)
+          console.log("User infoooooooooooooooooooooooo:  ",currentUserDataFromERP)
           if (currentUserDataFromERP.length > 0){
             this.setState({userRespCenter:currentUserDataFromERP[0]['RespCenter']})
           }
@@ -2595,13 +2638,14 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           <div className={styles.demandeurDashboard}>
             <div className={styles.modal}>
               <div className={styles.modalContent}>
-                <span className={styles.close} onClick={() => this.setState({popUpApprobateurs:false})}>&times;</span>
+                <span className={styles.close} onClick={() => location.reload()}>&times;</span>
                 <h3>À noter</h3>
                 <ul>
                     <li>
                       Je vous prie de m'excuser, Monsieur/Madame. Nous n'avons pas de liste d'approbateurs pour cette demande.
                     </li>
                 </ul>
+
                 <p> =&gt; Veuillez fournir d'autres données.</p>
               </div>
             </div>

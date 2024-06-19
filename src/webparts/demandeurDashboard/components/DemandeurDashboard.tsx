@@ -82,13 +82,22 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
   handleNextPage = () => {
     const { currentPage } = this.state;
-    const { listDemandeData, itemsPerPage } = this.state;
-    const totalPages = Math.ceil(listDemandeData.length / itemsPerPage);
+    const totalPages = Math.ceil(this.getFilteredData().length / this.state.itemsPerPage);
     if (currentPage < totalPages) {
       this.setState({ currentPage: currentPage + 1 });
     }
   };
 
+  getFilteredData = () => {
+    const { listDemandeData, FamilleFilter, StatusFilter } = this.state;
+    if (FamilleFilter.length > 0 || StatusFilter.length > 0) {
+      return listDemandeData.filter((item) => {
+        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && 
+        item.StatusDemande.toString().includes(StatusFilter);
+      });
+    }
+    return listDemandeData;
+  };
 
   handlePrevPage = () => {
     const { currentPage } = this.state;
@@ -317,6 +326,28 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     }
   }
 
+  private getPageNumbers = (totalPages) => {
+    const { currentPage } = this.state;
+    const maxPagesToShow = 5; // Adjust this number to show more/less page numbers
+    const halfPagesToShow = Math.floor(maxPagesToShow / 2);
+    let startPage = Math.max(1, currentPage - halfPagesToShow);
+    let endPage = Math.min(totalPages, currentPage + halfPagesToShow);
+
+    if (currentPage - 1 <= halfPagesToShow) {
+      endPage = Math.min(totalPages, maxPagesToShow);
+    }
+    if (totalPages - currentPage <= halfPagesToShow) {
+      startPage = Math.max(1, totalPages - maxPagesToShow + 1);
+    }
+
+    const pageNumbers = [];
+    for (let page = startPage; page <= endPage; page++) {
+      pageNumbers.push(page);
+    }
+
+    return { pageNumbers, totalPages };
+  };
+
 
   private ajouterAutreDemandeur = async() => {
     const currentUser = (await Web(this.props.url).currentUser.get()).Id ;
@@ -342,6 +373,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     const familyProducts = await getFamily() ;
   }
   
+  
 
   async componentDidMount() {
     this.checkUserActions() ;
@@ -364,6 +396,8 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     const controlClass = mergeStyleSets({
       TextField: { backgroundColor: "white", }
     });
+
+
     const { currentPage, itemsPerPage, listDemandeData, FamilleFilter, StatusFilter } = this.state;
     var filteredData
     if(FamilleFilter.length > 0 || StatusFilter.length > 0){
@@ -375,11 +409,13 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     }else {
       filteredData = listDemandeData
     }
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const { pageNumbers } = this.getPageNumbers(totalPages);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
+    
     
     return (
       <div className={styles.demandeurDashboard}>
@@ -746,7 +782,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toString()} DT</p>
                         <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
@@ -805,22 +841,41 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
             </span>
 
             <span id="page">
-              {(() => {
-                  const pageButtons = [];
-                  for (let page = 0; page < totalPages; page++) {
-                    pageButtons.push(
-                      <span 
-                        key={page + 1} 
-                        onClick={() => this.handlePageClick(page + 1)} 
-                        className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
-                      >
-                        {page + 1}
-                      </span>
-                    );
-                  }
-                  return pageButtons;
-                })()
-              }
+              {pageNumbers[0] > 1 && (
+                <>
+                  <span
+                    onClick={() => this.handlePageClick(1)}
+                    className={currentPage === 1 ? styles.pagination2 : styles.pagination}
+                  >
+                  1
+                  </span>
+                  {pageNumbers[0] > 2 && <span className={styles.pagination}>...</span>}
+                </>
+              )}
+
+              {pageNumbers.map((page) => (
+                <span
+                  key={page}
+                  onClick={() => this.handlePageClick(page)}
+                  className={currentPage === page ? styles.pagination2 : styles.pagination}
+                >
+                  {page}
+                </span>
+              ))}
+
+              {pageNumbers[pageNumbers.length - 1] < totalPages && (
+                <>
+                  {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
+                    <span className={styles.pagination}>...</span>
+                  )}
+                  <span
+                    onClick={() => this.handlePageClick(totalPages)}
+                    className={currentPage === totalPages ? styles.pagination2 : styles.pagination}
+                  >
+                    {totalPages}
+                  </span>
+                </>
+              )}
             </span>
 
             <span

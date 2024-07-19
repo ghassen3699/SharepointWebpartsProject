@@ -1,7 +1,7 @@
 import { EmployeeApprouverURL } from "../API_END_POINTS/AchatModuleEndPoints";
 
 
-// GET all sub product family 
+// GET all Approuvers
 export async function getApprouverList(idSubFamily, ResponceCenter) {
     try {
         const response = await fetch(EmployeeApprouverURL, {

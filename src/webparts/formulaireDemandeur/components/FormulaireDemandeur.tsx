@@ -27,7 +27,7 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
-import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
+import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, convertStringToNumber, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
 import { getUserInfo } from "../../../services/getUserInfo" ;
 import { getSubFamily } from "../../../services/getProductsSubFamily" ;
 import { getFamily } from "../../../services/getAllProductFamily" ;
@@ -100,7 +100,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       ArticleSelected: [] as any,
       BeneficiareSelected : [] as any,
       Comment: "",
-      quantity: "",
+      quantity: "1",
       price: "" ,
       DateSouhaite: new Date() ,
       numberOfDays: "",
@@ -217,16 +217,39 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   private checkUserActions = async() => {
+
     const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
-    const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalize to midnight
     const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
+    .filter(`DemandeurId eq ${currentUserID} and TypeRemplacement eq 'D'`)
     .orderBy('Created', false)
     .top(1)
     .get();
+    console.log(remplacantTest)
 
     if (remplacantTest.length > 0) {
-      this.setState({checkActionCurrentUser : false, checkActionCurrentUserPopUp: true});
+      const item = remplacantTest[0];
+      const dateDeDebut = new Date(item.DateDeDebut);
+      const dateDeFin = new Date(item.DateDeFin);
+
+      dateDeDebut.setHours(0, 0, 0, 0); // Normalize to midnight
+      dateDeFin.setHours(0, 0, 0, 0); // Normalize to midnight
+
+
+      // Ensure the dates are valid
+      if (!isNaN(dateDeDebut.getTime()) && !isNaN(dateDeFin.getTime())) {
+        const isNowInRange = now >= dateDeDebut && now <= dateDeFin;
+
+        console.log(`Is now within the range: ${isNowInRange}`);
+        if (isNowInRange) {
+          this.setState({checkActionCurrentUser : false, checkActionCurrentUserPopUp: true});
+        } else {
+          console.log(`Now (${now}) is NOT within the range of start date (${dateDeDebut}) and end date (${dateDeFin}).`);
+        }
+        
+
+      }
     }
   }
 
@@ -430,7 +453,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       ArticleSelected: []as any,
       BeneficiareSelected: []as any,
       Comment: "",
-      quantity:"",
+      quantity:"1",
       price:"",
       numberOfDays: "",
       DateSouhaite: new Date(),
@@ -651,6 +674,17 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
+  // public checkApprouver = async(approuverID) => {
+  //   const result = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items.filter(`DemandeurID eq ${approuverID}`).get();
+
+  //   if (result.length > 0) {
+  //     const demandeurName =  (await Web(this.props.url).siteUsers.getById(result[0].DemandeurID).get()).Title;
+  //     const remplacantName = (await Web(this.props.url).siteUsers.getById(result[0].RemplacantID).get()).Title;
+  //     return { demandeurName, remplacantName };
+  //   } 
+  // }
+
+
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
     const currentUser = await Web(this.props.url).currentUser.get() ;
@@ -728,7 +762,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           this.setState({showPopUpApprouver4: true})
           return
         }
-        const approuversResponse = await this.checkApprouverRemplacant(getProbateurs[0].ApprobateurV1Id[0], getProbateurs[0].ApprobateurV2Id[0], getProbateurs[0].ApprobateurV3Id !== null ? getProbateurs[0].ApprobateurV3Id[0] : null, getProbateurs[0].ApprobateurV4Id[0]);
+        const approuversResponse = await this.checkApprouvet(getProbateurs[0].ApprobateurV1Id[0], getProbateurs[0].ApprobateurV2Id[0], getProbateurs[0].ApprobateurV3Id !== null ? getProbateurs[0].ApprobateurV3Id[0] : null, getProbateurs[0].ApprobateurV4Id[0]);
 
         if (approuversResponse.length > 0) {
           const demandeurId = approuversResponse[0].DemandeurId;
@@ -1972,18 +2006,36 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   private checkRemplacantDemandes = async () => {
     try {
       const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
-      const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Normalize to midnight      
       const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
+      .filter(`RemplacantId eq ${currentUserID} and TypeRemplacement eq 'D'`)
       .orderBy('Created', false)
       .top(1)
       .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
       .expand("Demandeur")
       .get();
 
-      console.log(remplacantTest);
-      return remplacantTest;
-
+      if (remplacantTest.length > 0) {
+        const item = remplacantTest[0];
+        const dateDeDebut = new Date(item.DateDeDebut);
+        const dateDeFin = new Date(item.DateDeFin);
+  
+        dateDeDebut.setHours(0, 0, 0, 0); // Normalize to midnight
+        dateDeFin.setHours(0, 0, 0, 0); // Normalize to midnight
+  
+  
+        // Ensure the dates are valid
+        if (!isNaN(dateDeDebut.getTime()) && !isNaN(dateDeFin.getTime())) {
+          const isNowInRange = now >= dateDeDebut && now <= dateDeFin;
+  
+          console.log(`Is now within the range: ${isNowInRange}`);
+          if (isNowInRange) {
+            console.log(remplacantTest);
+            return remplacantTest;          
+          }
+        }
+      }else return []
     } catch (error) {
       console.error("Error checking remplacant demandes:", error);
       return [];
@@ -2104,30 +2156,77 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  private checkApprouverRemplacant = async(Approuver1, Approuver2, Approuver3, Approuver4) => {
+  private checkApprouvet = async(Approuver1, Approuver2, Approuver3, Approuver4) => {
     try {
       if (Approuver3 !== null){
-        const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Normalize to midnight
         const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-        .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} DemandeurId eq ${Approuver3} or DemandeurId eq ${Approuver4} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
+        .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} DemandeurId eq ${Approuver3} or DemandeurId eq ${Approuver4} and TypeRemplacement eq 'AP'`)
         .orderBy('Created', false)
         .top(1)
         .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
         .expand("Demandeur")
         .get();
-  
-        console.log(remplacantTest);
-        return remplacantTest;
+        if (remplacantTest.length > 0) {
+          const item = remplacantTest[0];
+          const dateDeDebut = new Date(item.DateDeDebut);
+          const dateDeFin = new Date(item.DateDeFin);
+    
+          dateDeDebut.setHours(0, 0, 0, 0); // Normalize to midnight
+          dateDeFin.setHours(0, 0, 0, 0); // Normalize to midnight
+    
+    
+          // Ensure the dates are valid
+          if (!isNaN(dateDeDebut.getTime()) && !isNaN(dateDeFin.getTime())) {
+            const isNowInRange = now >= dateDeDebut && now <= dateDeFin;
+    
+            console.log(`Is now within the range: ${isNowInRange}`);
+            if (isNowInRange) {
+              console.log(remplacantTest);
+              return remplacantTest;            
+            } else {
+             return []
+            }
+            
+    
+          }
+        }else return []
+
       }else {
-        const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Normalize to midnight
         const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-        .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} or DemandeurId eq ${Approuver4} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
+        .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} or DemandeurId eq ${Approuver4} and TypeRemplacement eq 'AP'`)
         .orderBy('Created', false)
         .top(1)
         .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
         .expand("Demandeur")
         .get();
-        return remplacantTest;
+
+        if (remplacantTest.length > 0) {
+          const item = remplacantTest[0];
+          const dateDeDebut = new Date(item.DateDeDebut);
+          const dateDeFin = new Date(item.DateDeFin);
+    
+          dateDeDebut.setHours(0, 0, 0, 0); // Normalize to midnight
+          dateDeFin.setHours(0, 0, 0, 0); // Normalize to midnight
+    
+    
+          // Ensure the dates are valid
+          if (!isNaN(dateDeDebut.getTime()) && !isNaN(dateDeFin.getTime())) {
+            const isNowInRange = now >= dateDeDebut && now <= dateDeFin;
+    
+            console.log(`Is now within the range: ${isNowInRange}`);
+            if (isNowInRange) {
+              return remplacantTest;
+            } else {
+              return []
+            }
+    
+          }else return []
+        }else return []
+
       }
       
 
@@ -2167,7 +2266,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           
           // Get Resp Centre of Remplacant user
           const RemplacantUserDataFromERP = await this.getUserInfo(this.state.RemplacantUserEstablishment,this.state.RemplacantUserRegistrationNumber)
-          this.setState({userRespCenter:RemplacantUserDataFromERP[0]['RespCenter']})
+          this.setState({RemplacantRespCenter:RemplacantUserDataFromERP[0]['RespCenter']})
           console.log(RemplacantUserDataFromERP[0]['RespCenter'])
         } else if (DemandeurAcces === 0) {
 
@@ -2179,6 +2278,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
             remplacantName: checkTestRemplacant[0].Demandeur.Title,
             remplacantID: checkTestRemplacant[0].DemandeurId,
           });
+          await this.checkUserPermissionsPerchaseModule(checkTestRemplacant[0]['Demandeur']['EMail'])
           await this.loadRemplacantUserRemplacant(checkTestRemplacant[0]['Demandeur']['EMail']);
 
           // Get Resp Centre of current user
@@ -2400,7 +2500,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                         className={controlClass.TextField} 
                         type='number'
                         onChange={(e) => this.handleChangeQuantity(e, index)}
-                        min={0}
+                        min={1}
                         value={ this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""} 
                       />
                     </div>
@@ -2450,7 +2550,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               !this.state.DisabledBenef 
                 ? this.state.formData.map((article, index) => {
                     if (article.ArticleSelected.length > 0 && article) {
-                      if (parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated)) {
+                      console.log(parseFloat(article.price) * parseInt(article.quantity))
+                      console.log(article.ArticleSelected[0].BudgetAnnualAllocated)
+                      if ((parseFloat(article.price) * parseInt(article.quantity)) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
                         return (
                           <p key={index} className={stylescustom.indique}>
                             - <b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
@@ -2462,7 +2564,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   })
                 : this.state.formData.map((article, index) => {
                     if (article.ArticleSelected.length > 0 && article) {
-                      if (parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated)) {
+                      if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
                         return (
                           <div key={index}>
                             <p className={stylescustom.indique}>
@@ -2526,6 +2628,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 {!this.state.DisabledBenef && uniqueArray.map((article, index) =>
                   <>
                     {console.log(article)}
+                    {console.log(parseInt(this.state.formData[this.state.counterProducts - 1].quantity))}
+                    {console.log(parseFloat(this.state.formData[this.state.counterProducts - 1].price))}
                     <tr>
                       <td className={stylescustom.key}>Le budget de l'article: </td>
                       <td className={stylescustom.value}>{article.text}</td>
@@ -2536,7 +2640,9 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel restant</td>
-                      <td className={stylescustom.value}>{article.BudgetAnnualRemaining}</td>
+                      <td className={stylescustom.value}>
+                        {article.BudgetAnnualRemaining}
+                      </td>                  
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel utilisé</td>
@@ -2619,11 +2725,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           <div className={styles.demandeurDashboard}>
             <div className={styles.modal}>
               <div className={styles.modalContent}>
-                <span className={styles.close} onClick={() => location.reload()}>&times;</span>
+                <span className={styles.close} onClick={() => this.setState({checkActionCurrentUserPopUp: false})}>&times;</span>
                 <h3>À noter</h3>
                 <ul>
                     <li>
-                      Monsieur/Madame, vous n'avez de creer des demandes d'achat car vous avez déja un remplaçant
+                      Monsieur/Madame, vous n'avez pas le droit de créer des demandes d'achat car vous avez déja un remplaçant
                     </li>
                 </ul>
                 <p> =&gt; Vous avez le droit d'effectuer des actions quand la période de remplacement est terminée.</p>

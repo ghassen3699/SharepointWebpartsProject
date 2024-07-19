@@ -11,7 +11,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
-import { convertDateFormat } from '../../../tools/FunctionTools';
+import { convertDateFormat, getOrderFilter } from '../../../tools/FunctionTools';
 
 
 
@@ -173,7 +173,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
       const listDemandeData = await Web(this.props.url)
         .lists.getByTitle("DemandeAchat")
         .items
-        .top(2000)
+        .top(1000) // Set the limit to 1000 as per your requirement
         .orderBy("Created", false)
         .expand("Ecole")
         .select(
@@ -203,8 +203,10 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
           "StatusDemandeV4",
           "CentreDeGestion"
         )
+        .filter(`StatusDemande ne 'Annuler'`)
         .get();
-        console.log(listDemandeData)
+
+      console.log(listDemandeData)
       this.setState({ listDemandeData });
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -321,7 +323,12 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
              }
          }
  
+
          // Now 'result' holds the demands grouped by DemandeurID
+         if (result.length > 0){
+          result.unshift({ key: "TOUS", text: "TOUS" });
+         }
+
          console.log(result);
          return result;
     } catch (error) {
@@ -355,12 +362,25 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
 
     const { currentPage, itemsPerPage, listDemandeData, DemandeurFilter, StatusFilter } = this.state;
     var filteredData
-    if(DemandeurFilter.length > 0 || StatusFilter.length > 0){
+    if (DemandeurFilter.length > 0 || StatusFilter.length > 0){
       console.log(DemandeurFilter)
-      console.log(StatusFilter)
-      filteredData = listDemandeData.filter((item:any) => {
-        return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
-      }); 
+      console.log(StatusFilter) 
+      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter) ;
+      if(orderFilter === 1){
+        filteredData = listDemandeData
+      }else if (orderFilter === 2){
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.StatusDemande.toString().includes(StatusFilter);
+        }); 
+      }else if (orderFilter === 3){
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase());
+        }); 
+      }else{
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
+        }); 
+      }
     }else {
       filteredData = listDemandeData
     }
@@ -392,6 +412,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
               styles={dropdownStyles}
               placeholder="Selectionner votre status"
               options={[
+                { key: 'TOUS', text: 'TOUS' },
                 { key: 'En cours', text: 'En cours' },
                 { key: 'Rejetée', text: 'Rejetée' },
                 { key: 'A modifier', text: 'A modifier' },
@@ -706,7 +727,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toString()} DT</p>
                         <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}

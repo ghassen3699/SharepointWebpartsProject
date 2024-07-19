@@ -27,7 +27,7 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
-import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
+import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, convertStringToNumber, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
 import { getUserInfo } from "../../../services/getUserInfo" ;
 import { getSubFamily } from "../../../services/getProductsSubFamily" ;
 import { getFamily } from "../../../services/getAllProductFamily" ;
@@ -98,7 +98,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
       ArticleSelected: [] as any,
       BeneficiareSelected : [] as any,
       Comment: "",
-      quantity: "",
+      quantity: "1",
       price: "" ,
       DateSouhaite: new Date() ,
       numberOfDays: "",
@@ -445,7 +445,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
       ArticleSelected: []as any,
       BeneficiareSelected: []as any,
       Comment: "",
-      quantity:"",
+      quantity:"1",
       price:"",
       numberOfDays: "",
       DateSouhaite: new Date(),
@@ -1660,7 +1660,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
               !this.state.DisabledBenef 
                 ? this.state.formData.map((article, index) => {
                     if (article.ArticleSelected.length > 0 && article) {
-                      if (parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated)) {
+                      if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
                         return (
                           <p key={index} className={stylescustom.indique}>
                             - <b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
@@ -1672,7 +1672,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                   })
                 : this.state.formData.map((article, index) => {
                     if (article.ArticleSelected.length > 0 && article) {
-                      if (parseFloat(article.price) * parseFloat(article.quantity) > parseFloat(article.ArticleSelected[0].BudgetAnnualAllocated)) {
+                      if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
                         return (
                           <div key={index}>
                             <p className={stylescustom.indique}>

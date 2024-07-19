@@ -1,7 +1,7 @@
 import { GET_PRODUCTS } from "../API_END_POINTS/AchatModuleEndPoints";
 
 
-// GET all sub product family 
+// GET all product family 
 export async function getProduct(idSubFamily, ResponceCenter) {
     try {
         const response = await fetch(GET_PRODUCTS, {

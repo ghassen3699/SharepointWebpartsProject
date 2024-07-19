@@ -11,7 +11,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
-import { convertDateFormat } from '../../../tools/FunctionTools';
+import { convertDateFormat, getOrderFilter } from '../../../tools/FunctionTools';
 
 
 export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
@@ -48,7 +48,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
     currentPage: 1,
     itemsPerPage: 5,
-    FamilleFilter: '',
+    DemandeurFilter: '',
     StatusFilter: '',
 
     openDetailsDiv: false,
@@ -64,6 +64,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     isOpen: false,
     currentAccordion: 0,
     filenames: [],
+    demandeurs: [],
   };
 
   private getPageNumbers = (totalPages) => {
@@ -98,11 +99,11 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
   getFilteredData = () => {
-    const { listDemandeData, FamilleFilter, StatusFilter } = this.state;
-    if (FamilleFilter.length > 0 || StatusFilter.length > 0) {
+    const { listDemandeData, DemandeurFilter, StatusFilter } = this.state;
+    if (DemandeurFilter.length > 0 || StatusFilter.length > 0) {
       return listDemandeData.filter((item) => {
-        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && 
-        item.StatusDemande.toString().includes(StatusFilter);
+        return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) &&
+          item.StatusDemande.toString().includes(StatusFilter);
       });
     }
     return listDemandeData;
@@ -292,9 +293,54 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     }
   };
 
+  private async getAllDemandeurs() {
+    try {
+        const demandes = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+            .select("Demandeur/Id", "Demandeur/Title") // Select the fields from the "Demandeur" lookup field
+            .expand("Demandeur") // Expand the "Demandeur" lookup field
+            .getAll();
+
+        console.log(demandes);
+
+         // Group demands by DemandeurID
+         const groupedDemandes = {};
+         demandes.forEach(demande => {
+             const demandeur = demande.Demandeur;
+             const demandeurID = demandeur.Id;
+             const demandeurName = demandeur.Title;
+ 
+             if (!groupedDemandes[demandeurID]) {
+                groupedDemandes[demandeurID] = { key: demandeurID.toString(), text: demandeurName };
+             }
+         });
+ 
+         // Convert groupedDemandes object into array of objects
+         const result = [];
+         for (const key in groupedDemandes) {
+          if (groupedDemandes.hasOwnProperty(key)) {
+            result.push(groupedDemandes[key]);
+          }
+         }
+
+         if (result.length > 0){
+          result.unshift({ key: "Tous", text: "Tous" });
+         }
+ 
+         // Now 'result' holds the demands grouped by DemandeurID
+         console.log(result);
+         return result;
+    } catch (error) {
+        console.error("Error fetching demandes:", error);
+    }
+  }
 
   async componentDidMount() {
     this.getAllDemandeListData();
+
+    const demandeurs = await this.getAllDemandeurs()
+    console.log(demandeurs)
+    this.setState({demandeurs})
+
 
     setTimeout(() => {
       this.setState({ showSpinner: false });
@@ -311,14 +357,27 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
       TextField: { backgroundColor: "white" }
     });
 
-    const { currentPage, itemsPerPage, listDemandeData, FamilleFilter, StatusFilter } = this.state;
+    const { currentPage, itemsPerPage, listDemandeData, DemandeurFilter, StatusFilter } = this.state;
     var filteredData
-    if(FamilleFilter.length > 0 || StatusFilter.length > 0){
-      console.log(FamilleFilter)
-      console.log(StatusFilter)
-      filteredData = listDemandeData.filter((item:any) => {
-        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
-      }); 
+    if (DemandeurFilter.length > 0 || StatusFilter.length > 0){
+      console.log(DemandeurFilter)
+      console.log(StatusFilter) 
+      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter) ;
+      if(orderFilter === 1){
+        filteredData = listDemandeData
+      }else if (orderFilter === 2){
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.StatusDemande.toString().includes(StatusFilter);
+        }); 
+      }else if (orderFilter === 3){
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase());
+        }); 
+      }else{
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
+        }); 
+      }
     }else {
       filteredData = listDemandeData
     }
@@ -329,21 +388,20 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
     
+
+    
     return (
       <div className={styles.dashboardDemandesRecus}>
         <div className={styles.title}><strong>Filtres</strong></div>
         <div className={styles.filters}>
           <label className={styles.title}>Demandeur : </label>
           <div className={styles.statusWrapper}>
-            <Dropdown
+          <Dropdown
               styles={dropdownStyles}
               placeholder="Selectionner votre demandeur"
-              options={[
-                { key: 'demandeur 1', text: 'demandeur 1' },
-                { key: 'demandeur 2', text: 'demandeur 2' },
-              ]}
-              defaultSelectedKey={this.state.FamilleFilter}
-              onChanged={(value) => this.setState({ FamilleFilter: value.key, currentPage: 1 })}
+              options={this.state.demandeurs}
+              defaultSelectedKey={this.state.DemandeurFilter}
+              onChanged={(value) => this.setState({DemandeurFilter:value.key, currentPage: 1})}
               style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
@@ -353,6 +411,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
               styles={dropdownStyles}
               placeholder="Selectionner votre status"
               options={[
+                { key: 'TOUS', text: 'TOUS' },
                 { key: 'En cours', text: 'En cours' },
                 { key: 'Rejetée', text: 'Rejetée' },
                 { key: 'A modifier', text: 'A modifier' },

@@ -10,7 +10,7 @@ import "@pnp/sp/webs";
 import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
-import { convertDateFormat, getCurrentDate } from '../../../tools/FunctionTools';
+import { convertDateFormat, getCurrentDate, getOrderFilter } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from '@pnp/spfx-controls-react/lib/PeoplePicker';
 import SweetAlert2 from 'react-sweetalert2';
 import { getFamily } from '../../../services/getAllProductFamily';
@@ -71,7 +71,10 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     replacedByUserName: "",
     checkActionCurrentUser: true,
     showAnotePopUp: false,
-    showValidationPopUpRemplaçant: false
+    showValidationPopUpRemplaçant: false,
+    spinnerAction: false,
+    disableButton: true,
+    disableRemplacantButtonLoader: false
   }; 
 
   // private showContent = (e) => {
@@ -114,6 +117,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
 
   private rejectDemande = async(demandeID:any) => {
     if (demandeID > 0){
+      this.setState({spinnerAction: true, disableButton: false})
       const updateDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).update({
         StatusDemande: "Annuler"
       })
@@ -151,34 +155,80 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
   private checkRemplacantDemandes = async (): Promise<any[]> => {
     try {
       const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
-      const now: string = new Date().toISOString(); // Format the current date to ISO 8601
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Normalize to midnight      
+      
       const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
+      .filter(`RemplacantId eq ${currentUserID} and TypeRemplacement eq 'D'`)
       .orderBy('Created', false)
       .top(1)
       .get();
 
-      console.log(remplacantTest);
-      return remplacantTest;
+      if (remplacantTest.length > 0) {
+        const item = remplacantTest[0];
+        const dateDeDebut = new Date(item.DateDeDebut);
+        const dateDeFin = new Date(item.DateDeFin);
+  
+        dateDeDebut.setHours(0, 0, 0, 0); // Normalize to midnight
+        dateDeFin.setHours(0, 0, 0, 0); // Normalize to midnight
+  
+  
+        // Ensure the dates are valid
+        if (!isNaN(dateDeDebut.getTime()) && !isNaN(dateDeFin.getTime())) {
+          const isNowInRange = now >= dateDeDebut && now <= dateDeFin;
+  
+          console.log(`Is now within the range: ${isNowInRange}`);
+          if (isNowInRange) {
+            console.log(remplacantTest);
+            return remplacantTest;          
+          } else {
+            return []
+          }
+        }
+      }else return []
+
 
     } catch (error) {
       console.error("Error checking remplacant demandes:", error);
       return [];
     }
+    
   }
 
 
   private checkUserActions = async() => {
     const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
-    const now: string = new Date().toISOString(); 
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalize to midnight
     const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
+    .filter(`DemandeurId eq ${currentUserID} and TypeRemplacement eq 'D'`)
     .orderBy('Created', false)
     .top(1)
     .get();
+    console.log(remplacantTest)
 
     if (remplacantTest.length > 0) {
-      this.setState({checkActionCurrentUser : false, showAnotePopUp: true});
+      const item = remplacantTest[0];
+      const dateDeDebut = new Date(item.DateDeDebut);
+      const dateDeFin = new Date(item.DateDeFin);
+
+      dateDeDebut.setHours(0, 0, 0, 0); // Normalize to midnight
+      dateDeFin.setHours(0, 0, 0, 0); // Normalize to midnight
+
+
+      // Ensure the dates are valid
+      if (!isNaN(dateDeDebut.getTime()) && !isNaN(dateDeFin.getTime())) {
+        const isNowInRange = now >= dateDeDebut && now <= dateDeFin;
+
+        console.log(`Is now within the range: ${isNowInRange}`);
+        if (isNowInRange) {
+          this.setState({checkActionCurrentUser : false, showAnotePopUp: true});
+        } else {
+          console.log(`Now (${now}) is NOT within the range of start date (${dateDeDebut}) and end date (${dateDeFin}).`);
+        }
+        
+
+      }
     }
   }
 
@@ -355,17 +405,22 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     const startDate = this.state.startDate ;
     const endDate = this.state.endDate ;
 
+    if (startDate !== null && endDate!== null && remplacant){
+      this.setState({disableRemplacantButtonLoader: true})
 
-    // Save data in Remplacant Module Achat list
-    const data = await Web(this.props.url).lists.getByTitle("RemplacantsModuleAchat").items.add({
-      "DemandeurId": currentUser ,
-      "RemplacantId": remplacant,
-      "DateDeDebut": startDate,
-      "DateDeFin": endDate,
-      "TypeRemplacement": "D"
-    });
-
-    this.setState({RemplacantPoUp: false, showValidationPopUpRemplaçant: true})  
+      
+      // Save data in Remplacant Module Achat list
+      const data = await Web(this.props.url).lists.getByTitle("RemplacantsModuleAchat").items.add({
+        "DemandeurId": currentUser ,
+        "RemplacantId": remplacant,
+        "DateDeDebut": startDate,
+        "DateDeFin": endDate,
+        "TypeRemplacement": "D"
+      });
+      
+      this.setState({RemplacantPoUp: false, showValidationPopUpRemplaçant: true})  
+      
+    }
   }
 
 
@@ -403,12 +458,26 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
     if(FamilleFilter.length > 0 || StatusFilter.length > 0){
       console.log(FamilleFilter)
       console.log(StatusFilter)
-      filteredData = listDemandeData.filter((item:any) => {
-        return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
-      }); 
+      const orderFilter = getOrderFilter(FamilleFilter, StatusFilter)
+      if (orderFilter === 1){
+        filteredData = listDemandeData
+      }else if (orderFilter === 2){
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.StatusDemande.toString().includes(StatusFilter);
+        }); 
+      }else if (orderFilter === 3){
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase());
+        }); 
+      }else {
+        filteredData = listDemandeData.filter((item:any) => {
+          return item.FamilleProduit.toLowerCase().includes(FamilleFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
+        }); 
+      }
     }else {
       filteredData = listDemandeData
     }
+    
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
     const { pageNumbers } = this.getPageNumbers(totalPages);
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -427,6 +496,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               styles={dropdownStyles}
               placeholder="Selectionner votre famille"
               options={[
+                { key: 'TOUS', text: 'TOUS' },
                 { key: 'MATERIEL INFORMATIQUE', text: 'MATERIEL INFORMATIQUE' },
                 { key: 'SOFTWARE', text: 'SOFTWARE' },
                 { key: 'CONSOMATION LABO/STUDIO', text: 'CONSOMATION LABO/STUDIO' },
@@ -466,6 +536,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
               styles={dropdownStyles}
               placeholder="Selectionner votre status"
               options={[
+                { key: 'TOUS', text: 'TOUS' },
                 { key: 'En cours', text: 'En cours' },
                 { key: 'Rejetée', text: 'Rejetée' },
                 { key: 'A modifier', text: 'A modifier' },
@@ -891,12 +962,19 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
           <div className={styles.modalAlert}>
             <div className={styles.modalContent}>
               <span id="close" className={styles.close} onClick={() => this.setState({cancelPopUp: false, demandeSelectedID: 0})}>&times;</span>
-              <h1 style={{textAlign:"left", color : "#7d2935"}}>Annulation de demande</h1>
-              <div style={{fontSize:"14px", "color" : "#615c5d"}}>Voulez-vous vraiment annuler cette commande ?</div>
+              <h1 style={{textAlign:"left", color : "#7d2935"}}>Annulation de demande :</h1>
+              <div style={{fontSize:"14px", "color" : "#615c5d"}}>Voulez-vous vraiment annuler cette demmande ?</div>
               <br></br>
-              <div>
-                <button className={styles.btnRef} onClick={() => this.rejectDemande(this.state.demandeSelectedID)}>Annuler la demande</button>
-              </div>
+              {
+                this.state.disableButton && (
+                  <div>
+                    <button className={styles.btnRef} onClick={() => this.rejectDemande(this.state.demandeSelectedID)}>
+                      Annuler la demande
+                    </button>
+                  </div>
+                )
+              }
+              
             </div>
           </div>
         }
@@ -952,7 +1030,7 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
                 <br></br>
                 <tr>
                   <td>
-                    <button style={{ backgroundColor: "#7d2935", textAlign:"center" }}className={styles.btnRef} onClick={() => this.ajouterAutreDemandeur()}>                          
+                    <button style={{ backgroundColor: !this.state.disableRemplacantButtonLoader ? "#7d2935" : "gray",textAlign:"center" }} disabled={this.state.disableRemplacantButtonLoader} className={styles.btnRef} onClick={() => this.ajouterAutreDemandeur()}>                          
                       Envoyer
                     </button>
                   </td>
@@ -989,6 +1067,12 @@ export default class DemandeurDashboard extends React.Component<IDemandeurDashbo
           imageWidth="150"
           imageHeight="150"
         />
+
+        {
+          this.state.spinnerAction && <div className={styles.paginations} style={{ position:"absolute", top:"38%", right:"50%",transform:"translate(-50%, -50%)" }}>
+            <span className={styles.loader}></span>
+          </div>
+        }
 
       </div>
     );

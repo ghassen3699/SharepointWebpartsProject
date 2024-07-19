@@ -93,7 +93,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       ArticleSelected: [] as any,
       BeneficiareSelected : [] as any,
       Comment: "",
-      quantity: "",
+      quantity: "1",
       price: "" ,
       DateSouhaite: new Date() ,
       numberOfDays: 0,
@@ -394,7 +394,7 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
       ArticleSelected: []as any,
       BeneficiareSelected: []as any,
       Comment: "",
-      quantity:"",
+      quantity:"1",
       price:"",
       numberOfDays: 0,
       DateSouhaite: new Date(),
@@ -1281,6 +1281,8 @@ export default class ModifierDemande extends React.Component<IModifierDemandePro
                     />
                   </div>
                 </div>
+                <br></br>
+                {this.state.counterProducts > 1 && <div className={stylescustom.line}></div>}
               </div>
             )}
 

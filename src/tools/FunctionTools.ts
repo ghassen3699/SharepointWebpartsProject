@@ -161,3 +161,46 @@ export function removeDuplicates2(array) {
     return self.findIndex(item => item.Axe === obj.Axe) === index;
   });
 }
+
+
+export function getOrderFilter(Filter1, Filter2) {
+  if (Filter1 === "TOUS") {
+    return Filter2 === "TOUS" ? 1 : 2;
+  } else {
+    return Filter2 === "TOUS" ? 3 : 4;
+  }
+}
+
+
+export function convertStringToNumber(input) {
+  let cleanedString = input.replace(/\s/g, '');
+  cleanedString = cleanedString.replace(',', '.');
+  const result = parseFloat(cleanedString);
+
+  if (isNaN(result)) {
+      throw new Error('Invalid number format');
+  }
+
+  return result;
+}
+
+
+export function checkRemplacantByID(approbateurdD_1, approbateurId_2, approbateurId_3, approbateurId_4, currentUserId){
+  if(approbateurId_3 === null){
+    if (approbateurdD_1.includes(currentUserId) && approbateurId_2.includes(currentUserId)){
+      return 12
+    }else if (approbateurId_2.includes(currentUserId) && approbateurId_4.includes(currentUserId) ){
+      return 24
+    }
+    return 0
+  }else {
+    if (approbateurdD_1.includes(currentUserId) && approbateurId_2.includes(currentUserId)){
+      return 12
+    }else if (approbateurId_2.includes(currentUserId) && approbateurId_3.includes(currentUserId)){
+      return 23
+    }else if (approbateurId_3.includes(currentUserId) && approbateurId_4.includes(currentUserId)){
+      return 34
+    }
+    return 0
+  }
+}

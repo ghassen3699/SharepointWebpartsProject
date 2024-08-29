@@ -12,7 +12,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import "@pnp/sp/site-groups/web";
-import { checkRemplacantByID, convertDateFormat, convertFileToBase64, convertProductListSchema, createObjectFile, getCurrentDate, getOrderFilter } from '../../../tools/FunctionTools';
+import { checkRemplacantByID, checkUserOrders, convertDateFormat, convertFileToBase64, convertProductListSchema, createObjectFile, getCurrentDate, getOrderFilter } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import SweetAlert2 from 'react-sweetalert2';
 import { sendPerchaseRequest } from '../../../services/postPerchaseRequest';
@@ -23,36 +23,6 @@ var img = require('../../../image/UCT_image.png');
 export default class ApprobateurDashboard extends React.Component<IApprobateurDashboardProps, {}> {
 
   public state = {
-
-    // formData : [{
-    //   FamilleSelected: [] as any,
-    //   SousFamilleSelected : [] as any,
-    //   ArticleSelected: [] as any,
-    //   BeneficiareSelected : [] as any,
-    //   Comment: "",
-    //   quantity: "",
-    //   price: "" ,
-    //   DateSouhaite: new Date() ,
-    //   fileData: "" as any,
-    //   fileName: "",
-    // }],
-
-    // ID: 0,
-    // userUPN: "",
-    // userId: "",
-    // userName: "",
-    // userEmail: "",
-    // JobTitle: "",
-
-    // file: "" as null,
-    // loadingFile: false,
-    // fileName: "",
-    // MontantAlloue: 0 ,
-    // MontantConsommer: 0 ,
-    // MontantRestant: 0 ,
-    // counterProducts: 1 ,
-    // errors: { file: "" }
-
     currentPage: 1,
     itemsPerPage:5,
     DemandeurFilter: '',
@@ -96,7 +66,8 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     popupRemplaçantApprobateurError: false,
     remplacantID: 0,
     remplacantOrder: 0,
-    disableRemplacantButtonLoader: false
+    disableRemplacantButtonLoader: false,
+    userOrdersBySubFamily: false
   }; 
 
   private _graphService = new GraphService(this.props.context);
@@ -390,7 +361,13 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   // Get if the current approbateur is Approbateur 1, 2 or 3 (the order)
   private getApprobateurOrder = async () => {
     const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
+    const currentUserEmail = (await Web(this.props.url).currentUser.get()).Email;
+
     console.log(currentUserID)
+    console.log(currentUserEmail)
+    if (currentUserEmail === "taieb.boussen@universitecentrale.tn"){
+      this.setState({userOrdersBySubFamily: true})
+    }
     const DemandeIDs = await Web(this.props.url)
     .lists.getByTitle("WorkflowApprobation")
     .items.filter(`ApprobateurV1Id/Id eq ${currentUserID}`)
@@ -797,7 +774,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (Remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            }
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -847,7 +828,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            }            
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -889,7 +874,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             
             if (historyData.length > 0){
               var resultArray = JSON.parse(historyData[0].Actions);
-              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+              if (this.state.remplacantName.length > 0){
+                resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              }else {
+                resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+              }              
               const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
                 Actions: JSON.stringify(resultArray)
               });
@@ -944,7 +933,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            }            
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -983,7 +976,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
             });
@@ -1041,7 +1038,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -1092,7 +1093,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -1148,7 +1153,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -1198,7 +1207,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
             resultArray.push("Demande En cours de l'approbation de "+ UserDisplayName2 + " a partir de " + getCurrentDate());
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
@@ -1239,7 +1252,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             
             if (historyData.length > 0){
               var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
               resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
               const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
                 Actions: JSON.stringify(resultArray)
               });
@@ -1333,7 +1350,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           
           if (historyData.length > 0){
             var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            if (this.state.remplacantName.length > 0){
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+            }else {
+              resultArray.push("Demande Approuvée par "+UserDisplayName + " le " + getCurrentDate());
+            };
             const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
               Actions: JSON.stringify(resultArray)
             });
@@ -1387,7 +1408,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          }
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1412,7 +1437,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          };
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1437,7 +1466,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          };
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1464,7 +1497,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          };
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1489,7 +1526,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          };
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1514,7 +1555,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          };
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1539,7 +1584,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("Demande Rejetée par "+UserDisplayName + " le " + getCurrentDate());
+          };
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1585,7 +1634,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("A modifier par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          }
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1640,7 +1693,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("A modifier par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          }          
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1667,7 +1724,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("A modifier par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          }
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1693,7 +1754,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("A modifier par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          }          
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1722,7 +1787,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("A modifier par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          }          
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -1748,7 +1817,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         
         if (historyData.length > 0){
           var resultArray = JSON.parse(historyData[0].Actions);
-          resultArray.push("Demande A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          if (this.state.remplacantName.length > 0){
+            resultArray.push("A modifier par "+UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+          }else {
+            resultArray.push("A modifier par "+UserDisplayName + " le " + getCurrentDate());
+          }          
           resultArray.push("Commentaire : " + this.state.commentAction);
           const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
             Actions: JSON.stringify(resultArray)
@@ -2274,6 +2347,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   
 
                   {console.log(this.state.currentApprobateurOrder)}
+                  {console.log(checkUserOrders(demande.SousFamilleProduitREF))}
 
                   {!this.state.listDemandeDataForRemplacant.includes(demande.Id) ? (
                     <>
@@ -2711,15 +2785,16 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toFixed(2).toString()} DT</p>
                         <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
+                        <p className={styles.value}><b>Budget annuel restant : </b>{produit.BudgetAnnualRemaining} DT</p>
                       </div>
                     </div>)}
                   </td>
                 </tr>
                 <tr>
                 <td>Prix unitaire estimatif Total :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
+                  <td className={styles.value}>{(parseFloat(this.state.detailsListDemande.PrixTotal).toFixed(2)).toString()} DT</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>

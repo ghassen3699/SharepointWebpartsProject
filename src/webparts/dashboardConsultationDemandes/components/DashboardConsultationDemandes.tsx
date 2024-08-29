@@ -727,7 +727,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toFixed(2).toString()} DT</p>
                         <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                       </div>
                     </div>)}
@@ -735,7 +735,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                 </tr>
                 <tr>
                 <td>Prix unitaire estimatif Total :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
+                <td className={styles.value}>{(parseFloat(this.state.detailsListDemande.PrixTotal).toFixed(2)).toString()} DT</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>

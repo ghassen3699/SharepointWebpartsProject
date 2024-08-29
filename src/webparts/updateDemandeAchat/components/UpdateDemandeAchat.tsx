@@ -99,7 +99,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
       BeneficiareSelected : [] as any,
       Comment: "",
       quantity: "1",
-      price: "" ,
+      price:"0.0",
       DateSouhaite: new Date() ,
       numberOfDays: "",
       fileData: "" as any,
@@ -196,6 +196,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   private onRenderCaretDown(props: IDropdownProps): JSX.Element {
     return <Icon iconName="CirclePlus" />;
   }
+  
 
 
   private onSelectionChanged(ev: React.FormEvent<HTMLDivElement>, item: IDropdownOption): void { }
@@ -446,7 +447,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
       BeneficiareSelected: []as any,
       Comment: "",
       quantity:"1",
-      price:"",
+      price:"0.0",
       numberOfDays: "",
       DateSouhaite: new Date(),
       fileData: "" as null,
@@ -1476,6 +1477,11 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
       TextField: { backgroundColor: "white", }
     });
 
+    const dropdownStylesFamilleDropdown: Partial<IDropdownStyles> = {
+      callout: { minWidth: 300, maxwidth: 600 }, //Fix #2 alternative
+      title: { backgroundColor: "white" },
+    };
+
     const disabledSubmit = this.disabledSubmitButton();
     
     // Created but not implemented
@@ -1556,7 +1562,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                       ) : (
                         <Dropdown
                           defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
-                          styles={dropdownStyles}
+                          styles={dropdownStylesFamilleDropdown}
                           onRenderTitle={this.onRenderTitle}
                           onRenderOption={this.onRenderOption}
                           onRenderCaretDown={this.onRenderCaretDown}
@@ -1619,7 +1625,8 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                       <p className={stylescustom.title}>* prix unitaire estimatif :</p>
                       <TextField 
                         type='number'
-                        min={0}
+                        min={0.1}
+                        step="0.1" // Allows float values
                         className={controlClass.TextField} 
                         onChange={(e) => this.handleChangePrice(e, index)}
                         value={this.state.formData[index - 1]["price"]} 
@@ -1710,7 +1717,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
               <tbody className={stylescustom.tbody}>
                 {console.log(this.state.formData)}
                 {console.log(this.state.DisabledBenef)}
-                {!this.state.DisabledBenef && this.state.formData.map((article, index) =>
+                {(this.state.DisabledBenef === false) && this.state.formData.map((article, index) =>
                   article.ArticleSelected.length > 0 && article &&
                   <>
                     {console.log("Axe data:",this.state.axePerBuget)}
@@ -1732,7 +1739,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                     </tr>
                   </>
                 )}
-                {this.state.DisabledBenef && uniqueArray.map((article, index) =>
+                {(this.state.DisabledBenef === true) && uniqueArray.map((article, index) =>
                   <>
                     {console.log(article)}
                     <tr>

@@ -141,11 +141,11 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
       text: "COM",
     },
     {
-      key: "AAC_TUNIS",
+      key: "AAC TUNIS",
       text: "AAC TUNIS",
     },
     {
-      key: "IMSET_TUNIS",
+      key: "IMSET TUNIS",
       text: "IMSET TUNIS",
     },
     {
@@ -153,7 +153,7 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
       text: "SIEGE",
     },
     {
-      key: "AAC_NABEUL",
+      key: "AAC NABEUL",
       text: "AAC NABEUL",
     },
     {
@@ -185,7 +185,7 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
       text: "DSP",
     },
     {
-      key: "IMSET_NABEUL",
+      key: "IMSET NABEUL",
       text: "IMSET NABEUL",
     },
     {
@@ -197,7 +197,7 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
       text: "IMSET SOUSSE",
     },
     {
-      key: "IMSET_SFAX",
+      key: "IMSET SFAX",
       text: "IMSET SFAX",
     },
     {

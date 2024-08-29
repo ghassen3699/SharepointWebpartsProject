@@ -1,4 +1,5 @@
 import { Web } from "@pnp/sp/webs";
+import { userOrdersBySubFamily } from "../userOrders/userOrders";
 
 // Function to convert the date format
 export function convertDateFormat(inputDate) {
@@ -105,11 +106,12 @@ export function checkRodondanceApprouvers(approuversData){
 
 export function convertProductListSchema(listProducts) {
   var newListProductSchema = [] ;
+  console.log(listProducts)
   if(listProducts.length > 0 ) {
     listProducts.map(product => {
       newListProductSchema.push({
         "RefItem": product.ArticleREF,
-        "ItemDescription": product.DescriptionTechnique,
+        "ItemDescription": product.comment,
         "Quantity": product.quantité,
         "EstimatePrice": product.Prix,
         "DesiredDeliveryTime": product.DelaiLivraisionSouhaite,
@@ -202,5 +204,16 @@ export function checkRemplacantByID(approbateurdD_1, approbateurId_2, approbateu
       return 34
     }
     return 0
+  }
+}
+
+
+export function checkUserOrders(demandeSubFamilyID){
+  const userOrdersList = userOrdersBySubFamily ;
+  const userOrder = userOrdersList.filter(order => order.idSubFamily === demandeSubFamilyID);
+  if (userOrder.length > 0){
+    return userOrder
+  }else {
+    return []
   }
 }

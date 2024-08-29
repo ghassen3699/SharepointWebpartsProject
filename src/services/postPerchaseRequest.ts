@@ -5,15 +5,15 @@ import { SEND_PURCHASE_PRODUCTS } from "../API_END_POINTS/AchatModuleEndPoints";
 export async function sendPerchaseRequest(MatDemandeur, NameDemandeur, RespCenter, IdFamily, PurchaseRequestLines, fileName, file) {
     console.log(file)
     try {
-        console.log(JSON.stringify({
-            "MatDemandeur": MatDemandeur,
-            "NameDemandeur": NameDemandeur,
-            "RespCenter": RespCenter,
-            "IdFamily": IdFamily,
-            "PurchaseRequestLines": PurchaseRequestLines,
-            "fileName": fileName,
-            "file": file
-        }))
+        // console.log(JSON.stringify({
+        //     "MatDemandeur": MatDemandeur,
+        //     "NameDemandeur": NameDemandeur,
+        //     "RespCenter": RespCenter,
+        //     "IdFamily": IdFamily,
+        //     "PurchaseRequestLines": PurchaseRequestLines,
+        //     "fileName": fileName,
+        //     "file": file
+        // }))
 
         const response = await fetch(SEND_PURCHASE_PRODUCTS, {
             method: 'POST',

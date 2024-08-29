@@ -1,0 +1,27 @@
+
+// Array of objects for the user Taieb because he has multi orders by sub family
+export const userOrdersBySubFamily = [
+    {idSubFamily:"3001", order:"1"},
+    {idSubFamily:"3002", order:"1"},
+    {idSubFamily:"3003", order:"1"},
+    {idSubFamily:"3004", order:"1"},
+    {idSubFamily:"3005", order:"1"},
+    {idSubFamily:"3006", order:"1"},
+    {idSubFamily:"3007", order:"1"},
+    {idSubFamily:"3008", order:"1"},
+    {idSubFamily:"3009", order:"1"},
+    {idSubFamily:"3010", order:"1"},
+    {idSubFamily:"3011", order:"1"},
+    {idSubFamily:"10006", order:"1"},
+    {idSubFamily:"14001", order:"1"},
+    {idSubFamily:"14002", order:"1"},
+    {idSubFamily:"3013", order:"1"},
+    {idSubFamily:"7001", order:"1"},
+    {idSubFamily:"9002", order:"1"},
+    {idSubFamily:"13001", order:"1"},
+    {idSubFamily:"13002", order:"1"},
+    {idSubFamily:"17002", order:"1"},
+    {idSubFamily:"21003", order:"1"},
+    {idSubFamily:"21004", order:"1"},
+    {idSubFamily:"21005", order:"1"},
+]

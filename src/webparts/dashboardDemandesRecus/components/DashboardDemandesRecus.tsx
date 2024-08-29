@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './DashboardDemandesRecus.module.scss';
 import { IDashboardDemandesRecusProps } from './IDashboardDemandesRecusProps';
-import { DatePicker, Dropdown, IDropdownStyles, TextField, mergeStyleSets } from 'office-ui-fabric-react';
+import {Dropdown, IDropdownStyles, mergeStyleSets, mergeStyles, DatePicker, TextField } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -122,10 +122,16 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
 
+  // private handleChangeDate = (date, index) => {
+  //   const newDateFormat = new Date(date);
+  //   const updatedDateAction = [...this.state.DateAction];
+  //   updatedDateAction.splice(index, 0, newDateFormat);
+  //   this.setState({ DateAction: updatedDateAction, disableButtonUpdateDate: false });
+  // };
   private handleChangeDate = (date, index) => {
-    const newDateFormat = new Date(date);
+    const newDateFormat = date.target.value
     const updatedDateAction = [...this.state.DateAction];
-    updatedDateAction.splice(index, 0, newDateFormat);
+    updatedDateAction.splice(index, 1, newDateFormat);
     this.setState({ DateAction: updatedDateAction, disableButtonUpdateDate: false });
   };
 
@@ -136,9 +142,13 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
     if (historyData.length > 0) {
       var resultArray = JSON.parse(historyData[0].Actions);
-      const date = this.state.DateAction[index].getDate().toString() + "/" + (this.state.DateAction[index].getMonth() + 1).toString() + "/" + this.state.DateAction[index].getFullYear().toString();
+      const date = this.state.DateAction[index].toString()
 
-      resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} pour le ${date}`);
+      if (parseInt(date) <= 1 ){
+        resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jour`);
+      }else {
+        resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jours`);
+      }
       const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
         Actions: JSON.stringify(resultArray)
       });
@@ -356,6 +366,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     const controlClass = mergeStyleSets({
       TextField: { backgroundColor: "white" }
     });
+    const rootClass = mergeStyles({ backgroundColor:"white" });
+
 
     const { currentPage, itemsPerPage, listDemandeData, DemandeurFilter, StatusFilter } = this.state;
     var filteredData
@@ -572,7 +584,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
-                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseInt(produit.Prix)).toString()} DT</p>
+                        <p className={styles.value}><b>Prix total: </b>{(parseInt(produit.quantité) * parseFloat(produit.Prix)).toFixed(2).toString()} DT</p>
                         <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
                         <p className={styles.value}>
                           <b>Modifier la date souhaité: </b>
@@ -581,14 +593,23 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                           {console.log(index)}
                           <div style={{display:"inline", float:"left"}}>
                             <b>
-                              <DatePicker
-                                style={{width:'250px'}}
-                                isRequired={true}
-                                allowTextInput={true}
-                                // className={controlClass.TextField}
-                                value={this.state.DateAction[index]}
-                                onSelectDate={(e) => { this.handleChangeDate(e, index) }}
+                            {/* <DatePicker
+                              style={{ width: '250px' }}
+                              allowTextInput={true}
+                              value={this.state.DateAction[index] ? new Date(this.state.DateAction[index]) : new Date()}
+                              onSelectDate={(e) => { this.handleChangeDate(e, index) }}
+                            /> */}
+                              <TextField 
+                                type='number'
+                                min={0}
+                                style={{ width: '250px', backgroundColor:"white", fontSize:"15px" }}
+                                className={controlClass.TextField} 
+                                defaultValue={"0"}
+                                value={this.state.DateAction[index]} 
+                                onChange={(e) => { this.handleChangeDate(e, index) }}
                               />
+                              {console.log(this.state.DateAction)}
+                              {console.log(this.state.DateAction[index])}
                             </b>
                           </div>
                           <div style={{display:"inline", float:"right"}}>
@@ -613,7 +634,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                 </tr>
                 <tr>
                 <td>Prix unitaire estimatif Total :</td>
-                  <td className={styles.value}>{this.state.detailsListDemande.PrixTotal} DT</td>
+                <td className={styles.value}>{(parseFloat(this.state.detailsListDemande.PrixTotal).toFixed(2)).toString()} DT</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>

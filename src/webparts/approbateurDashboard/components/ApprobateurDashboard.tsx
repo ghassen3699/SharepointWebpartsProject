@@ -736,6 +736,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     console.log(Demande)
     const checkRemplacantReplicate = checkRemplacantByID(Demande[0].ApprobateurV1Id, Demande[0].ApprobateurV2Id, Demande[0].ApprobateurV3Id, Demande[0].ApprobateurV4Id, currentUserID)
     console.log(checkRemplacantReplicate)
+    
     if (Demande[0].ApprobateurV3Id === null){
       if(Demande[0].ApprobateurV1Id.includes(currentUserID)){
         UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title ; 
@@ -2173,10 +2174,22 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     const checkTestRemplacant = await this.checkRemplacantDemandes() ;
     console.log(checkTestRemplacant)
     if (checkTestRemplacant.length > 0){
-      this.setState({checkRemplacant: true, showAnotePopUp: true, remplacantName: checkTestRemplacant[0].Demandeur.Title, remplacantID:checkTestRemplacant[0].DemandeurId}) ;
-      const remplacantOrder = await this.getDemandeRemplacementOrder() ;
-      await this.getAllDemandeListDataOfRemplacant() ;
-      this.setState({remplacantOrder: remplacantOrder}) ;
+      if (checkTestRemplacant[0].Demandeur.Title === "Taieb Boussen"){
+        console.log(checkTestRemplacant[0].Demandeur.Title)
+        this.setState({checkRemplacant: true, showAnotePopUp: true, remplacantName: checkTestRemplacant[0].Demandeur.Title, remplacantID:checkTestRemplacant[0].DemandeurId}) ;
+        const remplacantOrder = await this.getDemandeRemplacementOrder() ;
+        console.log(remplacantOrder)
+        await this.getAllDemandeListDataOfRemplacant() ;
+        this.setState({remplacantOrder: remplacantOrder}) ;
+        this.setState({userOrdersBySubFamily: true})
+      }else {
+        console.log("not Taieb")
+        this.setState({checkRemplacant: true, showAnotePopUp: true, remplacantName: checkTestRemplacant[0].Demandeur.Title, remplacantID:checkTestRemplacant[0].DemandeurId}) ;
+        const remplacantOrder = await this.getDemandeRemplacementOrder() ;
+        await this.getAllDemandeListDataOfRemplacant() ;
+        this.setState({remplacantOrder: remplacantOrder}) ;
+      }
+      
     }
 
     const demandeurs = await this.getAllDemandeurs()
@@ -2349,7 +2362,85 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   {console.log(this.state.currentApprobateurOrder)}
                   {console.log(checkUserOrders(demande.SousFamilleProduitREF))}
 
-                  {!this.state.listDemandeDataForRemplacant.includes(demande.Id) ? (
+
+                  {/* If the current user is Multi Order in approuvement */}
+                  {this.state.userOrdersBySubFamily && checkUserOrders(demande.SousFamilleProduitREF).length > 0 &&
+                    <>
+                      {(parseInt(checkUserOrders(demande.SousFamilleProduitREF)[0].order) === 1) && 
+                        <>
+                          {demande.StatusDemandeV1.includes("En cours") && (
+                            <>
+                              <div className={styles.cercleBleu}></div>
+                              &nbsp;{demande.StatusDemandeV1}
+                            </>
+                          )}
+                          {demande.StatusDemandeV1.includes("Rejetée") && (
+                            <>
+                              <div className={styles.cercleRouge}></div>
+                              &nbsp;{demande.StatusDemandeV1}
+                            </>
+                          )}
+                          {demande.StatusDemandeV1.includes("Annuler") && (
+                            <>
+                              <div className={styles.cercleRouge}></div>
+                              &nbsp;{demande.StatusDemandeV1} par le demandeur
+                            </>
+                          )}
+                          {demande.StatusDemandeV1.includes("A modifier") && (
+                            <>
+                              <div className={styles.cercleVert}></div>
+                              &nbsp;{demande.StatusDemandeV1}
+                            </>
+                          )}
+                          {demande.StatusDemandeV1.includes("Approuvée") && (
+                            <>
+                              <div className={styles.cercleYellow}></div>
+                              &nbsp;{demande.StatusDemandeV1}
+                            </>
+                          )}
+                        </>
+                      }
+                    </>
+                  }
+
+                  {this.state.userOrdersBySubFamily && checkUserOrders(demande.SousFamilleProduitREF).length === 0 &&
+                    <>
+                      {demande.StatusDemandeV2.includes("En cours") && (
+                        <>
+                          <div className={styles.cercleBleu}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("Rejetée") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("Annuler") && (
+                        <>
+                          <div className={styles.cercleRouge}></div>
+                          &nbsp;{demande.StatusDemandeV2} par le demandeur
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("A modifier") && (
+                        <>
+                          <div className={styles.cercleVert}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                      {demande.StatusDemandeV2.includes("Approuvée") && (
+                        <>
+                          <div className={styles.cercleYellow}></div>
+                          &nbsp;{demande.StatusDemandeV2}
+                        </>
+                      )}
+                    </>
+                  }
+
+
+                  {/* if the current user is not multi order */}
+                  {!this.state.listDemandeDataForRemplacant.includes(demande.Id) && !this.state.userOrdersBySubFamily ? (
                     <>
                       {(this.state.currentApprobateurOrder === 1 && demande.StatusDemandeV1 !== null) && 
                         <>
@@ -2493,36 +2584,40 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     </>)
                     : (
                     <>
-                      {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("En cours") && (
+                      {!this.state.userOrdersBySubFamily && 
                         <>
-                          <div className={styles.cercleBleu}></div>
-                          &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
+                          {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("En cours") && (
+                            <>
+                              <div className={styles.cercleBleu}></div>
+                              &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
+                            </>
+                          )}
+                          {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Rejetée") && (
+                            <>
+                              <div className={styles.cercleRouge}></div>
+                              &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
+                            </>
+                          )}
+                          {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Annuler") && (
+                            <>
+                              <div className={styles.cercleRouge}></div>
+                              &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]} par le demandeur
+                            </>
+                          )}
+                          {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("A modifier") && (
+                            <>
+                              <div className={styles.cercleVert}></div>
+                              &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
+                            </>
+                          )}
+                          {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Approuvée") && (
+                            <>
+                              <div className={styles.cercleYellow}></div>
+                              &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
+                            </>
+                          )}
                         </>
-                      )}
-                      {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Rejetée") && (
-                        <>
-                          <div className={styles.cercleRouge}></div>
-                          &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                        </>
-                      )}
-                      {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Annuler") && (
-                        <>
-                          <div className={styles.cercleRouge}></div>
-                          &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]} par le demandeur
-                        </>
-                      )}
-                      {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("A modifier") && (
-                        <>
-                          <div className={styles.cercleVert}></div>
-                          &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                        </>
-                      )}
-                      {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Approuvée") && (
-                        <>
-                          <div className={styles.cercleYellow}></div>
-                          &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                        </>
-                      )}
+                      }
                     </>
                   )}
 

@@ -11,7 +11,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
-import { convertDateFormat, getOrderFilter } from '../../../tools/FunctionTools';
+import { convertDateFormat, getMatchingIndices, getOrderFilter } from '../../../tools/FunctionTools';
 
 
 export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
@@ -128,6 +128,49 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   //   updatedDateAction.splice(index, 0, newDateFormat);
   //   this.setState({ DateAction: updatedDateAction, disableButtonUpdateDate: false });
   // };
+
+  private getNumberOfDaysFromDateAction = (articleIndex) => {
+    var listNumberOfDaysData = []
+    console.log('article index: ',articleIndex)
+    const listIndexs = getMatchingIndices(this.state.historiqueDemande) ;
+    listIndexs.map(historyIndex => {
+      listNumberOfDaysData.push(this.state.historiqueDemande[historyIndex])
+    })
+
+    const result = {};
+    const regex = /article (\d+) aprés (\d+) jour(?:s)?/;
+
+    listNumberOfDaysData.forEach(item => {
+      const match = item.match(regex);
+      if (match) {
+        const idArticle = parseInt(match[1], 10);
+        const days = match[2];
+        result[idArticle] = days;
+      }
+    });
+
+
+    var finalResult = Object.keys(result).map(id => ({
+      idArticle: parseInt(id, 10),
+      days: result[id]
+    }));
+
+    console.log(finalResult)
+
+    if (finalResult.length === 0){
+      return "0"
+    }else {
+      const dateSouhaiteSaved = finalResult.filter(dates => dates.idArticle === (articleIndex + 1))
+      console.log(dateSouhaiteSaved)
+      if (dateSouhaiteSaved.length > 0){
+        return dateSouhaiteSaved[0].days
+      }else return "0"
+  
+    }
+    
+  }
+
+
   private handleChangeDate = (date, index) => {
     const newDateFormat = date.target.value
     const updatedDateAction = [...this.state.DateAction];
@@ -138,10 +181,12 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
   private updateDateSouhaite = async (index) => {
     var DemandeID = this.state.detailsListDemande.ID
+    console.log(index)
     // Save historique block
     const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
     if (historyData.length > 0) {
       var resultArray = JSON.parse(historyData[0].Actions);
+      console.log(resultArray)
       const date = this.state.DateAction[index].toString()
 
       if (parseInt(date) <= 1 ){
@@ -150,7 +195,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jours`);
       }
       const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
-        Actions: JSON.stringify(resultArray)
+        Actions: JSON.stringify(resultArray),
+        DelaiLivraisionSouhaite:"Y"
       });
 
       const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
@@ -162,14 +208,14 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         let deletedItem = resultDemandeArray.splice(index, 1)[0];
         resultDemandeArray.splice(index,0,date);
         const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray)
+          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray),
         });
         window.location.reload();
       }else {
         var resultDemandeArray = [] ;
         resultDemandeArray.push(date)
         const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray)
+          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray),
         });
         window.location.reload();
       }
@@ -574,7 +620,6 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   <td >Article :</td>
                   <td className={styles.value}>
                     {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
-                      {console.log(produit, index)}
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
@@ -599,16 +644,17 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                               value={this.state.DateAction[index] ? new Date(this.state.DateAction[index]) : new Date()}
                               onSelectDate={(e) => { this.handleChangeDate(e, index) }}
                             /> */}
+                              {/* {console.log(this.getNumberOfDaysFromDateAction(index))} */}
+
                               <TextField 
                                 type='number'
                                 min={0}
                                 style={{ width: '250px', backgroundColor:"white", fontSize:"15px" }}
                                 className={controlClass.TextField} 
-                                defaultValue={"0"}
+                                defaultValue={this.getNumberOfDaysFromDateAction(index)}
                                 value={this.state.DateAction[index]} 
                                 onChange={(e) => { this.handleChangeDate(e, index) }}
                               />
-                              {console.log(this.state.DateAction)}
                               {console.log(this.state.DateAction[index])}
                             </b>
                           </div>

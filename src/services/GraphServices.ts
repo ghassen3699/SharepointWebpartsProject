@@ -37,6 +37,8 @@ export default class GraphService {
         });
     }
 
+
+    // Get user info by her ID
     public async getUserId(userUPN: string): Promise<string> {
         try {
           const client = await this.context.msGraphClientFactory.getClient("3");
@@ -52,6 +54,7 @@ export default class GraphService {
         }
     }
 
+    // Get user data by her displayname
     public async getUserEmailByDisplayName(displayName: string): Promise<string> {
         try {
             const client = await this.context.msGraphClientFactory.getClient("3");

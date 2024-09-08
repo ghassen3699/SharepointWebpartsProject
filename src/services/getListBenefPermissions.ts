@@ -1,7 +1,7 @@
 import { EmployeeApprouverURL } from "../API_END_POINTS/AchatModuleEndPoints";
 
 
-// GET all sub product family 
+// GET Beneficiaire permission by each user
 export async function getBenefList(matUser) {
     try {
         const response = await fetch(EmployeeApprouverURL, {

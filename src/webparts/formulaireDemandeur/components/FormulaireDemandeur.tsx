@@ -2036,7 +2036,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           if (isNowInRange) {
             console.log(remplacantTest);
             return remplacantTest;          
+          }else {
+            return []
           }
+        }else{
+          return []
         }
       }else return []
     } catch (error) {

@@ -27,7 +27,7 @@ export function getCurrentDate() {
 }
 
 
-
+// check if articles in request with same axe
 export function checkIfAxeExists(arrayOfObjects, axe) {
   for (let i = 0; i < arrayOfObjects.length; i++) {
       if (arrayOfObjects[i].Axe === axe) {
@@ -37,7 +37,7 @@ export function checkIfAxeExists(arrayOfObjects, axe) {
   return false;
 }
 
-
+// Get user ID by her Email
 export async function getUserIdByEmail(userID: string){
   try {
     const userAD_mail = await this._graphService.getUserId(userID).mail
@@ -49,6 +49,8 @@ export async function getUserIdByEmail(userID: string){
   }
 }
 
+
+// Get approuver n° in list of aprouvers
 export function getApprobateurNiveau(currentUserId, data){
   console.log(data[0].ApprobateurV1Id);
   if (currentUserId === data[0].ApprobateurV1Id[0]){
@@ -69,6 +71,8 @@ export function getApprobateurNiveau(currentUserId, data){
   }
 }
 
+
+// Get approuver n° in list of aprouvers
 function checkLists(approbateurList1, approbateurList2, approbateurList3, approbateurList4) {
   if (approbateurList1.some(item => approbateurList2.includes(item))) {
       return 12;
@@ -81,6 +85,7 @@ function checkLists(approbateurList1, approbateurList2, approbateurList3, approb
   }
 }
 
+// check if we have same approuvers in the list or not
 export function checkRodondanceApprouvers(approuversData){
   if (approuversData[0].ApprobateurV3Id !== null){
     if (approuversData[0].ApprobateurV1Id.some(item => approuversData[0].ApprobateurV2Id.includes(item))){
@@ -104,6 +109,7 @@ export function checkRodondanceApprouvers(approuversData){
 }
 
 
+// function to convert this of request to ERP format
 export function convertProductListSchema(listProducts) {
   var newListProductSchema = [] ;
   console.log(listProducts)
@@ -123,12 +129,13 @@ export function convertProductListSchema(listProducts) {
 }
 
 
+// Create the object of file
 export function createObjectFile(ArticleFileData){
   const file = new File([], ArticleFileData.name, { type: ArticleFileData.type });
   return file ;
 }
 
-
+// Convert the file content to Base 64
 export async function convertFileToBase64(file) {
   if (!(file instanceof Blob)) {
     throw new TypeError("Parameter 'file' must be a Blob object.");
@@ -148,6 +155,8 @@ export async function convertFileToBase64(file) {
   }
 }
 
+
+// Function to return all articles list data 
 export function getAllArticles(formData) {
   let allArticles = [] ;
   formData.map(article => {
@@ -215,5 +224,33 @@ export function checkUserOrders(demandeSubFamilyID){
     return userOrder
   }else {
     return []
+  }
+}
+
+
+export function getMatchingIndices(list) {
+  const targetPhrase = "L'équipe finance a modifié la date souhaitée";
+  const matchingIndices = [];
+
+  list.forEach((item, index) => {
+      if (item.startsWith(targetPhrase)) {
+          matchingIndices.push(index);
+      }
+  });
+
+  return matchingIndices;
+}
+
+
+export function extractArticleAndDays(text) {
+  const regex = /article (\d+).* aprés (\d+) jours/;
+  const match = text.match(regex);
+
+  if (match) {
+      const articleNumber = parseInt(match[1], 10);
+      const numberOfDays = parseInt(match[2], 10);
+      return { articleNumber, numberOfDays };
+  } else {
+      return null;
   }
 }

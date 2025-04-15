@@ -17,35 +17,6 @@ import { convertDateFormat, getMatchingIndices, getOrderFilter } from '../../../
 export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
   public state = {
 
-    // formData : [{
-    //   FamilleSelected: [] as any,
-    //   SousFamilleSelected : [] as any,
-    //   ArticleSelected: [] as any,
-    //   BeneficiareSelected : [] as any,
-    //   Comment: "",
-    //   quantity: "",
-    //   price: "" ,
-    //   DateSouhaite: new Date() ,
-    //   fileData: "" as any,
-    //   fileName: "",
-    // }],
-
-    // ID: 0,
-    // userUPN: "",
-    // userId: "",
-    // userName: "",
-    // userEmail: "",
-    // JobTitle: "",
-
-    // file: "" as null,
-    // loadingFile: false,
-    // fileName: "",
-    // MontantAlloue: 0 ,
-    // MontantConsommer: 0 ,
-    // MontantRestant: 0 ,
-    // counterProducts: 1 ,
-    // errors: { file: "" }
-
     currentPage: 1,
     itemsPerPage: 5,
     DemandeurFilter: '',
@@ -65,6 +36,8 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     currentAccordion: 0,
     filenames: [],
     demandeurs: [],
+    articlesChangeDateSouhaiter: [],
+    disableButtonSaveUpdateDate: true
   };
 
   private getPageNumbers = (totalPages) => {
@@ -131,7 +104,6 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
   private getNumberOfDaysFromDateAction = (articleIndex) => {
     var listNumberOfDaysData = []
-    console.log('article index: ',articleIndex)
     const listIndexs = getMatchingIndices(this.state.historiqueDemande) ;
     listIndexs.map(historyIndex => {
       listNumberOfDaysData.push(this.state.historiqueDemande[historyIndex])
@@ -155,13 +127,11 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
       days: result[id]
     }));
 
-    console.log(finalResult)
 
     if (finalResult.length === 0){
       return "0"
     }else {
       const dateSouhaiteSaved = finalResult.filter(dates => dates.idArticle === (articleIndex + 1))
-      console.log(dateSouhaiteSaved)
       if (dateSouhaiteSaved.length > 0){
         return dateSouhaiteSaved[0].days
       }else return "0"
@@ -179,48 +149,99 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
 
-  private updateDateSouhaite = async (index) => {
+  // En cours
+  private submitUpdatesDateSouhaiter = async() => {
+
+    console.log(this.state.articlesChangeDateSouhaiter)
+    this.setState({disableButtonSaveUpdateDate: true})
     var DemandeID = this.state.detailsListDemande.ID
-    console.log(index)
-    // Save historique block
     const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
-    if (historyData.length > 0) {
-      var resultArray = JSON.parse(historyData[0].Actions);
-      console.log(resultArray)
-      const date = this.state.DateAction[index].toString()
-
+    var resultArray = JSON.parse(historyData[0].Actions);
+    this.state.articlesChangeDateSouhaiter.map(articleDate => {
+      const date = articleDate.newDateSouhaiter.toString()
       if (parseInt(date) <= 1 ){
-        resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jour`);
+        resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${articleDate.articleIndex + 1} aprés ${date} jour`);
       }else {
-        resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jours`);
+        resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${articleDate.articleIndex + 1} aprés ${date} jours`);
       }
-      const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
-        Actions: JSON.stringify(resultArray),
-        DelaiLivraisionSouhaite:"Y"
-      });
+    })
 
-      const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
-      console.log(demandeData[0].DateSouhaiteEquipeFinance)
-      if (demandeData[0].DateSouhaiteEquipeFinance !== null){
-        var resultDemandeArray = []
-        resultDemandeArray = JSON.parse(demandeData[0].DateSouhaiteEquipeFinance);
-        console.log(resultDemandeArray)
-        let deletedItem = resultDemandeArray.splice(index, 1)[0];
-        resultDemandeArray.splice(index,0,date);
-        const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray),
-        });
-        window.location.reload();
-      }else {
-        var resultDemandeArray = [] ;
-        resultDemandeArray.push(date)
-        const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-          DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray),
-        });
-        window.location.reload();
-      }
+    console.log(resultArray)
+    const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+      Actions: JSON.stringify(resultArray),
+      DelaiLivraisionSouhaite:"Y"
+    });
+    window.location.reload();
+
+  }
+
+  // private updateDateSouhaite = async (index) => {
+  //   var DemandeID = this.state.detailsListDemande.ID
+  //   console.log(index)
+  //   // Save historique block
+  //   const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+  //   if (historyData.length > 0) {
+  //     var resultArray = JSON.parse(historyData[0].Actions);
+  //     console.log(resultArray)
+  //     const date = this.state.DateAction[index].toString()
+
+  //     if (parseInt(date) <= 1 ){
+  //       resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jour`);
+  //     }else {
+  //       resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${index + 1} aprés ${date} jours`);
+  //     }
+  //     const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+  //       Actions: JSON.stringify(resultArray),
+  //       DelaiLivraisionSouhaite:"Y"
+  //     });
+
+  //     const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
+  //     console.log(demandeData[0].DateSouhaiteEquipeFinance)
+  //     if (demandeData[0].DateSouhaiteEquipeFinance !== null){
+  //       var resultDemandeArray = []
+  //       resultDemandeArray = JSON.parse(demandeData[0].DateSouhaiteEquipeFinance);
+  //       console.log(resultDemandeArray)
+  //       let deletedItem = resultDemandeArray.splice(index, 1)[0];
+  //       resultDemandeArray.splice(index,0,date);
+  //       const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+  //         DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray),
+  //       });
+  //       window.location.reload();
+  //     }else {
+  //       var resultDemandeArray = [] ;
+  //       resultDemandeArray.push(date)
+  //       const saveNewDateSouhaite = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+  //         DateSouhaiteEquipeFinance: JSON.stringify(resultDemandeArray),
+  //       });
+  //       window.location.reload();
+  //     }
       
-    };
+  //   };
+  // }
+
+  private updateDateSouhaite = async(articleIndex) => {
+    console.log('test')
+    var newArticlesChangeDateSouhaiter = []
+    const date = this.state.DateAction[articleIndex]
+    console.log(articleIndex) ;
+    const prevArticlesChangeDateSouhaiter = [...this.state.articlesChangeDateSouhaiter] ;
+    if (prevArticlesChangeDateSouhaiter.length === 0){
+      newArticlesChangeDateSouhaiter.push({
+        articleIndex: articleIndex,
+        newDateSouhaiter: date
+      })
+      console.log("1",newArticlesChangeDateSouhaiter)
+      this.setState({articlesChangeDateSouhaiter:newArticlesChangeDateSouhaiter})
+    }else {
+      const updatedUsers = prevArticlesChangeDateSouhaiter.some(
+        (article) => article.articleIndex === articleIndex) ? prevArticlesChangeDateSouhaiter.map((article) =>
+          article.articleIndex === articleIndex ? { ...article, newDateSouhaiter: date } : article)
+        : [...prevArticlesChangeDateSouhaiter, { articleIndex: articleIndex, newDateSouhaiter: date }];
+      console.log("2",updatedUsers)
+      this.setState({articlesChangeDateSouhaiter:updatedUsers})
+    }
+
+    this.setState({disableButtonUpdateDate: !this.state.disableButtonUpdateDate, disableButtonSaveUpdateDate: false})
   }
 
 
@@ -608,7 +629,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
         {this.state.openDetailsDiv && <div className={styles.modal}>
           <div className={styles.modalContent} style={{margin:"5% auto 0"}}>
-            <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDiv: false })}>&times;</span>
+            <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDiv: false, articlesChangeDateSouhaiter:[] })}>&times;</span>
             {/* <p className={styles.titleComment}>Détails :</p> */}
             <table className={styles.table}>
               <tbody>
@@ -617,11 +638,11 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
                 <tr>
-                  <td >Article :</td>
+                  <td >Article(s) :</td>
                   <td className={styles.value}>
                     {this.getDateFormListJSON(this.state.detailsListDemande.Produit).map((produit, index) => <div className={styles.accordion}>
                       <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                        <h4>{produit.DescriptionTechnique}</h4>
+                        <h4>{index + 1}-{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
                         <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
@@ -667,7 +688,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                               onClick={() => this.updateDateSouhaite(index)}
                               disabled={this.state.disableButtonUpdateDate}
                             >
-                              Valider la modification
+                              Enregister la modification
                             </button>
                           </div>
                         </p>
@@ -679,8 +700,23 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                   </td>
                 </tr>
                 <tr>
-                <td>Prix unitaire estimatif Total :</td>
-                <td className={styles.value}>{(parseFloat(this.state.detailsListDemande.PrixTotal).toFixed(2)).toString()} DT</td>
+                  <td>Envoyer votre Changement :</td>
+                  <td className={styles.value}>
+                  <button
+                    style={{
+                      backgroundColor: this.state.disableButtonSaveUpdateDate ? "gray" : "#7d2935",
+                    }}
+                    className={styles.btnRef}
+                    disabled={this.state.disableButtonSaveUpdateDate}
+                    onClick={() => this.submitUpdatesDateSouhaiter()}
+                    >
+                    Valider
+                  </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Prix unitaire estimatif Total :</td>
+                  <td className={styles.value}>{(parseFloat(this.state.detailsListDemande.PrixTotal).toFixed(2)).toString()} DT</td>
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>

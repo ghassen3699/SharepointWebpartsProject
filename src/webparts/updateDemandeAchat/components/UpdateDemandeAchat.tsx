@@ -1,6 +1,6 @@
 import * as React from 'react';
 import stylescustom from './UpdateDemandeAchat.module.scss';
-import styles from '../../demandeurDashboard/components/DemandeurDashboard.module.scss'; 
+import styles from '../../demandeurDashboard/components/DemandeurDashboard.module.scss';
 import { IUpdateDemandeAchatProps } from './IUpdateDemandeAchatProps';
 import { Dropdown, IDropdownOption, IDropdownProps, IDropdownStyles } from 'office-ui-fabric-react/lib/Dropdown';
 import { Icon } from 'office-ui-fabric-react/lib/Icon';
@@ -28,12 +28,12 @@ import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
 import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, convertStringToNumber, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
-import { getUserInfo } from "../../../services/getUserInfo" ;
-import { getSubFamily } from "../../../services/getProductsSubFamily" ;
-import { getFamily } from "../../../services/getAllProductFamily" ;
-import { getProduct } from "../../../services/getProducts" ;
-import { getApprouverList } from "../../../services/getApprouveurs" ;
-import { getBenefList } from "../../../services/getListBenefPermissions" ;
+import { getUserInfo } from "../../../services/getUserInfo";
+import { getSubFamily } from "../../../services/getProductsSubFamily";
+import { getFamily } from "../../../services/getAllProductFamily";
+import { getProduct } from "../../../services/getProducts";
+import { getApprouverList } from "../../../services/getApprouveurs";
+import { getBenefList } from "../../../services/getListBenefPermissions";
 import { APPROUVER_V4 } from '../../../API_END_POINTS/userApprouverV4';
 import { REDIRECTION_URL } from '../../../API_END_POINTS/redirectionURL';
 
@@ -91,16 +91,16 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   // State variables of webpart 
   public state = {
 
-    formData : [{
+    formData: [{
       FamilleSelected: [] as any,
-      SousFamilleSelected : [] as any,
+      SousFamilleSelected: [] as any,
       AllArticleData: [] as any,
       ArticleSelected: [] as any,
-      BeneficiareSelected : [] as any,
+      BeneficiareSelected: [] as any,
       Comment: "",
       quantity: "1",
-      price:"0.0",
-      DateSouhaite: new Date() ,
+      price: "0.0",
+      DateSouhaite: new Date(),
       numberOfDays: "",
       fileData: "" as any,
       fileName: "",
@@ -113,15 +113,15 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     CentreDeGestion: "",
 
 
-    FamilleID : "",
-    SousFamilleID : "" ,
-    ArticleID : "" ,
+    FamilleID: "",
+    SousFamilleID: "",
+    ArticleID: "",
 
     ID: 0,
     userUPN: "",
     userId: "",
-    userRegistrationNumber:"",
-    userEstablishment:"",
+    userRegistrationNumber: "",
+    userEstablishment: "",
     userName: "",
     userEmail: "",
     JobTitle: "",
@@ -130,8 +130,8 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     RemplacantID: 0,
     RemplacantUserUPN: "",
     RemplacantUserId: "",
-    RemplacantUserRegistrationNumber:"",
-    RemplacantUserEstablishment:"",
+    RemplacantUserRegistrationNumber: "",
+    RemplacantUserEstablishment: "",
     RemplacantUserName: "",
     RemplacantUserEmail: "",
     RemplacantJobTitle: "",
@@ -140,14 +140,14 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     file: "" as null,
     loadingFile: false,
     fileName: "",
-    MontantAlloue: 0 ,
-    MontantConsommer: 0 ,
-    MontantRestant: 0 ,
-    counterProducts: 1 ,
-    showValidationPopUp:false,
+    MontantAlloue: 0,
+    MontantConsommer: 0,
+    MontantRestant: 0,
+    counterProducts: 1,
+    showValidationPopUp: false,
     errors: { file: "" },
 
-    showOnConfirmButtonPopUp : true,
+    showOnConfirmButtonPopUp: true,
     spinnerShow: false,
 
     checkRemplacant: false,
@@ -159,12 +159,11 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     checkActionCurrentUser: true,
     checkActionCurrentUserPopUp: false,
     DisabledBenef: true,
-    condition: 0,    
+    condition: 0,
     showPopUpApprouver4: false,
     totalPrixErrorMessage: 0,
-    fileBase64: "",
     axeBudgets: []
-  };  
+  };
   private _graphService = new GraphService(this.props.context);
 
 
@@ -173,13 +172,13 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   // private dropdownOptionsRefArticles: { key: string, text: string, data: any }[] = [];
   // private dropdownOptionsBeneficiaire: { key: string, text: string, data: any }[] = [];
 
-  
+
 
   public initDisableCommentsWrapper() {
     let CommentsWrapper = document.getElementById('CommentsWrapper');
     CommentsWrapper.innerHTML = "";
   }
-  
+
 
   private onRenderOption(option: IDropdownOption): JSX.Element {
     return (
@@ -196,7 +195,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   private onRenderCaretDown(props: IDropdownProps): JSX.Element {
     return <Icon iconName="CirclePlus" />;
   }
-  
+
 
 
   private onSelectionChanged(ev: React.FormEvent<HTMLDivElement>, item: IDropdownOption): void { }
@@ -204,33 +203,32 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
   public initImage(index: any) {
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].fileData = null
-    updatedFormData[index-1].fileName = null
+    updatedFormData[index - 1].fileData = null
+    updatedFormData[index - 1].fileName = null
     this.setState({
       formData: updatedFormData,
-      fileBase64: ""
     });
     (document.getElementById('uploadFile') as HTMLInputElement).value = "";
   }
 
 
-  private checkUserActions = async() => {
+  private checkUserActions = async () => {
     const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
     const now: string = new Date().toISOString(); // Format the current date to ISO 8601
     const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-    .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
-    .orderBy('Created', false)
-    .top(1)
-    .get();
+      .filter(`DemandeurId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
+      .orderBy('Created', false)
+      .top(1)
+      .get();
 
     if (remplacantTest.length > 0) {
-      this.setState({checkActionCurrentUser : false, checkActionCurrentUserPopUp: true});
+      this.setState({ checkActionCurrentUser: false, checkActionCurrentUserPopUp: true });
     }
   }
 
 
-  private getUserInfo = async(establishment, registrationNumber) => {
-    const data = await getUserInfo(establishment, registrationNumber) ;
+  private getUserInfo = async (establishment, registrationNumber) => {
+    const data = await getUserInfo(establishment, registrationNumber);
     return data
   }
 
@@ -250,22 +248,20 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
   public addFile = async (content: any) => {
     console.log(this.state.counterProducts);
-  
+
     const fileName = content.target.files[0].name;
     const extension = fileName.split('.').pop();
     const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}.${extension}`;
-  
+
     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
-  
+
     const updatedFormData = [...this.state.formData];
     updatedFormData[0].fileName = fileName; // Store the original file name
     updatedFormData[0].fileData = newFile;
 
-    const data = await convertFileToBase64(newFile)
-  
+
     this.setState({
       formData: updatedFormData,
-      fileBase64: data
     });
   };
 
@@ -287,38 +283,38 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
   private handleChangePrice = (event: any, index: any) => {
     const inputValue = event.target.value;
-  
+
     // Check if inputValue is a valid number
     if (!isNaN(inputValue) && inputValue !== '') {
       const updatedFormData = [...this.state.formData];
       updatedFormData[index - 1].price = inputValue;
-  
+
       this.setState({
         formData: updatedFormData
       });
     }
   }
-  
 
 
-  private handleChangeComment = (event:any, index: any) => {
+
+  private handleChangeComment = (event: any, index: any) => {
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].Comment = event.target.value
+    updatedFormData[index - 1].Comment = event.target.value
     this.setState({
       formData: updatedFormData
     });
   }
 
-  
-  private handleChangeFamilleDropdown = async (event:any, index:any) => {
+
+  private handleChangeFamilleDropdown = async (event: any, index: any) => {
     console.log(event)
     const updatedFormData = [...this.state.formData];
     console.log(updatedFormData)
-    updatedFormData[index-1].FamilleSelected = [event] ;
-    updatedFormData[index-1].ArticleSelected = [] ;
-    updatedFormData[index-1].AllArticleData = [];
+    updatedFormData[index - 1].FamilleSelected = [event];
+    updatedFormData[index - 1].ArticleSelected = [];
+    updatedFormData[index - 1].AllArticleData = [];
 
-  
+
     this.setState({
       formData: updatedFormData,
       FamilleID: event.key,
@@ -332,65 +328,65 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   }
 
 
-  private handleChangeSousFamilleDropdown = async(event:any, index: any) => {
+  private handleChangeSousFamilleDropdown = async (event: any, index: any) => {
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].SousFamilleSelected = [event]
-    updatedFormData[index-1].ArticleSelected = [] ;
+    updatedFormData[index - 1].SousFamilleSelected = [event]
+    updatedFormData[index - 1].ArticleSelected = [];
 
-    if (this.state.DisabledBenef === false){
+    if (this.state.DisabledBenef === false) {
       console.log(event.key, updatedFormData[index - 1])
       console.log(event.key, updatedFormData[index - 1].BeneficiareSelected[0].text)
-      
-      const items = await getProduct(event.key, updatedFormData[index - 1].BeneficiareSelected[0].text) ;
+
+      const items = await getProduct(event.key, updatedFormData[index - 1].BeneficiareSelected[0].text);
       console.log(items)
-  
+
       const listArticles = items.Items.map(item => ({
-        key: item.RefItem, 
+        key: item.RefItem,
         LatestPurchasePrice: item.LatestPurchasePrice,
-        text: item.DesignationItem, 
+        text: item.DesignationItem,
         BudgetAnnualUsed: item.BudgetAnnualUsed,
-        BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
-        BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
-        Axe: item.Axe,  
+        BudgetAnnualRemaining: item.BudgetAnnualRemaining,
+        BudgetAnnualAllocated: item.BudgetAnnualAllocated,
+        Axe: item.Axe,
       }));
-  
+
       console.log(index)
       console.log(updatedFormData)
-      updatedFormData[index-1].AllArticleData = listArticles
+      updatedFormData[index - 1].AllArticleData = listArticles
       this.setState({
         formData: updatedFormData,
         SousFamilleID: event.key,
       });
       console.log(event.key)
       console.log(this.state.userRespCenter)
-      this.setState({articles:listArticles})
-    }else {
-      const items = await getProduct(event.key, updatedFormData[0].BeneficiareSelected[0].text) ;
+      this.setState({ articles: listArticles })
+    } else {
+      const items = await getProduct(event.key, updatedFormData[0].BeneficiareSelected[0].text);
       console.log(items)
-  
+
       const listArticles = items.Items.map(item => ({
-        key: item.RefItem, 
+        key: item.RefItem,
         LatestPurchasePrice: item.LatestPurchasePrice,
-        text: item.DesignationItem, 
+        text: item.DesignationItem,
         BudgetAnnualUsed: item.BudgetAnnualUsed,
-        BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
-        BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
-        Axe: item.Axe,  
+        BudgetAnnualRemaining: item.BudgetAnnualRemaining,
+        BudgetAnnualAllocated: item.BudgetAnnualAllocated,
+        Axe: item.Axe,
       }));
-  
+
       console.log(index)
       console.log(updatedFormData)
-      updatedFormData[index-1].AllArticleData = listArticles
+      updatedFormData[index - 1].AllArticleData = listArticles
       this.setState({
         formData: updatedFormData,
         SousFamilleID: event.key,
       });
       console.log(event.key)
       console.log(this.state.userRespCenter)
-      this.setState({articles:listArticles})
+      this.setState({ articles: listArticles })
     }
 
-    
+
   }
 
 
@@ -398,7 +394,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     console.log(event)
     const updatedFormData = [...this.state.formData];
     updatedFormData[index - 1].ArticleSelected = [event];
-  
+
     this.setState({
       formData: updatedFormData,
       // axePerBuget: newAxeList
@@ -406,16 +402,16 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   }
 
 
-  private handleChangeDestinataireDropdown = async (event:any, index: any) => {
+  private handleChangeDestinataireDropdown = async (event: any, index: any) => {
     const updatedFormData = [...this.state.formData];
-    updatedFormData[index-1].BeneficiareSelected = [event]
+    updatedFormData[index - 1].BeneficiareSelected = [event]
     this.setState({
       formData: updatedFormData
     });
 
     // Get all famille products
-    const listFamilleProduit = [] ;
-    const familyProducts = await getFamily() ;
+    const listFamilleProduit = [];
+    const familyProducts = await getFamily();
     familyProducts.Families.map(famille => {
       listFamilleProduit.push({
         key: famille.IdFamily,
@@ -423,7 +419,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
       })
     })
-    this.setState({familyProducts:listFamilleProduit})
+    this.setState({ familyProducts: listFamilleProduit })
   }
 
 
@@ -441,13 +437,13 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   private addArticle = () => {
     const nullObject = {
       FamilleSelected: this.state.formData[0].FamilleSelected,
-      SousFamilleSelected: []as any,
+      SousFamilleSelected: [] as any,
       AllArticleData: [],
-      ArticleSelected: []as any,
-      BeneficiareSelected: []as any,
+      ArticleSelected: [] as any,
+      BeneficiareSelected: [] as any,
       Comment: "",
-      quantity:"1",
-      price:"0.0",
+      quantity: "1",
+      price: "0.0",
       numberOfDays: "",
       DateSouhaite: new Date(),
       fileData: "" as null,
@@ -467,10 +463,10 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   private deleteArticle = (index: number) => {
     // Make a copy of the current formData array
     const updatedFormData = [...this.state.formData];
-    
+
     // Remove the article at the specified index
     updatedFormData.splice(index, 1);
-  
+
     // Update the state with the new formData array and decrement the counterProducts
     this.setState({
       formData: updatedFormData,
@@ -480,17 +476,17 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
 
   private disabledSubmitButton = () => {
-    if (this.state.DisabledBenef){
+    if (this.state.DisabledBenef) {
       return this.state.formData.some(formData => (
         formData.FamilleSelected.length === 0 ||
         formData.SousFamilleSelected.length === 0 ||
         formData.ArticleSelected.length === 0 ||
         formData.quantity.length === 0 ||
         formData.price.length === 0 ||
-        formData.Comment.length === 0 || 
+        formData.Comment.length === 0 ||
         formData.numberOfDays.length === 0
       ));
-    }else {
+    } else {
       return this.state.formData.some(formData => (
         formData.FamilleSelected.length === 0 ||
         formData.SousFamilleSelected.length === 0 ||
@@ -498,7 +494,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
         formData.ArticleSelected.length === 0 ||
         formData.quantity.length === 0 ||
         formData.price.length === 0 ||
-        formData.Comment.length === 0 || 
+        formData.Comment.length === 0 ||
         formData.numberOfDays.length === 0
       ));
     }
@@ -518,23 +514,21 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   };
 
 
-  
+
   private attachFileToItem = async (itemId: any) => {
     try {
-      for (let index = 0; index < this.state.counterProducts; index++) {
-        const formData = this.state.formData[index];
-        console.log(formData)
-        if (formData.fileName){
-          const fileContent: any = await this.readFile(formData.fileData);
-          const fileName = formData.fileName; // Use the original file name
-          console.log("Original File Name:", fileName);
-          console.log("File Content:", fileContent);
-          const response = await Web(this.props.url)
-            .lists.getByTitle("DemandeAchat")
-            .items.getById(itemId)
-            .attachmentFiles.add(fileName, fileContent);
-          console.log("File attached to item successfully:", response);
-        }
+      const formData = this.state.formData[0];
+      console.log(formData)
+      if (formData.fileName) {
+        const fileContent: any = await this.readFile(formData.fileData);
+        const fileName = formData.fileName; // Use the original file name
+        console.log("Original File Name:", fileName);
+        console.log("File Content:", fileContent);
+        const response = await Web(this.props.url)
+          .lists.getByTitle("DemandeAchat")
+          .items.getById(itemId)
+          .attachmentFiles.add(fileName, fileContent);
+        console.log("File attached to item successfully:", response);
       }
     } catch (error) {
       console.log("Error attaching file to item:", error);
@@ -543,9 +537,9 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
 
 
-  private getSubFamilyData = async(FamilleID) => {
+  private getSubFamilyData = async (FamilleID) => {
     var sousFamilles = []
-    const sousFamilyData = await getSubFamily(FamilleID.toString()) ;
+    const sousFamilyData = await getSubFamily(FamilleID.toString());
     sousFamilyData.SubFamilies.map(sousFamily => {
       sousFamilles.push({
         key: sousFamily.IdSubFamily,
@@ -553,9 +547,9 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
         FamilleKey: sousFamily.IdFamily,
       })
     })
-    this.setState({subFamilyProducts:sousFamilles})
+    this.setState({ subFamilyProducts: sousFamilles })
   }
-  
+
 
   private getBeneficaire = () => {
     var listBenef = [{
@@ -625,7 +619,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     {
       key: "CC",
       text: "CC",
-    },{
+    }, {
       key: "MSC",
       text: "MSC",
     }]
@@ -634,37 +628,37 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
 
   private handleSpinnerButtonClick = () => {
-    
-    this.setState({spinnerShow:true})
+
+    this.setState({ spinnerShow: true })
 
     setTimeout(() => {
-      this.setState({spinnerShow:false})
+      this.setState({ spinnerShow: false })
     }, 3000);
   };
 
 
   private _onChange = (ev: React.FormEvent<HTMLInputElement>, option: IChoiceGroupOption) => {
     console.log(option)
-    this.setState({demandeAffectation:option.key})
+    this.setState({ demandeAffectation: option.key })
   }
 
 
-  public async getUserEmailById(userId: number){
+  public async getUserEmailById(userId: number) {
     try {
-        const user = await Web(this.props.url).getUserById(userId);
-        console.log(user)
+      const user = await Web(this.props.url).getUserById(userId);
+      console.log(user)
     } catch (error) {
-        throw error;
+      throw error;
     }
   }
 
   public getCurrentIDfromURL = () => {
     const currentURL = window.location.href;
-    const urlOBJ = new URL(currentURL) ;
+    const urlOBJ = new URL(currentURL);
     return urlOBJ.searchParams.get('itemID');
   }
 
-  public getCurrentDemandeInfo = async() => {
+  public getCurrentDemandeInfo = async () => {
     const demandeID = this.getCurrentIDfromURL()
     const demandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(demandeID)).get()
     var listProduits = JSON.parse(demandeData.Produit)
@@ -676,32 +670,31 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
     listProduits.map(produit => {
       console.log(produit)
-      index = index + 1 ;
+      index = index + 1;
       const updatedFormData = [...this.state.formData];
       console.log(demandeData.StatusBeneficiaire === "true" ? true : false)
-      if(index === 1){
+      if (index === 1) {
         const updatedFormData = [...this.state.formData];
-        updatedFormData[index-1].FamilleSelected = [{"key":demandeData.FamilleProduitREF, "text":demandeData.FamilleProduit}]
-        updatedFormData[index-1].SousFamilleSelected = [{"key":produit.SousFamilleID, "text":produit.SousFamille}]
-        updatedFormData[index-1].ArticleSelected = [{"key":produit.ArticleREF, "text": produit.DescriptionTechnique,"Axe":produit.Axe,"BudgetAnnualAllocated":produit.BudgetAnnualAllocated,"BudgetAnnualRemaining":produit.BudgetAnnualRemaining,"BudgetAnnualUsed":produit.BudgetAnnualUsed,"LatestPurchasePrice":produit.LatestPurchasePrice}],
-        updatedFormData[index-1].BeneficiareSelected = [{"key":produit.BeneficiaireID, "text":produit.Beneficiaire}]
-        updatedFormData[index-1].Comment = produit.comment
-        updatedFormData[index-1].quantity = produit.quantité
-        updatedFormData[index-1].price = produit.Prix
-        updatedFormData[index-1].DateSouhaite = produit.DelaiLivraisionSouhaite
-        updatedFormData[index-1].numberOfDays = produit.DelaiLivraisionSouhaite
-        updatedFormData[index-1].fileName = produit.ArticleFileData.name
-        updatedFormData[index-1].fileData = {
-          "name":produit.ArticleFileData.name,
-          "size":produit.ArticleFileData.size,
-          "type":produit.ArticleFileData.type,
+        updatedFormData[index - 1].FamilleSelected = [{ "key": demandeData.FamilleProduitREF, "text": demandeData.FamilleProduit }]
+        updatedFormData[index - 1].SousFamilleSelected = [{ "key": produit.SousFamilleID, "text": produit.SousFamille }]
+        updatedFormData[index - 1].ArticleSelected = [{ "key": produit.ArticleREF, "text": produit.DescriptionTechnique, "Axe": produit.Axe, "BudgetAnnualAllocated": produit.BudgetAnnualAllocated, "BudgetAnnualRemaining": produit.BudgetAnnualRemaining, "BudgetAnnualUsed": produit.BudgetAnnualUsed, "LatestPurchasePrice": produit.LatestPurchasePrice }],
+          updatedFormData[index - 1].BeneficiareSelected = [{ "key": produit.BeneficiaireID, "text": produit.Beneficiaire }]
+        updatedFormData[index - 1].Comment = produit.comment
+        updatedFormData[index - 1].quantity = produit.quantité
+        updatedFormData[index - 1].price = produit.Prix
+        updatedFormData[index - 1].DateSouhaite = produit.DelaiLivraisionSouhaite
+        updatedFormData[index - 1].numberOfDays = produit.DelaiLivraisionSouhaite
+        updatedFormData[index - 1].fileName = produit.ArticleFileData.name
+        updatedFormData[index - 1].fileData = {
+          "name": produit.ArticleFileData.name,
+          "size": produit.ArticleFileData.size,
+          "type": produit.ArticleFileData.type,
         }
         this.setState({
           formData: updatedFormData,
           FamilleID: updatedFormData[0].FamilleSelected[0].key,
-          SousFamilleID : updatedFormData[0].SousFamilleSelected[0].key,
+          SousFamilleID: updatedFormData[0].SousFamilleSelected[0].key,
           CentreDeGestion: demandeData.CentreDeGestion,
-          fileBase64: demandeData.FileBase64,
           DisabledBenef: demandeData.StatusBeneficiaire === "true" ? true : false
         });
 
@@ -710,33 +703,32 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
         console.log(updatedFormData[0].SousFamilleSelected[0].key)
         console.log(demandeData.CentreDeGestion)
 
-      }else {
+      } else {
         var nullObject
         nullObject = {
-          FamilleSelected: [{"key":demandeData.FamilleProduitREF, "text":demandeData.FamilleProduit}],
-          SousFamilleSelected: [{"key":produit.SousFamilleID, "text":produit.SousFamille}],
-          ArticleSelected: [{"key":produit.ArticleREF, "text": produit.DescriptionTechnique,"Axe":produit.Axe,"BudgetAnnualAllocated":produit.BudgetAnnualAllocated,"BudgetAnnualRemaining":produit.BudgetAnnualRemaining,"BudgetAnnualUsed":produit.BudgetAnnualUsed,"LatestPurchasePrice":produit.LatestPurchasePrice}],
-          BeneficiareSelected: [{"key":produit.BeneficiaireID, "text":produit.Beneficiaire}],
+          FamilleSelected: [{ "key": demandeData.FamilleProduitREF, "text": demandeData.FamilleProduit }],
+          SousFamilleSelected: [{ "key": produit.SousFamilleID, "text": produit.SousFamille }],
+          ArticleSelected: [{ "key": produit.ArticleREF, "text": produit.DescriptionTechnique, "Axe": produit.Axe, "BudgetAnnualAllocated": produit.BudgetAnnualAllocated, "BudgetAnnualRemaining": produit.BudgetAnnualRemaining, "BudgetAnnualUsed": produit.BudgetAnnualUsed, "LatestPurchasePrice": produit.LatestPurchasePrice }],
+          BeneficiareSelected: [{ "key": produit.BeneficiaireID, "text": produit.Beneficiaire }],
           Comment: produit.comment,
-          quantity:produit.quantité,
-          price:produit.Prix,
+          quantity: produit.quantité,
+          price: produit.Prix,
           numberOfDays: produit.DelaiLivraisionSouhaite,
           DateSouhaite: produit.DelaiLivraisionSouhaite,
-          fileName : "",
-          fileData : {
-            "name":"",
-            "size":"",
-            "type":"",
+          fileName: "",
+          fileData: {
+            "name": "",
+            "size": "",
+            "type": "",
           }
         };
-    
+
         const updatedFormData = [...this.state.formData];
         updatedFormData.push(nullObject);
         this.setState({
           formData: updatedFormData,
           counterProducts: this.state.counterProducts + 1,
           FamilleID: updatedFormData[0].FamilleSelected[0].key,
-          fileBase64: demandeData.FileBase64,
           DisabledBenef: demandeData.StatusBeneficiaire === "true" ? true : false
         })
         console.log(updatedFormData)
@@ -747,10 +739,10 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   }
 
 
-  private getPrevDemandeInfo = async(demanedID) => {
-    const data = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demanedID).get() ;
+  private getPrevDemandeInfo = async (demanedID) => {
+    const data = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demanedID).get();
     var listProduits = JSON.parse(data.Produit)
-    return listProduits ;
+    return listProduits;
   }
 
 
@@ -758,507 +750,552 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     const disabledSubmit = this.disabledSubmitButton();
     const DemandeID = this.getCurrentIDfromURL();
 
-    const prevData = await this.getPrevDemandeInfo(DemandeID) ;
+    const prevData = await this.getPrevDemandeInfo(DemandeID);
 
-    console.log(this.state.CentreDeGestion) ;
-    
+    console.log(this.state.CentreDeGestion);
+
     var ArticleList = [];
     var prixTotal = 0;
 
     if (!disabledSubmit) {
-        const data = this.state.formData;
-        console.log(data) ;
-        data.map(Article => {
-          console.log("Article", Article)
-          prixTotal = prixTotal + (parseFloat(Article.price) * parseInt(Article.quantity));
-          console.log(!this.state.DisabledBenef)
-          if (!this.state.DisabledBenef){
-            console.log(1)
-            if (Article.fileName !== null){
-              console.log(2)
-              ArticleList.push({
-                "SousFamille":Article.SousFamilleSelected[0].text,
-                "SousFamilleID":Article.SousFamilleSelected[0].key,
-                "Beneficiaire": Article.BeneficiareSelected[0]?.text,         
-                "BeneficiaireID":Article.BeneficiareSelected[0]?.key,
-                "DelaiLivraisionSouhaite": Article.numberOfDays,
-                "comment": Article.Comment,
-                "Prix": Article.price,
-                "quantité": Article.quantity,
-                "DescriptionTechnique": Article.ArticleSelected[0].text,
-                "ArticleREF": Article.ArticleSelected[0].key,
-                "ArticleFileName": Article.fileName,
-                "Axe":  Article.ArticleSelected[0].Axe,
-                "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
-                "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
-                "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
-                "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
-                "ArticleFileData": {
-                  "name": Article.fileData.name,
-                  "size": Article.fileData.size,
-                  "type": Article.fileData.type,
-                  // "lastModified": Article.fileData.lastModified,
-                  // "lastModifiedDate": Article.fileData.lastModifiedDate,
-                  "webkitRelativePath": Article.fileData.webkitRelativePath,
-                }
-              });
-            }else {
-              ArticleList.push({
-                "SousFamille":Article.SousFamilleSelected[0].text,
-                "SousFamilleID":Article.SousFamilleSelected[0].key,
-                "Beneficiaire": Article.BeneficiareSelected[0]?.text,         
-                "BeneficiaireID":Article.BeneficiareSelected[0]?.key,
-                "DelaiLivraisionSouhaite": Article.numberOfDays,
-                "comment": Article.Comment,
-                "Prix": Article.price,
-                "quantité": Article.quantity,
-                "DescriptionTechnique": Article.ArticleSelected[0].text,
-                "ArticleREF": Article.ArticleSelected[0].key,
-                "ArticleFileName": "",
-                "Axe":  Article.ArticleSelected[0].Axe,
-                "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
-                "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
-                "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
-                "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
-                "ArticleFileData": {}
-              });
-            }
-          }else {
-            if (Article.fileName !== null){
-              ArticleList.push({
-                "SousFamille":Article.SousFamilleSelected[0].text,
-                "SousFamilleID":Article.SousFamilleSelected[0].key,
-                "Beneficiaire": this.state.CentreDeGestion,
-                "BeneficiaireID":this.state.CentreDeGestion, 
-                "DelaiLivraisionSouhaite": Article.numberOfDays,
-                "comment": Article.Comment,
-                "Prix": Article.price,
-                "quantité": Article.quantity,
-                "DescriptionTechnique": Article.ArticleSelected[0].text,
-                "ArticleREF": Article.ArticleSelected[0].key,
-                "ArticleFileName": Article.fileName,
-                "Axe":  Article.ArticleSelected[0].Axe,
-                "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
-                "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
-                "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
-                "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
-                "ArticleFileData": {
-                  "name": Article.fileData.name,
-                  "size": Article.fileData.size,
-                  "type": Article.fileData.type,
-                  // "lastModified": Article.fileData.lastModified,
-                  // "lastModifiedDate": Article.fileData.lastModifiedDate,
-                  "webkitRelativePath": Article.fileData.webkitRelativePath,
-                }
-              });
-            }else {
-              ArticleList.push({
-                "SousFamille":Article.SousFamilleSelected[0].text,
-                "SousFamilleID":Article.SousFamilleSelected[0].key,
-                "Beneficiaire": this.state.CentreDeGestion,
-                "BeneficiaireID":this.state.CentreDeGestion, 
-                "DelaiLivraisionSouhaite": Article.numberOfDays,
-                "comment": Article.Comment,
-                "Prix": Article.price,
-                "quantité": Article.quantity,
-                "DescriptionTechnique": Article.ArticleSelected[0].text,
-                "ArticleREF": Article.ArticleSelected[0].key,
-                "ArticleFileName": "",
-                "Axe":  Article.ArticleSelected[0].Axe,
-                "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
-                "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
-                "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
-                "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
-                "ArticleFileData": {}
-              });
-            }
-          }
-        });
-      
-        console.log(ArticleList)
-        var formData
-
-        console.log(DemandeID);
-        var Demande = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.filter(`DemandeID eq ${DemandeID}`).get();
-        console.log(Demande);
-        if (Demande[0].StatusApprobateurV1 === "A modifier") {
-            console.log(1);
-            var UserDisplayNameV1 = "";
-
-            if (Demande[0].ApprobateurV1Id.length > 1){
-              await Promise.all(
-                Demande[0].ApprobateurV1Id.map(async (approbateur) => {
-                  try {
-                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
-                    const UserDisplayNameV1Title = user.Title;
-      
-                    if (UserDisplayNameV1.length === 0) {
-                      UserDisplayNameV1 = UserDisplayNameV1Title;
-                    } else {
-                      UserDisplayNameV1 = UserDisplayNameV1 + " Ou " + UserDisplayNameV1Title;
-                    }
-                  } catch (error) {
-                    console.error(`Error retrieving user information for ${approbateur}:`, error);
-                  }
-                })
-              );
-            }else {
-              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV1Id[0]).get();
-              UserDisplayNameV1 = user.Title;
-            }
-
-            formData = {
-              "FamilleProduit": data[0].FamilleSelected[0].text,
-              "FamilleProduitREF": data[0].FamilleSelected[0].key,
-              "PrixTotal":prixTotal.toString(),
-              "DelaiLivraisionSouhaite":data[0].numberOfDays,
-              "Prix": "test ...." ,
-              "Quantite": "test ....",
-              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-              "StatusDemande": "En cours de " + UserDisplayNameV1,
-              "StatusDemandeV1": "En cours",
-              "Produit": JSON.stringify(ArticleList),
-              "FileBase64":this.state.fileBase64
-            };
-            console.log(formData)
-            console.log(ArticleList)
-            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
-            
-            if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === ""){
-              // Nothing to de because we dont have an attachement file
-            }else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== ""){
-
-              // Delete the prev file
-              await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-            }else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === ""){
-      
-              ArticleList.map(async articleData => {
-                await this.attachFileToItem(parseInt(DemandeID))
-              })
-
-            }else if(ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== ""){
-              if ( ArticleList[0].ArticleFileName !== prevData[0].ArticleFileName ){
-                // Delete the prev attachement file
-                await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-                              
-                ArticleList.map(async articleData => {
-                  await this.attachFileToItem(parseInt(DemandeID))
-                })
+      const data = this.state.formData;
+      console.log(data);
+      data.map(Article => {
+        console.log("Article", Article)
+        prixTotal = prixTotal + (parseFloat(Article.price) * parseInt(Article.quantity));
+        console.log(!this.state.DisabledBenef)
+        if (!this.state.DisabledBenef) {
+          console.log(1)
+          if (Article.fileName !== null) {
+            console.log(2)
+            ArticleList.push({
+              "SousFamille": Article.SousFamilleSelected[0].text,
+              "SousFamilleID": Article.SousFamilleSelected[0].key,
+              "Beneficiaire": Article.BeneficiareSelected[0]?.text,
+              "BeneficiaireID": Article.BeneficiareSelected[0]?.key,
+              "DelaiLivraisionSouhaite": Article.numberOfDays,
+              "comment": Article.Comment,
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.ArticleSelected[0].text,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": Article.fileName,
+              "Axe": Article.ArticleSelected[0].Axe,
+              "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+              "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+              "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+              "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
+              "ArticleFileData": {
+                "name": Article.fileData.name,
+                "size": Article.fileData.size,
+                "type": Article.fileData.type,
+                // "lastModified": Article.fileData.lastModified,
+                // "lastModifiedDate": Article.fileData.lastModifiedDate,
+                "webkitRelativePath": Article.fileData.webkitRelativePath,
               }
-            }
-            
-            console.log(updateDemandeAchat)
-            // Save historique block
-            const historyData = await Web(this.props.url)
-                .lists.getByTitle("HistoriqueDemande")
-                .items.filter(`DemandeID eq ${DemandeID}`)
-                .get();
-
-            if (historyData.length > 0) {
-                var resultArray = JSON.parse(historyData[0].Actions);
-                resultArray.push(
-                    "modifier par le demandeur a partir d'une demande de modification de la part de " +
-                        UserDisplayNameV1 + " le "+ getCurrentDate()
-                );
-                resultArray.push(
-                    "En cours de l'approbation de " +
-                        UserDisplayNameV1 + " a partir de "+ getCurrentDate()
-                );
-                const saveHistorique = await Web(this.props.url)
-                    .lists.getByTitle("HistoriqueDemande")
-                    .items.getById(historyData[0].ID)
-                    .update({
-                        Actions: JSON.stringify(resultArray),
-                    });
-            }
-
-            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
-            .update({
-              StatusApprobateurV1: "En cours",
-              Notif: "Y"
             });
-        } else if (Demande[0].StatusApprobateurV2 === "A modifier") {
-            console.log(2);
-            var UserDisplayNameV2 = "";
-
-            if (Demande[0].ApprobateurV2Id.length > 1){
-              await Promise.all(
-                Demande[0].ApprobateurV2Id.map(async (approbateur) => {
-                  try {
-                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
-                    const UserDisplayNameV2Title = user.Title;
-      
-                    if (UserDisplayNameV2.length === 0) {
-                      UserDisplayNameV2 = UserDisplayNameV2Title;
-                    } else {
-                      UserDisplayNameV2 = UserDisplayNameV2 + " Ou " + UserDisplayNameV2Title;
-                    }
-                  } catch (error) {
-                    console.error(`Error retrieving user information for ${approbateur}:`, error);
-                  }
-                })
-              );
-            }else {
-              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
-              UserDisplayNameV2 = user.Title;
-            }
-
-            formData = {
-              "FamilleProduit": data[0].FamilleSelected[0].text,
-              "FamilleProduitREF": data[0].FamilleSelected[0].key,
-              "PrixTotal":prixTotal.toString(),
-              "DelaiLivraisionSouhaite":data[0].numberOfDays,
-              "Prix": "test ...." ,
-              "Quantite": "test ....",
-              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-              "StatusDemande": "En cours de " + UserDisplayNameV2,
-              "StatusDemandeV2": "En cours",
-              "Produit": JSON.stringify(ArticleList),
-              "FileBase64":this.state.fileBase64            
-            };
-            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
-            console.log(updateDemandeAchat)
-
-            console.log(ArticleList[0].ArticleFileName,prevData[0].ArticleFileName)
-
-            if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === ""){
-              // Nothing to de because we dont have an attachement file
-            }else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== ""){
-
-              // Delete the prev file
-              await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-            }else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === ""){
-
-              ArticleList.map(async articleData => {
-                await this.attachFileToItem(parseInt(DemandeID))
-              })
-            }else if(ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== ""){
-
-              // Delete the prev attachement file
-              await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-              
-              ArticleList.map(async articleData => {
-                await this.attachFileToItem(parseInt(DemandeID))
-              })
-            }
-
-            // Save historique block
-            const historyData = await Web(this.props.url)
-              .lists.getByTitle("HistoriqueDemande")
-              .items.filter(`DemandeID eq ${DemandeID}`)
-              .get();
-
-            if (historyData.length > 0) {
-                var resultArray = JSON.parse(historyData[0].Actions);
-                resultArray.push(
-                    "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV2 + " le "+ getCurrentDate()
-                );
-                resultArray.push("En cours de l'approbation de " + UserDisplayNameV2 + " a partir de" + getCurrentDate());
-                const saveHistorique = await Web(this.props.url)
-                  .lists.getByTitle("HistoriqueDemande")
-                  .items.getById(historyData[0].ID)
-                  .update({
-                      Actions: JSON.stringify(resultArray),
-                  });
-            }
-
-            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
-              .update({
-                  StatusApprobateurV2: "En cours",
-                  Notif: "Y"
-              });
-        } else if (Demande[0].StatusApprobateurV3 === "A modifier") {
-            console.log(3);
-            var UserDisplayNameV3 = "";
-
-            if (Demande[0].ApprobateurV3Id.length > 1){
-              await Promise.all(
-                Demande[0].ApprobateurV3Id.map(async (approbateur) => {
-                  try {
-                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
-                    const UserDisplayNameV3Title = user.Title;
-      
-                    if (UserDisplayNameV3.length === 0) {
-                      UserDisplayNameV3 = UserDisplayNameV3Title;
-                    } else {
-                      UserDisplayNameV3 = UserDisplayNameV3 + " Ou " + UserDisplayNameV3Title;
-                    }
-                  } catch (error) {
-                    console.error(`Error retrieving user information for ${approbateur}:`, error);
-                  }
-                })
-              );
-            }else {
-              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
-              UserDisplayNameV3 = user.Title;
-            }
-            formData = {
-              "FamilleProduit": data[0].FamilleSelected[0].text,
-              "FamilleProduitREF": data[0].FamilleSelected[0].key,
-              "PrixTotal":prixTotal.toString(),
-              "DelaiLivraisionSouhaite":data[0].numberOfDays,
-              "Prix": "test ...." ,
-              "Quantite": "test ....",
-              "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-              "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-              "StatusDemande": "En cours de " + UserDisplayNameV3,
-              "StatusDemandeV3": "En cours",
-              "Produit": JSON.stringify(ArticleList),
-              "FileBase64":this.state.fileBase64                        
-            };
-            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
-            console.log(updateDemandeAchat)
-
-            console.log(ArticleList[0].ArticleFileName,prevData[0].ArticleFileName)
-
-
-            if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === ""){
-              // Nothing to de because we dont have an attachement file
-            }else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== ""){
-
-              // Delete the prev file
-              await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-            }else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === ""){
-
-              ArticleList.map(async articleData => {
-                await this.attachFileToItem(parseInt(DemandeID))
-              })
-            }else if(ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== ""){
-
-              // Delete the prev attachement file
-              await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-              
-              ArticleList.map(async articleData => {
-                await this.attachFileToItem(parseInt(DemandeID))
-              })
-            }
-
-            // Save historique block
-            const historyData = await Web(this.props.url)
-              .lists.getByTitle("HistoriqueDemande")
-              .items.filter(`DemandeID eq ${DemandeID}`)
-              .get();
-
-            if (historyData.length > 0) {
-              var resultArray = JSON.parse(historyData[0].Actions);
-              resultArray.push(
-                  "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV3 + " le " + getCurrentDate()
-              );
-              resultArray.push(
-                "En cours de l'approbation de " + UserDisplayNameV3 + " a partir de " + getCurrentDate() 
-              );
-              const saveHistorique = await Web(this.props.url)
-                .lists.getByTitle("HistoriqueDemande")
-                .items.getById(historyData[0].ID)
-                .update({
-                  Actions: JSON.stringify(resultArray),
-                });
-            }
-
-            const updateWorkFlowApprobation = await Web(this.props.url)
-              .lists.getByTitle("WorkflowApprobation")
-              .items.getById(Demande[0].ID)
-              .update({
-                  StatusApprobateurV3: "En cours",
-                  Notif: "Y"
-              });
-        } else if (Demande[0].StatusApprobateurV4 === "A modifier") {
-          console.log(3);
-          var UserDisplayNameV4 = "";
-          console.log(Demande[0])
-          if (Demande[0].ApprobateurV4Id.length > 1){
-            await Promise.all(
-              Demande[0].ApprobateurV4Id.map(async (approbateur) => {
-                try {
-                  const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
-                  const UserDisplayNameV4Title = user.Title;
-    
-                  if (UserDisplayNameV4.length === 0) {
-                    UserDisplayNameV4 = UserDisplayNameV4Title;
-                  } else {
-                    UserDisplayNameV4 = UserDisplayNameV4 + " Ou " + UserDisplayNameV4Title;
-                  }
-                } catch (error) {
-                  console.error(`Error retrieving user information for ${approbateur}:`, error);
-                }
-              })
-            );
-          }else {
-            const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get();
-            UserDisplayNameV4 = user.Title;
+          } else {
+            ArticleList.push({
+              "SousFamille": Article.SousFamilleSelected[0].text,
+              "SousFamilleID": Article.SousFamilleSelected[0].key,
+              "Beneficiaire": Article.BeneficiareSelected[0]?.text,
+              "BeneficiaireID": Article.BeneficiareSelected[0]?.key,
+              "DelaiLivraisionSouhaite": Article.numberOfDays,
+              "comment": Article.Comment,
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.ArticleSelected[0].text,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": "",
+              "Axe": Article.ArticleSelected[0].Axe,
+              "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+              "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+              "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+              "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
+              "ArticleFileData": {}
+            });
           }
-          formData = {
-            "FamilleProduit": data[0].FamilleSelected[0].text,
-            "FamilleProduitREF": data[0].FamilleSelected[0].key,
-            "PrixTotal":prixTotal.toString(),
-            "DelaiLivraisionSouhaite":data[0].numberOfDays,
-            "Prix": "test ...." ,
-            "Quantite": "test ....",
-            "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-            "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-            "StatusDemande": "En cours de " + UserDisplayNameV4,
-            "StatusDemandeV4": "En cours",
-            "Produit": JSON.stringify(ArticleList),
-            "FileBase64":this.state.fileBase64           
-          };
-          const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
-          console.log(updateDemandeAchat)
+        } else {
+          if (Article.fileName !== null) {
+            ArticleList.push({
+              "SousFamille": Article.SousFamilleSelected[0].text,
+              "SousFamilleID": Article.SousFamilleSelected[0].key,
+              "Beneficiaire": this.state.CentreDeGestion,
+              "BeneficiaireID": this.state.CentreDeGestion,
+              "DelaiLivraisionSouhaite": Article.numberOfDays,
+              "comment": Article.Comment,
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.ArticleSelected[0].text,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": Article.fileName,
+              "Axe": Article.ArticleSelected[0].Axe,
+              "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+              "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+              "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+              "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
+              "ArticleFileData": {
+                "name": Article.fileData.name,
+                "size": Article.fileData.size,
+                "type": Article.fileData.type,
+                // "lastModified": Article.fileData.lastModified,
+                // "lastModifiedDate": Article.fileData.lastModifiedDate,
+                "webkitRelativePath": Article.fileData.webkitRelativePath,
+              }
+            });
+          } else {
+            ArticleList.push({
+              "SousFamille": Article.SousFamilleSelected[0].text,
+              "SousFamilleID": Article.SousFamilleSelected[0].key,
+              "Beneficiaire": this.state.CentreDeGestion,
+              "BeneficiaireID": this.state.CentreDeGestion,
+              "DelaiLivraisionSouhaite": Article.numberOfDays,
+              "comment": Article.Comment,
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.ArticleSelected[0].text,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": "",
+              "Axe": Article.ArticleSelected[0].Axe,
+              "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+              "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+              "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+              "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
+              "ArticleFileData": {}
+            });
+          }
+        }
+      });
 
-          console.log(ArticleList[0].ArticleFileName,prevData[0].ArticleFileName)
-          
-          if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === ""){
-            // Nothing to de because we dont have an attachement file
-          }else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== ""){
+      console.log(ArticleList)
+      var formData
 
-            // Delete the prev file
-            await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-          }else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === ""){
+      console.log(DemandeID);
+      var Demande = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.filter(`DemandeID eq ${DemandeID}`).get();
+      console.log(Demande);
+      if (Demande[0].StatusApprobateurV1 === "A modifier") {
+        console.log(1);
+        var UserDisplayNameV1 = "";
 
+        if (Demande[0].ApprobateurV1Id.length > 1) {
+          await Promise.all(
+            Demande[0].ApprobateurV1Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayNameV1Title = user.Title;
+
+                if (UserDisplayNameV1.length === 0) {
+                  UserDisplayNameV1 = UserDisplayNameV1Title;
+                } else {
+                  UserDisplayNameV1 = UserDisplayNameV1 + " Ou " + UserDisplayNameV1Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        } else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV1Id[0]).get();
+          UserDisplayNameV1 = user.Title;
+        }
+
+        formData = {
+          "FamilleProduit": data[0].FamilleSelected[0].text,
+          "FamilleProduitREF": data[0].FamilleSelected[0].key,
+          "PrixTotal": prixTotal.toString(),
+          "DelaiLivraisionSouhaite": data[0].numberOfDays,
+          "Prix": "test ....",
+          "Quantite": "test ....",
+          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+          "StatusDemande": "En cours de " + UserDisplayNameV1,
+          "StatusDemandeV1": "En cours",
+          "Produit": JSON.stringify(ArticleList),
+        };
+        console.log(formData)
+        console.log(ArticleList)
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+
+        if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === "") {
+          // Nothing to de because we dont have an attachement file
+        } else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== "") {
+
+          // Delete the prev file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === "") {
+
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+          await Promise.all(
             ArticleList.map(async articleData => {
               await this.attachFileToItem(parseInt(DemandeID))
             })
-          }else if(ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== ""){
+          );
 
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== "") {
+          if (ArticleList[0].ArticleFileName !== prevData[0].ArticleFileName) {
             // Delete the prev attachement file
             await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
-            
+
+            // ArticleList.map(async articleData => {
+            //   await this.attachFileToItem(parseInt(DemandeID))
+            // })
+
+            await Promise.all(
+              ArticleList.map(async articleData => {
+                await this.attachFileToItem(parseInt(DemandeID))
+              })
+            );
+
+
+          }
+        }
+
+        console.log(updateDemandeAchat)
+        // Save historique block
+        const historyData = await Web(this.props.url)
+          .lists.getByTitle("HistoriqueDemande")
+          .items.filter(`DemandeID eq ${DemandeID}`)
+          .get();
+
+        if (historyData.length > 0) {
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push(
+            "modifier par le demandeur a partir d'une demande de modification de la part de " +
+            UserDisplayNameV1 + " le " + getCurrentDate()
+          );
+          resultArray.push(
+            "En cours de l'approbation de " +
+            UserDisplayNameV1 + " a partir de " + getCurrentDate()
+          );
+          const saveHistorique = await Web(this.props.url)
+            .lists.getByTitle("HistoriqueDemande")
+            .items.getById(historyData[0].ID)
+            .update({
+              Actions: JSON.stringify(resultArray),
+            });
+        }
+
+        const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
+          .update({
+            StatusApprobateurV1: "En cours",
+            Notif: "Y"
+          });
+      } else if (Demande[0].StatusApprobateurV2 === "A modifier") {
+        console.log(2);
+        var UserDisplayNameV2 = "";
+
+        if (Demande[0].ApprobateurV2Id.length > 1) {
+          await Promise.all(
+            Demande[0].ApprobateurV2Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayNameV2Title = user.Title;
+
+                if (UserDisplayNameV2.length === 0) {
+                  UserDisplayNameV2 = UserDisplayNameV2Title;
+                } else {
+                  UserDisplayNameV2 = UserDisplayNameV2 + " Ou " + UserDisplayNameV2Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        } else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
+          UserDisplayNameV2 = user.Title;
+        }
+
+        formData = {
+          "FamilleProduit": data[0].FamilleSelected[0].text,
+          "FamilleProduitREF": data[0].FamilleSelected[0].key,
+          "PrixTotal": prixTotal.toString(),
+          "DelaiLivraisionSouhaite": data[0].numberOfDays,
+          "Prix": "test ....",
+          "Quantite": "test ....",
+          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+          "StatusDemande": "En cours de " + UserDisplayNameV2,
+          "StatusDemandeV2": "En cours",
+          "Produit": JSON.stringify(ArticleList),
+        };
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+        console.log(updateDemandeAchat)
+
+        console.log(ArticleList[0].ArticleFileName, prevData[0].ArticleFileName)
+
+        if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === "") {
+          // Nothing to de because we dont have an attachement file
+        } else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== "") {
+
+          // Delete the prev file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === "") {
+
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+
+          await Promise.all(
             ArticleList.map(async articleData => {
               await this.attachFileToItem(parseInt(DemandeID))
             })
-          }
+          );
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== "") {
 
+          // Delete the prev attachement file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
 
-          // Save historique block
-          const historyData = await Web(this.props.url)
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+
+          await Promise.all(
+            ArticleList.map(async articleData => {
+              await this.attachFileToItem(parseInt(DemandeID))
+            })
+          );
+        }
+
+        // Save historique block
+        const historyData = await Web(this.props.url)
+          .lists.getByTitle("HistoriqueDemande")
+          .items.filter(`DemandeID eq ${DemandeID}`)
+          .get();
+
+        if (historyData.length > 0) {
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push(
+            "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV2 + " le " + getCurrentDate()
+          );
+          resultArray.push("En cours de l'approbation de " + UserDisplayNameV2 + " a partir de" + getCurrentDate());
+          const saveHistorique = await Web(this.props.url)
             .lists.getByTitle("HistoriqueDemande")
-            .items.filter(`DemandeID eq ${DemandeID}`)
-            .get();
-
-          if (historyData.length > 0) {
-            var resultArray = JSON.parse(historyData[0].Actions);
-            resultArray.push(
-                "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV4 + " le " + getCurrentDate()
-            );
-            resultArray.push(
-              "En cours de l'approbation de " + UserDisplayNameV4 + " a partir de " + getCurrentDate() 
-            );
-            const saveHistorique = await Web(this.props.url)
-              .lists.getByTitle("HistoriqueDemande")
-              .items.getById(historyData[0].ID)
-              .update({
-                Actions: JSON.stringify(resultArray),
-              });
-          }
-
-          const updateWorkFlowApprobation = await Web(this.props.url)
-            .lists.getByTitle("WorkflowApprobation")
-            .items.getById(Demande[0].ID)
+            .items.getById(historyData[0].ID)
             .update({
-                StatusApprobateurV4: "En cours",
-                Notif: "Y"
+              Actions: JSON.stringify(resultArray),
             });
+        }
+
+        const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID)
+          .update({
+            StatusApprobateurV2: "En cours",
+            Notif: "Y"
+          });
+      } else if (Demande[0].StatusApprobateurV3 === "A modifier") {
+        console.log(3);
+        var UserDisplayNameV3 = "";
+
+        if (Demande[0].ApprobateurV3Id.length > 1) {
+          await Promise.all(
+            Demande[0].ApprobateurV3Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayNameV3Title = user.Title;
+
+                if (UserDisplayNameV3.length === 0) {
+                  UserDisplayNameV3 = UserDisplayNameV3Title;
+                } else {
+                  UserDisplayNameV3 = UserDisplayNameV3 + " Ou " + UserDisplayNameV3Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        } else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
+          UserDisplayNameV3 = user.Title;
+        }
+        formData = {
+          "FamilleProduit": data[0].FamilleSelected[0].text,
+          "FamilleProduitREF": data[0].FamilleSelected[0].key,
+          "PrixTotal": prixTotal.toString(),
+          "DelaiLivraisionSouhaite": data[0].numberOfDays,
+          "Prix": "test ....",
+          "Quantite": "test ....",
+          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+          "StatusDemande": "En cours de " + UserDisplayNameV3,
+          "StatusDemandeV3": "En cours",
+          "Produit": JSON.stringify(ArticleList),
+        };
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+        console.log(updateDemandeAchat)
+
+        console.log(ArticleList[0].ArticleFileName, prevData[0].ArticleFileName)
+
+
+        if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === "") {
+          // Nothing to de because we dont have an attachement file
+        } else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== "") {
+
+          // Delete the prev file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === "") {
+
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+
+          await Promise.all(
+            ArticleList.map(async articleData => {
+              await this.attachFileToItem(parseInt(DemandeID))
+            })
+          );
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== "") {
+
+          // Delete the prev attachement file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
+
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+
+          await Promise.all(
+            ArticleList.map(async articleData => {
+              await this.attachFileToItem(parseInt(DemandeID))
+            })
+          );
+        }
+
+        // Save historique block
+        const historyData = await Web(this.props.url)
+          .lists.getByTitle("HistoriqueDemande")
+          .items.filter(`DemandeID eq ${DemandeID}`)
+          .get();
+
+        if (historyData.length > 0) {
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push(
+            "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV3 + " le " + getCurrentDate()
+          );
+          resultArray.push(
+            "En cours de l'approbation de " + UserDisplayNameV3 + " a partir de " + getCurrentDate()
+          );
+          const saveHistorique = await Web(this.props.url)
+            .lists.getByTitle("HistoriqueDemande")
+            .items.getById(historyData[0].ID)
+            .update({
+              Actions: JSON.stringify(resultArray),
+            });
+        }
+
+        const updateWorkFlowApprobation = await Web(this.props.url)
+          .lists.getByTitle("WorkflowApprobation")
+          .items.getById(Demande[0].ID)
+          .update({
+            StatusApprobateurV3: "En cours",
+            Notif: "Y"
+          });
+      } else if (Demande[0].StatusApprobateurV4 === "A modifier") {
+        console.log(3);
+        var UserDisplayNameV4 = "";
+        console.log(Demande[0])
+        if (Demande[0].ApprobateurV4Id.length > 1) {
+          await Promise.all(
+            Demande[0].ApprobateurV4Id.map(async (approbateur) => {
+              try {
+                const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                const UserDisplayNameV4Title = user.Title;
+
+                if (UserDisplayNameV4.length === 0) {
+                  UserDisplayNameV4 = UserDisplayNameV4Title;
+                } else {
+                  UserDisplayNameV4 = UserDisplayNameV4 + " Ou " + UserDisplayNameV4Title;
+                }
+              } catch (error) {
+                console.error(`Error retrieving user information for ${approbateur}:`, error);
+              }
+            })
+          );
+        } else {
+          const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get();
+          UserDisplayNameV4 = user.Title;
+        }
+        formData = {
+          "FamilleProduit": data[0].FamilleSelected[0].text,
+          "FamilleProduitREF": data[0].FamilleSelected[0].key,
+          "PrixTotal": prixTotal.toString(),
+          "DelaiLivraisionSouhaite": data[0].numberOfDays,
+          "Prix": "test ....",
+          "Quantite": "test ....",
+          "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
+          "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+          "StatusDemande": "En cours de " + UserDisplayNameV4,
+          "StatusDemandeV4": "En cours",
+          "Produit": JSON.stringify(ArticleList),
+        };
+        const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).update(formData);
+        console.log(updateDemandeAchat)
+
+        console.log(ArticleList[0].ArticleFileName, prevData[0].ArticleFileName)
+
+        if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName === "") {
+          // Nothing to de because we dont have an attachement file
+        } else if (ArticleList[0].ArticleFileName === "" && prevData[0].ArticleFileName !== "") {
+
+          // Delete the prev file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName === "") {
+
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+
+          await Promise.all(
+            ArticleList.map(async articleData => {
+              await this.attachFileToItem(parseInt(DemandeID))
+            })
+          );
+        } else if (ArticleList[0].ArticleFileName !== "" && prevData[0].ArticleFileName !== "") {
+
+          // Delete the prev attachement file
+          await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(DemandeID)).attachmentFiles.getByName(prevData[0].ArticleFileName).delete();
+
+          // ArticleList.map(async articleData => {
+          //   await this.attachFileToItem(parseInt(DemandeID))
+          // })
+
+          await Promise.all(
+            ArticleList.map(async articleData => {
+              await this.attachFileToItem(parseInt(DemandeID))
+            })
+          );
+        }
+
+
+        // Save historique block
+        const historyData = await Web(this.props.url)
+          .lists.getByTitle("HistoriqueDemande")
+          .items.filter(`DemandeID eq ${DemandeID}`)
+          .get();
+
+        if (historyData.length > 0) {
+          var resultArray = JSON.parse(historyData[0].Actions);
+          resultArray.push(
+            "modifier par le demandeur a partir d'une demande de modification de la part de " + UserDisplayNameV4 + " le " + getCurrentDate()
+          );
+          resultArray.push(
+            "En cours de l'approbation de " + UserDisplayNameV4 + " a partir de " + getCurrentDate()
+          );
+          const saveHistorique = await Web(this.props.url)
+            .lists.getByTitle("HistoriqueDemande")
+            .items.getById(historyData[0].ID)
+            .update({
+              Actions: JSON.stringify(resultArray),
+            });
+        }
+
+        const updateWorkFlowApprobation = await Web(this.props.url)
+          .lists.getByTitle("WorkflowApprobation")
+          .items.getById(Demande[0].ID)
+          .update({
+            StatusApprobateurV4: "En cours",
+            Notif: "Y"
+          });
       }
       this.setState({ showValidationPopUp: true });
     }
@@ -1271,12 +1308,12 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
       const currentUserID: number = (await Web(this.props.url).currentUser.get()).Id;
       const now: string = new Date().toISOString(); // Format the current date to ISO 8601
       const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-      .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
-      .orderBy('Created', false)
-      .top(1)
-      .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
-      .expand("Demandeur")
-      .get();
+        .filter(`RemplacantId eq ${currentUserID} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'D'`)
+        .orderBy('Created', false)
+        .top(1)
+        .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
+        .expand("Demandeur")
+        .get();
 
       console.log(remplacantTest);
       return remplacantTest;
@@ -1290,12 +1327,12 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
   private handleInputChange = (event: any, index: any) => {
     const inputValue = event.target.value;
-  
+
     // Check if inputValue is a valid number
     if (!isNaN(inputValue) && inputValue !== '') {
       const updatedFormData = [...this.state.formData];
       updatedFormData[index - 1].numberOfDays = inputValue;
-  
+
       this.setState({
         formData: updatedFormData
       });
@@ -1303,27 +1340,27 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   }
 
 
-  private getUserApprouvers = async(IdSubFamily, respCenter) => {
+  private getUserApprouvers = async (IdSubFamily, respCenter) => {
     const approuverList = await getApprouverList(IdSubFamily, respCenter)
     return approuverList
   }
-  
-  
+
+
 
   private async loadUserInfo() {
     try {
       console.log(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
-      
+
       const user = await this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
-      
+
       console.log(user);
-      
+
       this.setState({
-          userName: user["displayName"],
-          userEmail: user["mail"],
-          userRegistrationNumber: user["employeeId"],
-          userEstablishment: user["companyName"],
-          JobTitle: user["jobTitle"],
+        userName: user["displayName"],
+        userEmail: user["mail"],
+        userRegistrationNumber: user["employeeId"],
+        userEstablishment: user["companyName"],
+        JobTitle: user["jobTitle"],
       });
     } catch (error) {
       console.error("Error loading user info:", error);
@@ -1334,11 +1371,11 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   private async loadRemplacantUserRemplacant(userPrincipalName) {
     try {
       console.log(userPrincipalName);
-      
+
       const user = await this._graphService.getUserId(userPrincipalName);
-      
+
       console.log(user);
-      
+
       this.setState({
         RemplacantUserName: user["displayName"],
         RemplacantUserEmail: user["mail"],
@@ -1351,33 +1388,33 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     }
   }
 
-  private getDemandeurAcces = async(userPrincipalName) => {
-    const userInfo = await this._graphService.getUserId(userPrincipalName) ;
-    const permissions = await getBenefList(userInfo["employeeId"]) ;
-    if(permissions['Status'] !== "200"){
-      return -1 ;
-    }else return 0 ;
+  private getDemandeurAcces = async (userPrincipalName) => {
+    const userInfo = await this._graphService.getUserId(userPrincipalName);
+    const permissions = await getBenefList(userInfo["employeeId"]);
+    if (permissions['Status'] !== "200") {
+      return -1;
+    } else return 0;
   }
 
 
-  private checkUserPermissionsPerchaseModule = async(userPrincipalName) => {
+  private checkUserPermissionsPerchaseModule = async (userPrincipalName) => {
     const userInfo = await this._graphService.getUserId(userPrincipalName)
     const permissions = await getBenefList(userInfo["employeeId"])
     console.log(permissions['StatusAll'])
-    if(permissions['Status'] !== "200"){
+    if (permissions['Status'] !== "200") {
       window.location.href = REDIRECTION_URL;
-    }else {
-      if (permissions['StatusAll'] === "True"){
-        this.setState({DisabledBenef: false})
-      }else {
-        this.setState({DisabledBenef: true})
+    } else {
+      if (permissions['StatusAll'] === "True") {
+        this.setState({ DisabledBenef: false })
+      } else {
+        this.setState({ DisabledBenef: true })
       }
     }
   }
 
 
 
-  public async getUserByEmail(userDisplayName){
+  public async getUserByEmail(userDisplayName) {
     try {
       const userEmailMSgraph = await this._graphService.getUserEmailByDisplayName(userDisplayName)
       const user = await Web(this.props.url).ensureUser(userEmailMSgraph);
@@ -1388,32 +1425,32 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   }
 
 
-  private checkApprouverRemplacant = async(Approuver1, Approuver2, Approuver3, Approuver4) => {
+  private checkApprouverRemplacant = async (Approuver1, Approuver2, Approuver3, Approuver4) => {
     try {
-      if (Approuver3 !== null){
+      if (Approuver3 !== null) {
         const now: string = new Date().toISOString(); // Format the current date to ISO 8601
         const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-        .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} DemandeurId eq ${Approuver3} or DemandeurId eq ${Approuver4} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
-        .orderBy('Created', false)
-        .top(1)
-        .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
-        .expand("Demandeur")
-        .get();
-  
+          .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} DemandeurId eq ${Approuver3} or DemandeurId eq ${Approuver4} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
+          .orderBy('Created', false)
+          .top(1)
+          .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
+          .expand("Demandeur")
+          .get();
+
         console.log(remplacantTest);
         return remplacantTest;
-      }else {
+      } else {
         const now: string = new Date().toISOString(); // Format the current date to ISO 8601
         const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-        .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} or DemandeurId eq ${Approuver4} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
-        .orderBy('Created', false)
-        .top(1)
-        .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
-        .expand("Demandeur")
-        .get();
+          .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} or DemandeurId eq ${Approuver4} and DateDeDebut lt '${now}' and DateDeFin gt '${now}' and TypeRemplacement eq 'AP'`)
+          .orderBy('Created', false)
+          .top(1)
+          .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
+          .expand("Demandeur")
+          .get();
         return remplacantTest;
       }
-      
+
 
     } catch (error) {
       console.error("Error checking remplacant demandes:", error);
@@ -1422,20 +1459,20 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
   }
 
   async componentDidMount() {
-    this.loadUserInfo() ;
-    await this.getCurrentDemandeInfo() ;
+    this.loadUserInfo();
+    await this.getCurrentDemandeInfo();
 
 
     // Get all famille demande
-    const listFamilleProduit = [] ;
-    const familyProducts = await getFamily() ;
+    const listFamilleProduit = [];
+    const familyProducts = await getFamily();
     familyProducts.Families.map(famille => {
       listFamilleProduit.push({
         key: famille.IdFamily,
         text: famille.DescFamily,
       })
     })
-    this.setState({familyProducts:listFamilleProduit})
+    this.setState({ familyProducts: listFamilleProduit })
 
     // Get all subFamily of demande
     await this.getSubFamilyData(this.state.FamilleID)
@@ -1444,20 +1481,20 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     const demandeID = this.getCurrentIDfromURL()
     const demandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(parseInt(demandeID)).get()
     var listProduits = JSON.parse(demandeData.Produit)
-    
+
     listProduits.map(async (produit, index) => {
       const updatedFormData = [...this.state.formData];
       console.log(produit)
-      const items = await getProduct(produit.SousFamilleID, produit.Beneficiaire) ;
+      const items = await getProduct(produit.SousFamilleID, produit.Beneficiaire);
       console.log(items)
       const listArticles = items.Items.map(item => ({
-        key: item.RefItem, 
+        key: item.RefItem,
         LatestPurchasePrice: item.LatestPurchasePrice,
-        text: item.DesignationItem, 
+        text: item.DesignationItem,
         BudgetAnnualUsed: item.BudgetAnnualUsed,
-        BudgetAnnualRemaining: item.BudgetAnnualRemaining, 
-        BudgetAnnualAllocated: item.BudgetAnnualAllocated, 
-        Axe: item.Axe,  
+        BudgetAnnualRemaining: item.BudgetAnnualRemaining,
+        BudgetAnnualAllocated: item.BudgetAnnualAllocated,
+        Axe: item.Axe,
       }));
       updatedFormData[index].AllArticleData = listArticles
 
@@ -1483,7 +1520,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     };
 
     const disabledSubmit = this.disabledSubmitButton();
-    
+
     // Created but not implemented
     var AllArticleData = getAllArticles(this.state.formData)
     const uniqueArray = removeDuplicates2(AllArticleData);
@@ -1530,11 +1567,11 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
             </div>
             <p className={stylescustom.indique}>* Indique un champ obligatoire</p>
 
-            {this.intToList(this.state.counterProducts).map((index) => 
+            {this.intToList(this.state.counterProducts).map((index) =>
               <div>
-                { (this.state.counterProducts  > 1) && (index !== 1) && 
+                {(this.state.counterProducts > 1) && (index !== 1) &&
                   <p className={stylescustom.indique}>
-                    <button style={{float:"right"}} className={stylescustom.btn} onClick={() => this.deleteArticle(index - 1)}>-</button>
+                    <button style={{ float: "right" }} className={stylescustom.btn} onClick={() => this.deleteArticle(index - 1)}>-</button>
                   </p>
                 }
                 <div className='productsDiv'>
@@ -1548,7 +1585,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                         onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
                         onRenderCaretDown={this.onRenderCaretDown}
-                        options={this.getBeneficaire()}                      
+                        options={this.getBeneficaire()}
                         onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
                         style={{ width: '200px' }} // Specify the width you desire
                       />
@@ -1558,7 +1595,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* Famille</p>
                       {index > 1 ? (
-                        <label className={stylescustom.btn} style={{width: '180px'}}>{this.state.formData[0].FamilleSelected[0].text}</label>
+                        <label className={stylescustom.btn} style={{ width: '180px' }}>{this.state.formData[0].FamilleSelected[0].text}</label>
                       ) : (
                         <Dropdown
                           defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
@@ -1583,7 +1620,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                         onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
                         onRenderCaretDown={this.onRenderCaretDown}
-                        options={this.state.subFamilyProducts}                      
+                        options={this.state.subFamilyProducts}
                         onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
                         style={{ width: '200px' }}
                       />
@@ -1601,7 +1638,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                         onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
                         onRenderCaretDown={this.onRenderCaretDown}
-                        options={this.state.formData[index - 1].AllArticleData}                       
+                        options={this.state.formData[index - 1].AllArticleData}
                         onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
                         style={{ width: '200px' }} // Specify the width you desire
                       />
@@ -1612,34 +1649,34 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                   <div className={stylescustom.row}>
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* Quantité demandée :</p>
-                      <TextField 
-                        className={controlClass.TextField} 
+                      <TextField
+                        className={controlClass.TextField}
                         type='number'
                         onChange={(e) => this.handleChangeQuantity(e, index)}
                         min={0}
-                        value={ this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""} 
+                        value={this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""}
                       />
                     </div>
 
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* prix unitaire estimatif :</p>
-                      <TextField 
+                      <TextField
                         type='number'
                         min={0.1}
                         step="0.1" // Allows float values
-                        className={controlClass.TextField} 
+                        className={controlClass.TextField}
                         onChange={(e) => this.handleChangePrice(e, index)}
-                        value={this.state.formData[index - 1]["price"]} 
+                        value={this.state.formData[index - 1]["price"]}
                       />
                     </div>
 
 
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
-                      <TextField 
+                      <TextField
                         type='number'
                         min={0}
-                        value={String(this.state.formData[index - 1]["numberOfDays"])} 
+                        value={String(this.state.formData[index - 1]["numberOfDays"])}
                         onChange={(e) => this.handleInputChange(e, index)}
                       />
                     </div>
@@ -1649,10 +1686,10 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                   <div className={stylescustom.row}>
                     <div className={stylescustom.comment}>
                       <p className={stylescustom.title}>* Description :</p>
-                      <TextField 
-                        className={controlClass.TextField} 
-                        value={this.state.formData[index - 1]["Comment"]} 
-                        multiline 
+                      <TextField
+                        className={controlClass.TextField}
+                        value={this.state.formData[index - 1]["Comment"]}
+                        multiline
                         onChange={(e) => this.handleChangeComment(e, index)}
                       />
                     </div>
@@ -1662,53 +1699,55 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                 {this.state.counterProducts > 1 && <div className={stylescustom.line}></div>}
               </div>
             )}
-  
+
             {
-              !this.state.DisabledBenef 
+              !this.state.DisabledBenef
                 ? this.state.formData.map((article, index) => {
-                    if (article.ArticleSelected.length > 0 && article) {
-                      if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
-                        return (
-                          <p key={index} className={stylescustom.indique}>
-                            - <b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
-                          </p>
-                        );
-                      }
+                  if (article.ArticleSelected.length > 0 && article) {
+                    if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
+                      return (
+                        <p key={index} className={stylescustom.indique}>
+                          - <b style={{ color: "#7d2935" }}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
+                        </p>
+                      );
                     }
-                    return null;
-                  })
+                  }
+                  return null;
+                })
                 : this.state.formData.map((article, index) => {
-                    if (article.ArticleSelected.length > 0 && article) {
-                      if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
-                        return (
-                          <div key={index}>
-                            <p className={stylescustom.indique}>
-                              - <b style={{color:"#7d2935"}}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
-                            </p>
-                          </div>
-                        );
-                      }
+                  if (article.ArticleSelected.length > 0 && article) {
+                    if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
+                      return (
+                        <div key={index}>
+                          <p className={stylescustom.indique}>
+                            - <b style={{ color: "#7d2935" }}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
+                          </p>
+                        </div>
+                      );
                     }
-                    return null;})
+                  }
+                  return null;
+                })
             }
-            
+
             <div className={stylescustom.row}>
               <div className={stylescustom.data}>
                 <p className={stylescustom.title}> Piéce jointe :</p>
                 <label htmlFor="uploadFile" className={stylescustom.btn}>Choisir un élément</label>
                 <input type="file" id="uploadFile" style={{ display: 'none' }}
                   accept=".jpg, .jpeg, .png , .pdf , .doc ,.docx"
-                  onChange={(e) => { 
-                    this.addFile(e); 
-                    this.setState({ errors: { ...this.state.errors, file: "" } });}} 
-                  />
-                {this.state.formData[0].fileData && <span style={{ marginLeft: 10, fontSize: 16, whiteSpace:"pre" }}>{this.state.formData[0].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(1); }}>&#10006;</span></span>}
+                  onChange={(e) => {
+                    this.addFile(e);
+                    this.setState({ errors: { ...this.state.errors, file: "" } });
+                  }}
+                />
+                {this.state.formData[0].fileData && <span style={{ marginLeft: 10, fontSize: 16, whiteSpace: "pre" }}>{this.state.formData[0].fileName} <span style={{ cursor: 'pointer' }} onClick={() => { this.initImage(1); }}>&#10006;</span></span>}
                 <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400, display: 'block' }}>
                   {this.state.errors.file !== "" ? this.state.errors.file : ""}
                 </span>
               </div>
             </div>
-                    
+
 
             <table className={stylescustom.ad}>
               <thead>
@@ -1720,7 +1759,7 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
                 {(this.state.DisabledBenef === false) && this.state.formData.map((article, index) =>
                   article.ArticleSelected.length > 0 && article &&
                   <>
-                    {console.log("Axe data:",this.state.axePerBuget)}
+                    {console.log("Axe data:", this.state.axePerBuget)}
                     <tr>
                       <td className={stylescustom.key}>Le budget de l'article: </td>
                       <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].text}</td>
@@ -1764,18 +1803,18 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
             </table>
 
 
-            {this.state.checkActionCurrentUser && 
+            {this.state.checkActionCurrentUser &&
               <div className={stylescustom.btncont}>
                 <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.addArticle()}>AJOUTER UN ARTICLE</button>
                 <button disabled={disabledSubmit} className={stylescustom.btn} onClick={() => this.submitFormData()}>soumettre la demande</button>
               </div>
             }
 
-            
+
             <SweetAlert2
               allowOutsideClick={false}
-              show={this.state.showValidationPopUp} 
-              title="Demande des Articles" 
+              show={this.state.showValidationPopUp}
+              title="Demande des Articles"
               text="Demande envoyée"
               imageUrl={img}
               confirmButtonColor='#7D2935'
@@ -1787,8 +1826,8 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
             <SweetAlert2
               allowOutsideClick={false}
-              show={this.state.showPopUpApprouver4} 
-              title="Demande des Articles" 
+              show={this.state.showPopUpApprouver4}
+              title="Demande des Articles"
               text="Désole Mr/Mme vous n'avez le droit de créer des demandes d'achat car vous étes un Controlleur de gestion"
               imageUrl={img}
               confirmButtonColor='#7D2935'
@@ -1800,12 +1839,12 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
 
 
 
-          {this.state.spinnerShow && 
+          {this.state.spinnerShow &&
             <div className={styles.modal}>
               <div className={styles.modalContent}>
-                <div className={styles.paginations} style={{ textAlign: 'center', paddingTop:"30%" }}>
+                <div className={styles.paginations} style={{ textAlign: 'center', paddingTop: "30%" }}>
                   {this.state.spinnerShow && <span className={styles.loader}></span>}
-                </div>              
+                </div>
               </div>
             </div>
           }

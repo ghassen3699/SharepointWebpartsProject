@@ -622,6 +622,15 @@ export default class UpdateDemandeAchat extends React.Component<IUpdateDemandeAc
     }, {
       key: "MSC",
       text: "MSC",
+    }, {
+      key: "UPSAT TUNIS",
+      text: "UPSAT TUNIS",
+    }, {
+      key: "UPSAT SOUSSE",
+      text: "UPSAT SOUSSE",
+    }, {
+      key: "UPSAT SFAX",
+      text: "UPSAT SFAX",
     }]
     return listBenef
   }

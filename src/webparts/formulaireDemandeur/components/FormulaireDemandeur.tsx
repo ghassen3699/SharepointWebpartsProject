@@ -669,6 +669,15 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     }, {
       key: "MSC",
       text: "MSC",
+    }, {
+      key: "UPSAT TUNIS",
+      text: "UPSAT TUNIS",
+    }, {
+      key: "UPSAT SOUSSE",
+      text: "UPSAT SOUSSE",
+    }, {
+      key: "UPSAT SFAX",
+      text: "UPSAT SFAX",
     }]
     return listBenef
   }

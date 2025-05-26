@@ -703,7 +703,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
     console.log(ArticleFileName);
 
-    const hasFile = ArticleFileName.length > 0;
+    const hasFile = ArticleFileName?.length > 0;
     const fileName = hasFile ? ArticleFileName : "";
     const fileUrl = hasFile ? await this.getAttachementFileUrl(demandeID) : "";
 
@@ -718,6 +718,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     );
 
     console.log(dataFromERP)
+
 
 
     // if (demande[0].FileBase64 && demande[0].FileBase64.length > 0) {

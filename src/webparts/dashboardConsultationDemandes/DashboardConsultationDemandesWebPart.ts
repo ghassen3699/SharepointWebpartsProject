@@ -31,6 +31,7 @@ export default class DashboardConsultationDemandesWebPart extends BaseClientSide
         hasTeamsContext: !!this.context.sdks.microsoftTeams,
         userDisplayName: this.context.pageContext.user.displayName,
         url: this.context.pageContext.web.absoluteUrl,
+        context: this.context
       }
     );
 

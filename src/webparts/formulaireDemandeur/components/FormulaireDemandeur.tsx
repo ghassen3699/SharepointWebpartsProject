@@ -20,6 +20,7 @@ import "@pnp/sp/site-users/web";
 import { ChoiceGroup, IChoiceGroupOption } from '@fluentui/react/lib/ChoiceGroup';
 import { mergeStyleSets } from 'office-ui-fabric-react/lib/Styling';
 import {
+  ComboBox,
   Fabric,
   loadTheme
 } from "office-ui-fabric-react";
@@ -27,7 +28,7 @@ import { getTheme } from "@uifabric/styling";
 import { Web } from '@pnp/sp/webs';
 import { IItemAddResult } from '@pnp/sp/items';
 import GraphService from '../../../services/GraphServices';
-import { checkIfAxeExists, checkRodondanceApprouvers, convertFileToBase64, convertStringToNumber, getAllArticles, getApprobateurNiveau, getCurrentDate, removeDuplicates2 } from '../../../tools/FunctionTools';
+import { checkIfAxeExists, checkListApprouvers, checkRodondanceApprouvers, checkStatusListApprouvers, convertStringToNumber, getAllArticles, getAllArticlesWithBenef, getApprobateurNiveau, getCurrentDate, removeDuplicates2, removeDuplicatesForArticlesWithBenef } from '../../../tools/FunctionTools';
 import { getUserInfo } from "../../../services/getUserInfo";
 import { getSubFamily } from "../../../services/getProductsSubFamily";
 import { getFamily } from "../../../services/getAllProductFamily";
@@ -36,6 +37,7 @@ import { getApprouverList } from "../../../services/getApprouveurs";
 import { getBenefList } from "../../../services/getListBenefPermissions";
 import { APPROUVER_V4 } from '../../../API_END_POINTS/userApprouverV4';
 import { REDIRECTION_URL } from '../../../API_END_POINTS/redirectionURL';
+import { getApprouverOrder } from '../../../services/getApprouverOrder';
 
 loadTheme({
   palette: {
@@ -87,7 +89,6 @@ export const FormatDateERP = (date: any): string => {
 };
 
 
-
 export default class FormulaireDemandeur extends React.Component<IFormulaireDemandeurProps, {}> {
 
   // State variables of webpart 
@@ -100,7 +101,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       ArticleSelected: [] as any,
       BeneficiareSelected: [] as any,
       Comment: "",
-      quantity: "1",
+      quantity: "1.0",
       price: "0.0",
       DateSouhaite: new Date(),
       numberOfDays: "",
@@ -166,6 +167,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     totalPrixErrorMessage: 0,
     axeBudgets: [],
     popUpApprobateurs: false,
+    popUpMultiApprobateurs: false,
   };
   private _graphService = new GraphService(this.props.context);
 
@@ -189,7 +191,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         {option.data && option.data.icon && (
           <Icon style={{ marginRight: '8px', color: option.data.colorName }} iconName={option.data.icon} aria-hidden="true" title={option.data.icon} />
         )}
-        <span>{option.text}</span>
+        <span>{option?.text}</span>
       </div>
     );
   }
@@ -271,63 +273,23 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  // public addFile = async (content: any) => {
-  //   console.log(this.state.counterProducts);
-  //   try {
-  //     const fileName = content.target.files[0].name;
-  //     const extension = fileName.split('.').pop();
-  //     const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}.${extension}`;
-
-  //     const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
-
-  //     const updatedFormData = [...this.state.formData];
-  //     updatedFormData[0].fileName = fileName; // Store the original file name
-  //     updatedFormData[0].fileData = newFile;
-
-  //     this.setState({
-  //       formData: updatedFormData,
-  //     });
-
-
-  //   } catch (error) {
-  //     console.log('error in uploading file', error)
-  //   }
-  // };
-
   public addFile = async (content: any) => {
     console.log(this.state.counterProducts);
-    try {
-      const uploadedFile = content.target.files?.[0];
 
-      if (!uploadedFile) {
-        console.log('No file selected');
-        return;
-      }
+    const fileName = content.target.files[0].name;
+    const extension = fileName.split('.').pop();
+    const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}.${extension}`;
 
-      const fileName = uploadedFile.name;
-      const extension = fileName.split('.').pop();
-      const encodedFileName = `${fileName.split('.').slice(0, -1).join('.')}.${extension}`;
+    const newFile = new File([content.target.files[0]], encodedFileName, { type: content.target.files[0].type });
 
-      const newFile = new File([uploadedFile], encodedFileName, { type: uploadedFile.type });
+    const updatedFormData = [...this.state.formData];
+    updatedFormData[0].fileName = fileName; // Store the original file name
+    updatedFormData[0].fileData = newFile;
 
-      const updatedFormData = [...this.state.formData];
-      updatedFormData[0].fileName = fileName; // Store the original file name
-      updatedFormData[0].fileData = newFile;
-
-      this.setState({ formData: updatedFormData }, () => {
-        // Confirmation log after state is updated
-        if (this.state.formData[0].fileData) {
-          console.log('File uploaded successfully:', this.state.formData[0].fileName);
-        } else {
-          console.log('File upload failed');
-        }
-      });
-
-    } catch (error) {
-      console.log('error in uploading file', error);
-    }
+    this.setState({
+      formData: updatedFormData,
+    });
   };
-
 
 
 
@@ -339,7 +301,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         {option.data && option.data.icon && (
           <Icon style={{ marginRight: '8px', color: option.data.colorName }} iconName={option.data.icon} aria-hidden="true" title={option.data.icon} />
         )}
-        <span>{option.text} </span>
+        <span>{option?.text} </span>
       </div>
     );
   }
@@ -398,10 +360,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
     var items
     if (!this.state.DisabledBenef) {
-      items = await getProduct(event.key, updatedFormData[index - 1].BeneficiareSelected[0].text);
+      items = await getProduct(event.key, updatedFormData[index - 1].BeneficiareSelected[0]?.text);
       console.log(items)
     } else {
       if (this.state.demandeAffectation === "me") {
+        console.log("test:::", this.state.userRespCenter)
         items = await getProduct(event.key, this.state.userRespCenter);
         console.log(items)
       } else {
@@ -449,6 +412,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   private handleChangeDestinataireDropdown = async (event: any, index: any) => {
+    console.log(event)
     const updatedFormData = [...this.state.formData];
     updatedFormData[index - 1].BeneficiareSelected = [event]
     this.setState({
@@ -466,6 +430,45 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       })
     })
     this.setState({ familyProducts: listFamilleProduit })
+
+    if (updatedFormData[index - 1].SousFamilleSelected.length > 0) {
+      var items
+      if (!this.state.DisabledBenef) {
+        items = await getProduct(updatedFormData[index - 1].SousFamilleSelected[0].key, event.key);
+        console.log(items)
+      } else {
+        if (this.state.demandeAffectation === "me") {
+          console.log("test:::", this.state.userRespCenter)
+          items = await getProduct(event.key, this.state.userRespCenter);
+          console.log(items)
+        } else {
+          items = await getProduct(event.key, this.state.RemplacantRespCenter);
+          console.log(items)
+        }
+      }
+      const listArticles = items.Items.map(item => ({
+        key: item.RefItem,
+        LatestPurchasePrice: item.LatestPurchasePrice,
+        text: item.DesignationItem,
+        BudgetAnnualUsed: item.BudgetAnnualUsed,
+        BudgetAnnualRemaining: item.BudgetAnnualRemaining,
+        BudgetAnnualAllocated: item.BudgetAnnualAllocated,
+        Axe: item.Axe,
+      }));
+
+      updatedFormData[index - 1].AllArticleData = listArticles
+      updatedFormData[index - 1].ArticleSelected = []
+      this.setState({
+        formData: updatedFormData,
+        // ArticleID: "",
+        // articles: [],
+        // axePerBuget: this.state.axePerBuget.slice(index, 1)
+      });
+      console.log(event.key)
+      console.log(this.state.userRespCenter)
+      this.setState({ articles: listArticles })
+    }
+
   }
 
 
@@ -488,7 +491,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       ArticleSelected: [] as any,
       BeneficiareSelected: [] as any,
       Comment: "",
-      quantity: "1",
+      quantity: "1.0",
       price: "0.0",
       numberOfDays: "",
       DateSouhaite: new Date(),
@@ -548,7 +551,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
 
   // Function to read file info
-  public readFile = async (fileContent: any) => {
+  public readFile = (fileContent: any) => {
     return new Promise((resolve, reject) => {
       const blob = new Blob([fileContent]);
       const reader = new FileReader();
@@ -591,7 +594,6 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         key: sousFamily.IdSubFamily,
         text: sousFamily.DescSubFamily,
         FamilleKey: sousFamily.IdFamily,
-
       })
     })
     this.setState({ subFamilyProducts: sousFamilles })
@@ -716,1316 +718,2658 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-  // public checkApprouver = async(approuverID) => {
-  //   const result = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items.filter(`DemandeurID eq ${approuverID}`).get();
-
-  //   if (result.length > 0) {
-  //     const demandeurName =  (await Web(this.props.url).siteUsers.getById(result[0].DemandeurID).get()).Title;
-  //     const remplacantName = (await Web(this.props.url).siteUsers.getById(result[0].RemplacantID).get()).Title;
-  //     return { demandeurName, remplacantName };
-  //   } 
-  // }
-
-
   private submitFormData = async () => {
     const disabledSubmit = this.disabledSubmitButton();
     const currentUser = await Web(this.props.url).currentUser.get();
     var ArticleList = [];
     var prixTotal = 0;
     var sendedData
+    var listApprouversForEachArticles = []
+
+
 
     if (!disabledSubmit) {
 
       this.setState({ spinnerShow: true });
-
       var listApprouvers
       const data = this.state.formData;
+
       if (!this.state.DisabledBenef && data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0) {
-        listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, data[0].BeneficiareSelected[0].text)
-      } else {
-        if (this.state.demandeAffectation === "me") {
-          listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.userRespCenter)
-        } else {
-          listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.RemplacantRespCenter)
-        }
-      }
-
-
-
-
-      console.log(listApprouvers['approvalsList'][0].MailApp1)
-      if (listApprouvers['Status'] === "200" && listApprouvers['approvalsList'][0].MailApp1 !== "") {
-        var getProbateurs = [];
-
-        // const promises = listApprouvers['approvalsList'].map(async approuver => {
-        //   const approbateurV1Id = await this.getUserByEmail(approuver.NameApp1.trim().replace(/\s+/g, ' '));
-        //   const approbateurV2Id = await this.getUserByEmail(approuver.NameApp2.trim().replace(/\s+/g, ' '));
-        //   const approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail(approuver.NameApp3.trim().replace(/\s+/g, ' ')) : null;
-        //   const approbateurV4Id = await this.getUserByEmail(approuver.NameApp4.trim().replace(/\s+/g, ' '));
-
-        //   return {
-        //       ApprobateurV1Id: [approbateurV1Id],
-        //       UserDisplayNameV1: approuver.NameApp1,
-        //       ApprobateurV2Id: [approbateurV2Id],
-        //       UserDisplayNameV2: approuver.NameApp2,
-        //       ApprobateurV3Id: approbateurV3Id !== null ? [approbateurV3Id] : null,
-        //       UserDisplayNameV3: approuver.NameApp3 !== "" ? approuver.NameApp3 : null,
-        //       ApprobateurV4Id: [approbateurV4Id],
-        //       UserDisplayNameV4: approuver.NameApp4,
-        //   };
-        // });
-
-        const promises = listApprouvers['approvalsList'].map(async approuver => {
-          var approbateurV1Id, approbateurV2Id, approbateurV3Id, approbateurV4Id
-          try {
-            approbateurV1Id = await this.getUserByEmail2(approuver.MailApp1);
-            approbateurV2Id = await this.getUserByEmail2(approuver.MailApp2);
-            approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail2(approuver.MailApp3) : null;
-            approbateurV4Id = await this.getUserByEmail2(approuver.MailApp4);
-          } catch (error) {
-            this.setState({ popUpApprobateurs: true })
-          }
-
-
-          return {
-            ApprobateurV1Id: [approbateurV1Id],
-            UserDisplayNameV1: approuver.NameApp1,
-            ApprobateurV2Id: [approbateurV2Id],
-            UserDisplayNameV2: approuver.NameApp2,
-            ApprobateurV3Id: approbateurV3Id !== null ? [approbateurV3Id] : null,
-            UserDisplayNameV3: approuver.NameApp3 !== "" ? approuver.NameApp3 : null,
-            ApprobateurV4Id: [approbateurV4Id],
-            UserDisplayNameV4: approuver.NameApp4,
-          };
-        });
-
-        getProbateurs = await Promise.all(promises);
-        var currentUserID = this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID
-        if (getProbateurs[0].ApprobateurV4Id.includes(currentUserID)) {
-          this.setState({ showPopUpApprouver4: true })
-          return
-        }
-        const approuversResponse = await this.checkApprouvet(getProbateurs[0].ApprobateurV1Id[0], getProbateurs[0].ApprobateurV2Id[0], getProbateurs[0].ApprobateurV3Id !== null ? getProbateurs[0].ApprobateurV3Id[0] : null, getProbateurs[0].ApprobateurV4Id[0]);
-
-        if (approuversResponse.length > 0) {
-          const demandeurId = approuversResponse[0].DemandeurId;
-          const RemplacantId = approuversResponse[0].RemplacantId;
-
-          console.log(demandeurId)
-          if (getProbateurs[0].ApprobateurV1Id[0] === demandeurId) {
-            console.log(1)
-            getProbateurs[0].ApprobateurV1Id.push(RemplacantId);
-          } else if (getProbateurs[0].ApprobateurV2Id[0] === demandeurId) {
-            console.log(2)
-            getProbateurs[0].ApprobateurV2Id.push(RemplacantId);
-          } else if (getProbateurs[0].ApprobateurV3Id !== null && getProbateurs[0].ApprobateurV3Id[0] === demandeurId) {
-            console.log(3)
-            getProbateurs[0].ApprobateurV3Id.push(RemplacantId);
-          } else if (getProbateurs[0].ApprobateurV4Id[0] === demandeurId) {
-            console.log(4)
-            getProbateurs[0].ApprobateurV4Id.push(RemplacantId);
-          }
-        }
-
-        console.log('all Data:', data)
-        data.map(Article => {
-          console.log("Article", Article)
-          prixTotal = prixTotal + (parseFloat(Article.price) * parseInt(Article.quantity));
-          ArticleList.push({
-            "SousFamille": Article.SousFamilleSelected[0].text,
-            "SousFamilleID": Article.SousFamilleSelected[0].key,
-            "Beneficiaire": !this.state.DisabledBenef && Article.BeneficiareSelected[0]?.text
-              ? Article.BeneficiareSelected[0].text
-              : (this.state.demandeAffectation === "me"
-                ? this.state.userRespCenter
-                : this.state.RemplacantRespCenter),
-            "BeneficiaireID": !this.state.DisabledBenef && Article.BeneficiareSelected[0]?.key
-              ? Article.BeneficiareSelected[0].text
-              : (this.state.demandeAffectation === "me"
-                ? this.state.userRespCenter
-                : this.state.RemplacantRespCenter),
-            "DelaiLivraisionSouhaite": Article.numberOfDays,
-            "comment": Article.Comment,
-            "Prix": Article.price,
-            "quantité": Article.quantity,
-            "DescriptionTechnique": Article.ArticleSelected[0].text,
-            "ArticleREF": Article.ArticleSelected[0].key,
-            "ArticleFileName": Article.fileName,
-            "Axe": Article.ArticleSelected[0].Axe,
-            "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
-            "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
-            "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
-            "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
-            "ArticleFileData": {
-              "name": Article.fileData.name,
-              "size": Article.fileData.size,
-              "type": Article.fileData.type,
-              // "lastModified": Article.fileData.lastModified,
-              // "lastModifiedDate": Article.fileData.lastModifiedDate,
-              "webkitRelativePath": Article.fileData.webkitRelativePath,
-            }
-          });
-        });
-
-        if (getProbateurs[0].ApprobateurV1Id.length > 1) {
-          console.log("test 1")
-          if (getProbateurs[0].ApprobateurV3Id === null) {
-            if (this.state.checkRemplacant && this.state.condition === 2) {
-              formData = {
-                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                "EcoleId": getProbateurs[0].ID,
-                "FamilleProduit": data[0].FamilleSelected[0].text,
-                "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                "PrixTotal": prixTotal.toString(),
-                "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                "Prix": "test ....",
-                "Quantite": "test ....",
-                "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                "StatusDemandeV1": "En cours",
-                "StatusDemandeV3": "***",
-                "Produit": JSON.stringify(ArticleList),
-                "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-              }
-            } else if (this.state.checkRemplacant && this.state.condition === 1) {
-              formData = {
-                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                "AuthorId": this.state.remplacantID,
-                "DemandeurId": this.state.remplacantID,
-                "EcoleId": getProbateurs[0].ID,
-                "FamilleProduit": data[0].FamilleSelected[0].text,
-                "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                "PrixTotal": prixTotal.toString(),
-                "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                "Prix": "test ....",
-                "Quantite": "test ....",
-                "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                "StatusDemandeV1": "En cours",
-                "StatusDemandeV3": "***",
-                "Produit": JSON.stringify(ArticleList),
-                "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.RemplacantRespCenter,
-              }
-            } else {
-              formData = {
-                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                "AuthorId": currentUser.Id,
-                "DemandeurId": currentUser.Id,
-                "EcoleId": getProbateurs[0].ID,
-                "FamilleProduit": data[0].FamilleSelected[0].text,
-                "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                "PrixTotal": prixTotal.toString(),
-                "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                "Prix": "test ....",
-                "Quantite": "test ....",
-                "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                "StatusDemandeV1": "En cours",
-                "StatusDemandeV3": "***",
-                "Produit": JSON.stringify(ArticleList),
-                "CreerPar": currentUser.Title,
-                "CentreDeGestion": this.state.userRespCenter,
-              }
-            }
-
-          } else {
-            if (this.state.checkRemplacant && this.state.condition === 2) {
-              formData = {
-                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                "EcoleId": getProbateurs[0].ID,
-                "FamilleProduit": data[0].FamilleSelected[0].text,
-                "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                "PrixTotal": prixTotal.toString(),
-                "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                "Prix": "test ....",
-                "Quantite": "test ....",
-                "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                "StatusDemandeV1": "En cours",
-                "Produit": JSON.stringify(ArticleList),
-                "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-              }
-            } else if (this.state.checkRemplacant && this.state.condition === 1) {
-              formData = {
-                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                "AuthorId": this.state.remplacantID,
-                "DemandeurId": this.state.remplacantID,
-                "EcoleId": getProbateurs[0].ID,
-                "FamilleProduit": data[0].FamilleSelected[0].text,
-                "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                "PrixTotal": prixTotal.toString(),
-                "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                "Prix": "test ....",
-                "Quantite": "test ....",
-                "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                "StatusDemandeV1": "En cours",
-                "Produit": JSON.stringify(ArticleList),
-                "CreerPar": this.state.remplacantName,
-                "CentreDeGestion": this.state.RemplacantRespCenter,
-              }
-            }
-            else {
-              formData = {
-                "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                "AuthorId": currentUser.Id,
-                "DemandeurId": currentUser.Id,
-                "EcoleId": getProbateurs[0].ID,
-                "FamilleProduit": data[0].FamilleSelected[0].text,
-                "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                "PrixTotal": prixTotal.toString(),
-                "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                "Prix": "test ....",
-                "Quantite": "test ....",
-                "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                "StatusDemandeV1": "En cours",
-                "StatusDemandeV3": "***",
-                "Produit": JSON.stringify(ArticleList),
-                "CreerPar": currentUser.Title,
-                "CentreDeGestion": this.state.userRespCenter,
-              }
-            }
-          }
-
-
-          const sendData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
-          sendedData = sendData
-
-          // ArticleList.map(async articleData => {
-          //   await this.attachFileToItem(sendData.data.ID)
-          // })
-
-          const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-            .add({
-              "DemandeID": sendData.data.ID.toString(),
-              "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV1 + " a partir de " + getCurrentDate()])
-            });
-
-          if (getProbateurs[0].ApprobateurV3Id === null) {
-            const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-              .add({
-                "DemandeID": sendData.data.ID.toString(),
-                "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                "StatusApprobateurV1": "En cours",
-                "StatusApprobateurV2": "",
-                "StatusApprobateurV4": "",
-                "StatusApprobateurV3": "***",
-                "CommentaireApprobateurV1": "",
-                "CommentaireApprobateurV2": "",
-                "CommentaireApprobateurV4": "",
-                "CommentaireApprobateurV3": "***",
-              });
-          } else {
-            const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-              .add({
-                "DemandeID": sendData.data.ID.toString(),
-                "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-                "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                "StatusApprobateurV1": "En cours",
-                "StatusApprobateurV2": "",
-                "StatusApprobateurV3": "",
-                "StatusApprobateurV4": "",
-                "CommentaireApprobateurV1": "",
-                "CommentaireApprobateurV2": "",
-                "CommentaireApprobateurV3": "",
-                "CommentaireApprobateurV4": "",
-              });
-          }
-
-        } else {
-          console.log("test 2")
-          var formData
-          console.log(getProbateurs)
-          console.log(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID)
-          if (getProbateurs[0].ApprobateurV3Id === null) {
-            console.log('test with approbateur with approbateur 3 null')
-            console.log(this.state.condition, this.state.checkRemplacant)
-            if (this.state.checkRemplacant && this.state.condition === 2) {
-              const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs)
-              console.log(checkUserNiveau)
-              if (checkUserNiveau === 0) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                  "StatusDemandeV1": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
-                }
-              } else if (checkUserNiveau === 1) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
-                }
-              } else if (checkUserNiveau === 2) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV4": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
-                }
-              } else if (checkUserNiveau === 4) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV4": "Approuvée",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
-                }
-              }
-
-            } else if (this.state.checkRemplacant && this.state.condition === 1) {
-              const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID, getProbateurs)
-              console.log(checkUserNiveau)
-              if (checkUserNiveau === 0) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                  "StatusDemandeV1": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
-                }
-              } else if (checkUserNiveau === 1) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
-                }
-              } else if (checkUserNiveau === 2) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV4": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
-                }
-              } else if (checkUserNiveau === 4) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV4": "Approuvée",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter
-                }
-              }
-            } else {
-              console.log(currentUser.Id)
-              const checkUserNiveau = getApprobateurNiveau(currentUser.Id, getProbateurs)
-              console.log(checkUserNiveau)
-              if (checkUserNiveau === 0) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                  "StatusDemandeV1": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 1) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 2) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV4": "En cours",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 4) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV4": "Approuvée",
-                  "StatusDemandeV3": "***",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              }
-            }
-
-          } else {
-            console.log("test with approbateur 3")
-            if (this.state.checkRemplacant && this.state.condition === 2) {
-              const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
-              if (checkUserNiveau === 0) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                  "StatusDemandeV1": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 1) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 2) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "StatusDemandeV3": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 3) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV3": "Approuvée",
-                  "StatusDemandeV4": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 4) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV3": "Approuvée",
-                  "StatusDemandeV4": "Approuvée",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
-                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
-                }
-              }
-
-            } else if (this.state.checkRemplacant && this.state.condition === 1) {
-              const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID, getProbateurs);
-              if (checkUserNiveau === 0) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                  "StatusDemandeV1": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 1) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 2) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "StatusDemandeV3": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 3) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV3": "Approuvée",
-                  "StatusDemandeV4": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter,
-                }
-              } else if (checkUserNiveau === 4) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": this.state.remplacantID,
-                  "DemandeurId": this.state.remplacantID,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV3": "Approuvée",
-                  "StatusDemandeV4": "Approuvée",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": this.state.remplacantName,
-                  "CentreDeGestion": this.state.RemplacantRespCenter,
-                }
-              }
-
-            } else {
-              const checkUserNiveau = getApprobateurNiveau(currentUser.Id, getProbateurs);
-              console.log(checkUserNiveau)
-              if (checkUserNiveau === 0) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
-                  "StatusDemandeV1": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 1) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 2) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "En cours",
-                  "StatusDemandeV3": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 3) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV3": "Approuvée",
-                  "StatusDemandeV4": "En cours",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              } else if (checkUserNiveau === 4) {
-                formData = {
-                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
-                  "AuthorId": currentUser.Id,
-                  "DemandeurId": currentUser.Id,
-                  "EcoleId": getProbateurs[0].ID,
-                  "FamilleProduit": data[0].FamilleSelected[0].text,
-                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
-                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].text : "",
-                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
-                  "PrixTotal": prixTotal.toString(),
-                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
-                  "Prix": "test ....",
-                  "Quantite": "test ....",
-                  "SousFamilleProduit": data[0].SousFamilleSelected[0].text,
-                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
-                  "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
-                  "StatusDemandeV1": "Approuvée",
-                  "StatusDemandeV2": "Approuvée",
-                  "StatusDemandeV3": "Approuvée",
-                  "StatusDemandeV4": "Approuvée",
-                  "Produit": JSON.stringify(ArticleList),
-                  "CreerPar": currentUser.Title,
-                  "CentreDeGestion": this.state.userRespCenter,
-                }
-              }
-            }
-          }
-
-          const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
-          sendedData = sendData
-
-          console.log('testtt', getProbateurs)
-          if (getProbateurs[0].ApprobateurV3Id === null) {
-            const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
-
-            if (checkUserNiveau === 0) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV1 + " a partir de " + getCurrentDate()])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "En cours",
-                  "StatusApprobateurV2": "",
-                  "StatusApprobateurV4": "",
-                  "StatusApprobateurV3": "***",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV4": "",
-                  "CommentaireApprobateurV3": "***",
-                  "Step": "one"
-                });
-              console.log(sendApprobateursData)
-
-
-            } else if (checkUserNiveau === 1) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV2 + " a partir de " + getCurrentDate()])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "En cours",
-                  "StatusApprobateurV4": "",
-                  "StatusApprobateurV3": "***",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV4": "",
-                  "CommentaireApprobateurV3": "***",
-                  "Step": "two"
-                });
-              console.log(sendApprobateursData)
-
-
-
-            } else if (checkUserNiveau === 2) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV3 + " a partir de " + getCurrentDate()])
-                });
-
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "Approuvée",
-                  "StatusApprobateurV4": "En cours",
-                  "StatusApprobateurV3": "***",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV4": "",
-                  "CommentaireApprobateurV3": "***",
-                  "Step": "three"
-                });
-              console.log(sendApprobateursData)
-
-
-
-            } else if (checkUserNiveau === 4) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "Demande approuver car le demandeur est un approbateur de niveau 3"])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "Approuvée",
-                  "StatusApprobateurV4": "Approuvée",
-                  "StatusApprobateurV3": "***",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV4": "",
-                  "CommentaireApprobateurV3": "***",
-                  "Step": "four"
-                });
-              console.log(sendApprobateursData)
-            }
-
-          } else {
-            console.log(getProbateurs)
-            const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
-
-            if (checkUserNiveau === 0) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV1 + " a partir de " + getCurrentDate()])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url)
-                .lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "En cours",
-                  "StatusApprobateurV2": "",
-                  "StatusApprobateurV3": "",
-                  "StatusApprobateurV4": "",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV3": "",
-                  "CommentaireApprobateurV4": "",
-                  "Step": "one"
-                });
-
-              console.log(sendApprobateursData)
-            } else if (checkUserNiveau === 1) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV2 + " a partir de " + getCurrentDate()])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url)
-                .lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "En cours",
-                  "StatusApprobateurV3": "",
-                  "StatusApprobateurV4": "",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV3": "",
-                  "CommentaireApprobateurV4": "",
-                  "Step": "two"
-                });
-
-              console.log(sendApprobateursData)
-            } else if (checkUserNiveau === 2) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV3 + " a partir de " + getCurrentDate()])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url)
-                .lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "Approuvée",
-                  "StatusApprobateurV3": "En cours",
-                  "StatusApprobateurV4": "",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV3": "",
-                  "CommentaireApprobateurV4": "",
-                  "Step": "three"
-                });
-
-              console.log(sendApprobateursData)
-            } else if (checkUserNiveau === 3) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "En cours de l'approbation de " + getProbateurs[0].UserDisplayNameV4 + " a partir de " + getCurrentDate()])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url)
-                .lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "Approuvée",
-                  "StatusApprobateurV3": "Approuvée",
-                  "StatusApprobateurV4": "En cours",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV3": "",
-                  "CommentaireApprobateurV4": "",
-                  "Step": "four"
-                });
-
-              console.log(sendApprobateursData)
-            } else if (checkUserNiveau === 4) {
-              const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "Actions": JSON.stringify(["Creation de la demande le " + getCurrentDate(), "Demande approuver car le demandeur est un approbateur de niveau 4"])
-                });
-
-              const sendApprobateursData: IItemAddResult = await Web(this.props.url)
-                .lists.getByTitle("WorkflowApprobation").items
-                .add({
-                  "DemandeID": sendData.data.ID.toString(),
-                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
-                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
-                  "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
-                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
-                  "StatusApprobateurV1": "Approuvée",
-                  "StatusApprobateurV2": "Approuvée",
-                  "StatusApprobateurV3": "Approuvée",
-                  "StatusApprobateurV4": "Approuvée",
-                  "CommentaireApprobateurV1": "",
-                  "CommentaireApprobateurV2": "",
-                  "CommentaireApprobateurV3": "",
-                  "CommentaireApprobateurV4": "",
-                  "Step": "five"
-                });
-
-              console.log(sendApprobateursData)
-            }
-
-          }
-        }
-
-        // ArticleList.map(async articleData => {
-        //   await this.attachFileToItem(sendedData.data.ID)
-        // })
-
-        await Promise.all(
-          ArticleList.map(async articleData => {
-            await this.attachFileToItem(sendedData.data.ID);
+        listApprouversForEachArticles = await Promise.all(
+          data.map(async (article) => {
+            return await this.getUserApprouvers(
+              article?.SousFamilleSelected[0]?.key,
+              article?.BeneficiareSelected[0]?.text
+            );
           })
         );
-
-        this.setState({ showValidationPopUp: true, spinnerShow: false })
-
-
       } else {
-        this.setState({ popUpApprobateurs: true })
+        if (this.state.demandeAffectation === "me") {
+          listApprouversForEachArticles = await Promise.all(
+            data.map(async (article) => {
+              return await this.getUserApprouvers(
+                article?.SousFamilleSelected[0]?.key,
+                this.state.userRespCenter
+              );
+            })
+          );
+        } else {
+          listApprouversForEachArticles = await Promise.all(
+            data.map(async (article) => {
+              return await this.getUserApprouvers(
+                article?.SousFamilleSelected[0]?.key,
+                this.state.RemplacantRespCenter
+              );
+            })
+          );
+        }
       }
+
+
+      const resultOfCheck = checkListApprouvers(listApprouversForEachArticles)
+      const checkStatus = checkStatusListApprouvers(listApprouversForEachArticles)
+      console.log(resultOfCheck)
+      console.log(checkStatus)
+
+
+      if (resultOfCheck && checkStatus) {
+        // if true '' completer
+        if (!this.state.DisabledBenef && data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0) {
+          listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, data[0].BeneficiareSelected[0]?.text)
+        } else {
+          if (this.state.demandeAffectation === "me") {
+            listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.userRespCenter)
+          } else {
+            listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.RemplacantRespCenter)
+          }
+        }
+
+
+
+
+        console.log(listApprouvers['approvalsList'][0].MailApp1)
+        if (listApprouvers['Status'] === "200" && listApprouvers['approvalsList'][0].MailApp1 !== "") {
+          var getProbateurs = [];
+
+          const promises = listApprouvers['approvalsList'].map(async approuver => {
+            console.log(approuver)
+            var approbateurV1Id, approbateurV2Id, approbateurV3Id, approbateurV4Id
+            try {
+              approbateurV1Id = await this.getUserByEmail2(approuver.MailApp1);
+              approbateurV2Id = await this.getUserByEmail2(approuver.MailApp2);
+              approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail2(approuver.MailApp3) : null;
+              approbateurV4Id = await this.getUserByEmail2(approuver.MailApp4);
+            } catch (error) {
+              this.setState({ popUpApprobateurs: true })
+            }
+
+
+            return {
+              ApprobateurV1Id: [approbateurV1Id],
+              UserDisplayNameV1: approuver.NameApp1,
+              ApprobateurV2Id: [approbateurV2Id],
+              UserDisplayNameV2: approuver.NameApp2,
+              ApprobateurV3Id: approbateurV3Id !== null ? [approbateurV3Id] : null,
+              UserDisplayNameV3: approuver.NameApp3 !== "" ? approuver.NameApp3 : null,
+              ApprobateurV4Id: [approbateurV4Id],
+              UserDisplayNameV4: approuver.NameApp4,
+            };
+          });
+
+          getProbateurs = await Promise.all(promises);
+          var currentUserID = this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID
+          if (getProbateurs[0].ApprobateurV4Id.includes(currentUserID)) {
+            this.setState({ showPopUpApprouver4: true })
+            return
+          }
+          const approuversResponse = await this.checkApprouvet(getProbateurs[0].ApprobateurV1Id[0], getProbateurs[0].ApprobateurV2Id[0], getProbateurs[0].ApprobateurV3Id !== null ? getProbateurs[0].ApprobateurV3Id[0] : null, getProbateurs[0].ApprobateurV4Id[0]);
+
+          if (approuversResponse.length > 0) {
+            const demandeurId = approuversResponse[0].DemandeurId;
+            const RemplacantId = approuversResponse[0].RemplacantId;
+
+            console.log(demandeurId)
+            if (getProbateurs[0].ApprobateurV1Id[0] === demandeurId) {
+              console.log(1)
+              getProbateurs[0].ApprobateurV1Id.push(RemplacantId);
+            } else if (getProbateurs[0].ApprobateurV2Id[0] === demandeurId) {
+              console.log(2)
+              getProbateurs[0].ApprobateurV2Id.push(RemplacantId);
+            } else if (getProbateurs[0].ApprobateurV3Id !== null && getProbateurs[0].ApprobateurV3Id[0] === demandeurId) {
+              console.log(3)
+              getProbateurs[0].ApprobateurV3Id.push(RemplacantId);
+            } else if (getProbateurs[0].ApprobateurV4Id[0] === demandeurId) {
+              console.log(4)
+              getProbateurs[0].ApprobateurV4Id.push(RemplacantId);
+            }
+          }
+
+          console.log('all Data:', data)
+          data.map(Article => {
+            console.log("Article", Article)
+            prixTotal = prixTotal + (parseFloat(Article.price) * parseFloat(Article.quantity));
+            ArticleList.push({
+              "SousFamille": Article.SousFamilleSelected[0]?.text,
+              "SousFamilleID": Article.SousFamilleSelected[0].key,
+              "Beneficiaire": !this.state.DisabledBenef && Article.BeneficiareSelected[0]?.text
+                ? Article.BeneficiareSelected[0]?.text
+                : (this.state.demandeAffectation === "me"
+                  ? this.state.userRespCenter
+                  : this.state.RemplacantRespCenter),
+              "BeneficiaireID": !this.state.DisabledBenef && Article.BeneficiareSelected[0]?.key
+                ? Article.BeneficiareSelected[0]?.text
+                : (this.state.demandeAffectation === "me"
+                  ? this.state.userRespCenter
+                  : this.state.RemplacantRespCenter),
+              "DelaiLivraisionSouhaite": Article.numberOfDays,
+              "comment": Article.Comment,
+              "Prix": Article.price,
+              "quantité": Article.quantity,
+              "DescriptionTechnique": Article.ArticleSelected[0]?.text,
+              "ArticleREF": Article.ArticleSelected[0].key,
+              "ArticleFileName": Article.fileName,
+              "Axe": Article.ArticleSelected[0].Axe,
+              "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+              "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+              "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+              "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
+              "ArticleFileData": {
+                "name": Article.fileData.name,
+                "size": Article.fileData.size,
+                "type": Article.fileData.type,
+                // "lastModified": Article.fileData.lastModified,
+                // "lastModifiedDate": Article.fileData.lastModifiedDate,
+                "webkitRelativePath": Article.fileData.webkitRelativePath,
+              }
+            });
+          });
+
+          if (getProbateurs[0].ApprobateurV1Id.length > 1) {
+            console.log("test 1")
+            if (getProbateurs[0].ApprobateurV3Id === null) {
+              if (this.state.checkRemplacant && this.state.condition === 2) {
+                formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                  "EcoleId": getProbateurs[0].ID,
+                  "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "PrixTotal": prixTotal.toString(),
+                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                  "Prix": "test ....",
+                  "Quantite": "test ....",
+                  "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                  "StatusDemandeV1": "En cours",
+                  "StatusDemandeV3": "***",
+                  "Produit": JSON.stringify(ArticleList),
+                  "CreerPar": this.state.remplacantName,
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                }
+              } else if (this.state.checkRemplacant && this.state.condition === 1) {
+                formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                  "AuthorId": this.state.remplacantID,
+                  "DemandeurId": this.state.remplacantID,
+                  "EcoleId": getProbateurs[0].ID,
+                  "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "PrixTotal": prixTotal.toString(),
+                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                  "Prix": "test ....",
+                  "Quantite": "test ....",
+                  "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                  "StatusDemandeV1": "En cours",
+                  "StatusDemandeV3": "***",
+                  "Produit": JSON.stringify(ArticleList),
+                  "CreerPar": this.state.remplacantName,
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                }
+              } else {
+                formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                  "AuthorId": currentUser.Id,
+                  "DemandeurId": currentUser.Id,
+                  "EcoleId": getProbateurs[0].ID,
+                  "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "PrixTotal": prixTotal.toString(),
+                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                  "Prix": "test ....",
+                  "Quantite": "test ....",
+                  "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                  "StatusDemandeV1": "En cours",
+                  "StatusDemandeV3": "***",
+                  "Produit": JSON.stringify(ArticleList),
+                  "CreerPar": currentUser.Title,
+                  "CentreDeGestion": this.state.userRespCenter,
+                }
+              }
+
+            } else {
+              if (this.state.checkRemplacant && this.state.condition === 2) {
+                formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                  "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                  "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                  "EcoleId": getProbateurs[0].ID,
+                  "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "PrixTotal": prixTotal.toString(),
+                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                  "Prix": "test ....",
+                  "Quantite": "test ....",
+                  "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                  "StatusDemandeV1": "En cours",
+                  "Produit": JSON.stringify(ArticleList),
+                  "CreerPar": this.state.remplacantName,
+                  "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                }
+              } else if (this.state.checkRemplacant && this.state.condition === 1) {
+                formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                  "AuthorId": this.state.remplacantID,
+                  "DemandeurId": this.state.remplacantID,
+                  "EcoleId": getProbateurs[0].ID,
+                  "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "PrixTotal": prixTotal.toString(),
+                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                  "Prix": "test ....",
+                  "Quantite": "test ....",
+                  "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                  "StatusDemandeV1": "En cours",
+                  "Produit": JSON.stringify(ArticleList),
+                  "CreerPar": this.state.remplacantName,
+                  "CentreDeGestion": this.state.RemplacantRespCenter,
+                }
+              }
+              else {
+                formData = {
+                  "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                  "AuthorId": currentUser.Id,
+                  "DemandeurId": currentUser.Id,
+                  "EcoleId": getProbateurs[0].ID,
+                  "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                  "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                  "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                  "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                  "PrixTotal": prixTotal.toString(),
+                  "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                  "Prix": "test ....",
+                  "Quantite": "test ....",
+                  "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                  "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                  "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                  "StatusDemandeV1": "En cours",
+                  "StatusDemandeV3": "***",
+                  "Produit": JSON.stringify(ArticleList),
+                  "CreerPar": currentUser.Title,
+                  "CentreDeGestion": this.state.userRespCenter,
+                }
+              }
+            }
+
+
+            const sendData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
+            sendedData = sendData
+
+
+            // ArticleList.map(async articleData => {
+            //   await this.attachFileToItem(sendData.data.ID)
+            // })
+
+            const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+              .add({
+                "DemandeID": sendData.data.ID.toString(),
+                "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV1 + " à partir du " + getCurrentDate()])
+              });
+
+            if (getProbateurs[0].ApprobateurV3Id === null) {
+              const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+                .add({
+                  "DemandeID": sendData.data.ID.toString(),
+                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                  "StatusApprobateurV1": "En cours",
+                  "StatusApprobateurV2": "",
+                  "StatusApprobateurV4": "",
+                  "StatusApprobateurV3": "***",
+                  "CommentaireApprobateurV1": "",
+                  "CommentaireApprobateurV2": "",
+                  "CommentaireApprobateurV4": "",
+                  "CommentaireApprobateurV3": "***",
+                });
+            } else {
+              const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+                .add({
+                  "DemandeID": sendData.data.ID.toString(),
+                  "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                  "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                  "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+                  "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                  "StatusApprobateurV1": "En cours",
+                  "StatusApprobateurV2": "",
+                  "StatusApprobateurV3": "",
+                  "StatusApprobateurV4": "",
+                  "CommentaireApprobateurV1": "",
+                  "CommentaireApprobateurV2": "",
+                  "CommentaireApprobateurV3": "",
+                  "CommentaireApprobateurV4": "",
+                });
+            }
+
+          } else {
+            console.log("test 2")
+            var formData
+            console.log(getProbateurs)
+            console.log(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID)
+            if (getProbateurs[0].ApprobateurV3Id === null) {
+              console.log('test with approbateur with approbateur 3 null')
+              console.log(this.state.condition, this.state.checkRemplacant)
+              if (this.state.checkRemplacant && this.state.condition === 2) {
+                const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs)
+                console.log(checkUserNiveau)
+                if (checkUserNiveau === 0) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                    "StatusDemandeV1": "En cours",
+                    "StatusDemandeV3": "***",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  }
+                } else if (checkUserNiveau === 1) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  }
+                } else if (checkUserNiveau === 2) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV4": "En cours",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  }
+                } else if (checkUserNiveau === 4) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV4": "Approuvée",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+                  }
+                }
+
+              } else if (this.state.checkRemplacant && this.state.condition === 1) {
+                const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID, getProbateurs)
+                console.log(checkUserNiveau)
+                if (checkUserNiveau === 0) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                    "StatusDemandeV1": "En cours",
+                    "StatusDemandeV3": "***",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter
+                  }
+                } else if (checkUserNiveau === 1) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+                    "StatusDemandeV1": "Approuvée",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "StatusDemandeV2": "En cours",
+                    "StatusDemandeV3": "***",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter
+                  }
+                } else if (checkUserNiveau === 2) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV4": "En cours",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter
+                  }
+                } else if (checkUserNiveau === 4) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV4": "Approuvée",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter
+                  }
+                }
+              } else {
+                console.log(currentUser.Id)
+                const checkUserNiveau = getApprobateurNiveau(currentUser.Id, getProbateurs)
+                console.log(checkUserNiveau)
+                if (checkUserNiveau === 0) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                    "StatusDemandeV1": "En cours",
+                    "StatusDemandeV3": "***",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 1) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 2) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV4": "En cours",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 4) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV4": "Approuvée",
+                    "StatusDemandeV3": "***",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV4": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                }
+              }
+
+            } else {
+              console.log("test with approbateur 3")
+              if (this.state.checkRemplacant && this.state.condition === 2) {
+                const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
+                if (checkUserNiveau === 0) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                    "StatusDemandeV1": "En cours",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 1) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 2) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "StatusDemandeV3": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 3) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV3": "Approuvée",
+                    "StatusDemandeV4": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 4) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV3": "Approuvée",
+                    "StatusDemandeV4": "Approuvée",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "DateStatusDemandeV4": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+                    "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+                  }
+                }
+
+              } else if (this.state.checkRemplacant && this.state.condition === 1) {
+                const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID, getProbateurs);
+                if (checkUserNiveau === 0) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                    "StatusDemandeV1": "En cours",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 1) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 2) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "StatusDemandeV3": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 3) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV3": "Approuvée",
+                    "StatusDemandeV4": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter,
+                  }
+                } else if (checkUserNiveau === 4) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": this.state.remplacantID,
+                    "DemandeurId": this.state.remplacantID,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV3": "Approuvée",
+                    "StatusDemandeV4": "Approuvée",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "DateStatusDemandeV4": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": this.state.remplacantName,
+                    "CentreDeGestion": this.state.RemplacantRespCenter,
+                  }
+                }
+
+              } else {
+                const checkUserNiveau = getApprobateurNiveau(currentUser.Id, getProbateurs);
+                console.log(checkUserNiveau)
+                if (checkUserNiveau === 0) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+                    "StatusDemandeV1": "En cours",
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 1) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 2) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "En cours",
+                    "StatusDemandeV3": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 3) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV3": "Approuvée",
+                    "StatusDemandeV4": "En cours",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                } else if (checkUserNiveau === 4) {
+                  formData = {
+                    "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+                    "AuthorId": currentUser.Id,
+                    "DemandeurId": currentUser.Id,
+                    "EcoleId": getProbateurs[0].ID,
+                    "FamilleProduit": data[0].FamilleSelected[0]?.text,
+                    "FamilleProduitREF": data[0].FamilleSelected[0].key,
+                    "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+                    "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+                    "PrixTotal": prixTotal.toString(),
+                    "DelaiLivraisionSouhaite": data[0].numberOfDays,
+                    "Prix": "test ....",
+                    "Quantite": "test ....",
+                    "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+                    "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+                    "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+                    "StatusDemandeV1": "Approuvée",
+                    "StatusDemandeV2": "Approuvée",
+                    "StatusDemandeV3": "Approuvée",
+                    "StatusDemandeV4": "Approuvée",
+                    "DateStatusDemandeV1": new Date().toISOString(),
+                    "DateStatusDemandeV2": new Date().toISOString(),
+                    "DateStatusDemandeV3": new Date().toISOString(),
+                    "DateStatusDemandeV4": new Date().toISOString(),
+                    "Produit": JSON.stringify(ArticleList),
+                    "CreerPar": currentUser.Title,
+                    "CentreDeGestion": this.state.userRespCenter,
+                  }
+                }
+              }
+            }
+
+            const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
+            sendedData = sendData
+
+            // ArticleList.map(async articleData => {
+            //   await this.attachFileToItem(sendData.data.ID)
+            // })
+
+
+
+            console.log('testtt', getProbateurs)
+            if (getProbateurs[0].ApprobateurV3Id === null) {
+              const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
+
+              if (checkUserNiveau === 0) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV1 + " à partir du " + getCurrentDate()])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "En cours",
+                    "StatusApprobateurV2": "",
+                    "StatusApprobateurV4": "",
+                    "StatusApprobateurV3": "***",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV4": "",
+                    "CommentaireApprobateurV3": "***",
+                    "Step": "one"
+                  });
+                console.log(sendApprobateursData)
+
+
+              } else if (checkUserNiveau === 1) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation de " + getProbateurs[0].UserDisplayNameV2 + " à partir du " + getCurrentDate()])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "En cours",
+                    "StatusApprobateurV4": "",
+                    "StatusApprobateurV3": "***",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV4": "",
+                    "CommentaireApprobateurV3": "***",
+                    "Step": "two"
+                  });
+                console.log(sendApprobateursData)
+
+
+
+              } else if (checkUserNiveau === 2) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation de " + getProbateurs[0].UserDisplayNameV4 + " à partir du " + getCurrentDate()])
+                  });
+
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "Approuvée",
+                    "StatusApprobateurV4": "En cours",
+                    "StatusApprobateurV3": "***",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV4": "",
+                    "CommentaireApprobateurV3": "***",
+                    "Step": "four"
+                  });
+                console.log(sendApprobateursData)
+
+
+
+              } else if (checkUserNiveau === 4) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande approuvée car le demandeur est un approbateur de niveau 3"])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "Approuvée",
+                    "StatusApprobateurV4": "Approuvée",
+                    "StatusApprobateurV3": "***",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV4": "",
+                    "CommentaireApprobateurV3": "***",
+                    "Step": "four"
+                  });
+                console.log(sendApprobateursData)
+              }
+
+            } else {
+              console.log(getProbateurs)
+              const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
+
+              if (checkUserNiveau === 0) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation de " + getProbateurs[0].UserDisplayNameV1 + " à partir du " + getCurrentDate()])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+                  .lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "En cours",
+                    "StatusApprobateurV2": "",
+                    "StatusApprobateurV3": "",
+                    "StatusApprobateurV4": "",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV3": "",
+                    "CommentaireApprobateurV4": "",
+                    "Step": "one"
+                  });
+
+                console.log(sendApprobateursData)
+              } else if (checkUserNiveau === 1) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV2 + " à partir du " + getCurrentDate()])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+                  .lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "En cours",
+                    "StatusApprobateurV3": "",
+                    "StatusApprobateurV4": "",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV3": "",
+                    "CommentaireApprobateurV4": "",
+                    "Step": "two"
+                  });
+
+                console.log(sendApprobateursData)
+              } else if (checkUserNiveau === 2) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV3 + " à partir du " + getCurrentDate()])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+                  .lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "Approuvée",
+                    "StatusApprobateurV3": "En cours",
+                    "StatusApprobateurV4": "",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV3": "",
+                    "CommentaireApprobateurV4": "",
+                    "Step": "three"
+                  });
+
+                console.log(sendApprobateursData)
+              } else if (checkUserNiveau === 3) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV4 + " à partir du " + getCurrentDate()])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+                  .lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "Approuvée",
+                    "StatusApprobateurV3": "Approuvée",
+                    "StatusApprobateurV4": "En cours",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV3": "",
+                    "CommentaireApprobateurV4": "",
+                    "Step": "four"
+                  });
+
+                console.log(sendApprobateursData)
+              } else if (checkUserNiveau === 4) {
+                const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), " Demande approuvée car le demandeur est un approbateur de niveau 4"])
+                  });
+
+                const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+                  .lists.getByTitle("WorkflowApprobation").items
+                  .add({
+                    "DemandeID": sendData.data.ID.toString(),
+                    "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+                    "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+                    "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+                    "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+                    "StatusApprobateurV1": "Approuvée",
+                    "StatusApprobateurV2": "Approuvée",
+                    "StatusApprobateurV3": "Approuvée",
+                    "StatusApprobateurV4": "Approuvée",
+                    "CommentaireApprobateurV1": "",
+                    "CommentaireApprobateurV2": "",
+                    "CommentaireApprobateurV3": "",
+                    "CommentaireApprobateurV4": "",
+                    "Step": "five"
+                  });
+
+                console.log(sendApprobateursData)
+              }
+
+            }
+          }
+
+          await Promise.all(
+            ArticleList.map(async articleData => {
+              await this.attachFileToItem(sendedData.data.ID);
+            })
+          );
+          this.setState({ showValidationPopUp: true, spinnerShow: false })
+        } else {
+          this.setState({ popUpApprobateurs: true })
+        }
+      } else {
+        this.setState({ popUpMultiApprobateurs: true })
+      }
+
     }
+
+    // if (!disabledSubmit) {
+
+    //   this.setState({ spinnerShow: true });
+    //   var listApprouvers
+    //   const data = this.state.formData;
+
+
+
+    //   if (!this.state.DisabledBenef && data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0) {
+    //     listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, data[0].BeneficiareSelected[0]?.text)
+    //   } else {
+    //     if (this.state.demandeAffectation === "me") {
+    //       listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.userRespCenter)
+    //     } else {
+    //       listApprouvers = await this.getUserApprouvers(this.state.SousFamilleID, this.state.RemplacantRespCenter)
+    //     }
+    //   }
+
+
+
+
+    //   console.log(listApprouvers['approvalsList'][0].MailApp1)
+    //   if (listApprouvers['Status'] === "200" && listApprouvers['approvalsList'][0].MailApp1 !== "") {
+    //     var getProbateurs = [];
+
+    //     const promises = listApprouvers['approvalsList'].map(async approuver => {
+    //       console.log(approuver)
+    //       var approbateurV1Id, approbateurV2Id, approbateurV3Id, approbateurV4Id
+    //       try {
+    //         approbateurV1Id = await this.getUserByEmail2(approuver.MailApp1);
+    //         approbateurV2Id = await this.getUserByEmail2(approuver.MailApp2);
+    //         approbateurV3Id = approuver.NameApp3 !== "" ? await this.getUserByEmail2(approuver.MailApp3) : null;
+    //         approbateurV4Id = await this.getUserByEmail2(approuver.MailApp4);
+    //       } catch (error) {
+    //         this.setState({ popUpApprobateurs: true })
+    //       }
+
+
+    //       return {
+    //         ApprobateurV1Id: [approbateurV1Id],
+    //         UserDisplayNameV1: approuver.NameApp1,
+    //         ApprobateurV2Id: [approbateurV2Id],
+    //         UserDisplayNameV2: approuver.NameApp2,
+    //         ApprobateurV3Id: approbateurV3Id !== null ? [approbateurV3Id] : null,
+    //         UserDisplayNameV3: approuver.NameApp3 !== "" ? approuver.NameApp3 : null,
+    //         ApprobateurV4Id: [approbateurV4Id],
+    //         UserDisplayNameV4: approuver.NameApp4,
+    //       };
+    //     });
+
+    //     getProbateurs = await Promise.all(promises);
+    //     var currentUserID = this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID
+    //     if (getProbateurs[0].ApprobateurV4Id.includes(currentUserID)) {
+    //       this.setState({ showPopUpApprouver4: true })
+    //       return
+    //     }
+    //     const approuversResponse = await this.checkApprouvet(getProbateurs[0].ApprobateurV1Id[0], getProbateurs[0].ApprobateurV2Id[0], getProbateurs[0].ApprobateurV3Id !== null ? getProbateurs[0].ApprobateurV3Id[0] : null, getProbateurs[0].ApprobateurV4Id[0]);
+
+    //     if (approuversResponse.length > 0) {
+    //       const demandeurId = approuversResponse[0].DemandeurId;
+    //       const RemplacantId = approuversResponse[0].RemplacantId;
+
+    //       console.log(demandeurId)
+    //       if (getProbateurs[0].ApprobateurV1Id[0] === demandeurId) {
+    //         console.log(1)
+    //         getProbateurs[0].ApprobateurV1Id.push(RemplacantId);
+    //       } else if (getProbateurs[0].ApprobateurV2Id[0] === demandeurId) {
+    //         console.log(2)
+    //         getProbateurs[0].ApprobateurV2Id.push(RemplacantId);
+    //       } else if (getProbateurs[0].ApprobateurV3Id !== null && getProbateurs[0].ApprobateurV3Id[0] === demandeurId) {
+    //         console.log(3)
+    //         getProbateurs[0].ApprobateurV3Id.push(RemplacantId);
+    //       } else if (getProbateurs[0].ApprobateurV4Id[0] === demandeurId) {
+    //         console.log(4)
+    //         getProbateurs[0].ApprobateurV4Id.push(RemplacantId);
+    //       }
+    //     }
+
+    //     console.log('all Data:', data)
+    //     data.map(Article => {
+    //       console.log("Article", Article)
+    //       prixTotal = prixTotal + (parseFloat(Article.price) * parseFloat(Article.quantity));
+    //       ArticleList.push({
+    //         "SousFamille": Article.SousFamilleSelected[0]?.text,
+    //         "SousFamilleID": Article.SousFamilleSelected[0].key,
+    //         "Beneficiaire": !this.state.DisabledBenef && Article.BeneficiareSelected[0]??.text
+    //           ? Article.BeneficiareSelected[0]?.text
+    //           : (this.state.demandeAffectation === "me"
+    //             ? this.state.userRespCenter
+    //             : this.state.RemplacantRespCenter),
+    //         "BeneficiaireID": !this.state.DisabledBenef && Article.BeneficiareSelected[0]?.key
+    //           ? Article.BeneficiareSelected[0]?.text
+    //           : (this.state.demandeAffectation === "me"
+    //             ? this.state.userRespCenter
+    //             : this.state.RemplacantRespCenter),
+    //         "DelaiLivraisionSouhaite": Article.numberOfDays,
+    //         "comment": Article.Comment,
+    //         "Prix": Article.price,
+    //         "quantité": Article.quantity,
+    //         "DescriptionTechnique": Article.ArticleSelected[0]?.text,
+    //         "ArticleREF": Article.ArticleSelected[0].key,
+    //         "ArticleFileName": Article.fileName,
+    //         "Axe": Article.ArticleSelected[0].Axe,
+    //         "BudgetAnnualAllocated": Article.ArticleSelected[0].BudgetAnnualAllocated,
+    //         "BudgetAnnualRemaining": Article.ArticleSelected[0].BudgetAnnualRemaining,
+    //         "BudgetAnnualUsed": Article.ArticleSelected[0].BudgetAnnualUsed,
+    //         "LatestPurchasePrice": Article.ArticleSelected[0].LatestPurchasePrice,
+    //         "ArticleFileData": {
+    //           "name": Article.fileData.name,
+    //           "size": Article.fileData.size,
+    //           "type": Article.fileData.type,
+    //           // "lastModified": Article.fileData.lastModified,
+    //           // "lastModifiedDate": Article.fileData.lastModifiedDate,
+    //           "webkitRelativePath": Article.fileData.webkitRelativePath,
+    //         }
+    //       });
+    //     });
+
+    //     if (getProbateurs[0].ApprobateurV1Id.length > 1) {
+    //       console.log("test 1")
+    //       if (getProbateurs[0].ApprobateurV3Id === null) {
+    //         if (this.state.checkRemplacant && this.state.condition === 2) {
+    //           formData = {
+    //             "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //             "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //             "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //             "EcoleId": getProbateurs[0].ID,
+    //             "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //             "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //             "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //             "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //             "PrixTotal": prixTotal.toString(),
+    //             "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //             "Prix": "test ....",
+    //             "Quantite": "test ....",
+    //             "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //             "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //             "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //             "StatusDemandeV1": "En cours",
+    //             "StatusDemandeV3": "***",
+    //             "Produit": JSON.stringify(ArticleList),
+    //             "CreerPar": this.state.remplacantName,
+    //             "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //           }
+    //         } else if (this.state.checkRemplacant && this.state.condition === 1) {
+    //           formData = {
+    //             "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //             "AuthorId": this.state.remplacantID,
+    //             "DemandeurId": this.state.remplacantID,
+    //             "EcoleId": getProbateurs[0].ID,
+    //             "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //             "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //             "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //             "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //             "PrixTotal": prixTotal.toString(),
+    //             "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //             "Prix": "test ....",
+    //             "Quantite": "test ....",
+    //             "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //             "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //             "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //             "StatusDemandeV1": "En cours",
+    //             "StatusDemandeV3": "***",
+    //             "Produit": JSON.stringify(ArticleList),
+    //             "CreerPar": this.state.remplacantName,
+    //             "CentreDeGestion": this.state.RemplacantRespCenter,
+    //           }
+    //         } else {
+    //           formData = {
+    //             "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //             "AuthorId": currentUser.Id,
+    //             "DemandeurId": currentUser.Id,
+    //             "EcoleId": getProbateurs[0].ID,
+    //             "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //             "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //             "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //             "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //             "PrixTotal": prixTotal.toString(),
+    //             "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //             "Prix": "test ....",
+    //             "Quantite": "test ....",
+    //             "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //             "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //             "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //             "StatusDemandeV1": "En cours",
+    //             "StatusDemandeV3": "***",
+    //             "Produit": JSON.stringify(ArticleList),
+    //             "CreerPar": currentUser.Title,
+    //             "CentreDeGestion": this.state.userRespCenter,
+    //           }
+    //         }
+
+    //       } else {
+    //         if (this.state.checkRemplacant && this.state.condition === 2) {
+    //           formData = {
+    //             "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //             "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //             "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //             "EcoleId": getProbateurs[0].ID,
+    //             "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //             "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //             "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //             "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //             "PrixTotal": prixTotal.toString(),
+    //             "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //             "Prix": "test ....",
+    //             "Quantite": "test ....",
+    //             "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //             "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //             "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //             "StatusDemandeV1": "En cours",
+    //             "Produit": JSON.stringify(ArticleList),
+    //             "CreerPar": this.state.remplacantName,
+    //             "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //           }
+    //         } else if (this.state.checkRemplacant && this.state.condition === 1) {
+    //           formData = {
+    //             "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //             "AuthorId": this.state.remplacantID,
+    //             "DemandeurId": this.state.remplacantID,
+    //             "EcoleId": getProbateurs[0].ID,
+    //             "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //             "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //             "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //             "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //             "PrixTotal": prixTotal.toString(),
+    //             "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //             "Prix": "test ....",
+    //             "Quantite": "test ....",
+    //             "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //             "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //             "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //             "StatusDemandeV1": "En cours",
+    //             "Produit": JSON.stringify(ArticleList),
+    //             "CreerPar": this.state.remplacantName,
+    //             "CentreDeGestion": this.state.RemplacantRespCenter,
+    //           }
+    //         }
+    //         else {
+    //           formData = {
+    //             "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //             "AuthorId": currentUser.Id,
+    //             "DemandeurId": currentUser.Id,
+    //             "EcoleId": getProbateurs[0].ID,
+    //             "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //             "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //             "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //             "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //             "PrixTotal": prixTotal.toString(),
+    //             "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //             "Prix": "test ....",
+    //             "Quantite": "test ....",
+    //             "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //             "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //             "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //             "StatusDemandeV1": "En cours",
+    //             "StatusDemandeV3": "***",
+    //             "Produit": JSON.stringify(ArticleList),
+    //             "CreerPar": currentUser.Title,
+    //             "CentreDeGestion": this.state.userRespCenter,
+    //           }
+    //         }
+    //       }
+
+
+    //       const sendData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
+    //       sendedData = sendData
+
+
+    //       // ArticleList.map(async articleData => {
+    //       //   await this.attachFileToItem(sendData.data.ID)
+    //       // })
+
+    //       const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //         .add({
+    //           "DemandeID": sendData.data.ID.toString(),
+    //           "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV1 + " à partir du " + getCurrentDate()])
+    //         });
+
+    //       if (getProbateurs[0].ApprobateurV3Id === null) {
+    //         const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+    //           .add({
+    //             "DemandeID": sendData.data.ID.toString(),
+    //             "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //             "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //             "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //             "StatusApprobateurV1": "En cours",
+    //             "StatusApprobateurV2": "",
+    //             "StatusApprobateurV4": "",
+    //             "StatusApprobateurV3": "***",
+    //             "CommentaireApprobateurV1": "",
+    //             "CommentaireApprobateurV2": "",
+    //             "CommentaireApprobateurV4": "",
+    //             "CommentaireApprobateurV3": "***",
+    //           });
+    //       } else {
+    //         const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+    //           .add({
+    //             "DemandeID": sendData.data.ID.toString(),
+    //             "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //             "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //             "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+    //             "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //             "StatusApprobateurV1": "En cours",
+    //             "StatusApprobateurV2": "",
+    //             "StatusApprobateurV3": "",
+    //             "StatusApprobateurV4": "",
+    //             "CommentaireApprobateurV1": "",
+    //             "CommentaireApprobateurV2": "",
+    //             "CommentaireApprobateurV3": "",
+    //             "CommentaireApprobateurV4": "",
+    //           });
+    //       }
+
+    //     } else {
+    //       console.log("test 2")
+    //       var formData
+    //       console.log(getProbateurs)
+    //       console.log(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID)
+    //       if (getProbateurs[0].ApprobateurV3Id === null) {
+    //         console.log('test with approbateur with approbateur 3 null')
+    //         console.log(this.state.condition, this.state.checkRemplacant)
+    //         if (this.state.checkRemplacant && this.state.condition === 2) {
+    //           const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs)
+    //           console.log(checkUserNiveau)
+    //           if (checkUserNiveau === 0) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //               "StatusDemandeV1": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+    //             }
+    //           } else if (checkUserNiveau === 1) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+    //             }
+    //           } else if (checkUserNiveau === 2) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV4": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+    //             }
+    //           } else if (checkUserNiveau === 4) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV4": "Approuvée",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter
+    //             }
+    //           }
+
+    //         } else if (this.state.checkRemplacant && this.state.condition === 1) {
+    //           const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID, getProbateurs)
+    //           console.log(checkUserNiveau)
+    //           if (checkUserNiveau === 0) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //               "StatusDemandeV1": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter
+    //             }
+    //           } else if (checkUserNiveau === 1) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter
+    //             }
+    //           } else if (checkUserNiveau === 2) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV4": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter
+    //             }
+    //           } else if (checkUserNiveau === 4) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV4": "Approuvée",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter
+    //             }
+    //           }
+    //         } else {
+    //           console.log(currentUser.Id)
+    //           const checkUserNiveau = getApprobateurNiveau(currentUser.Id, getProbateurs)
+    //           console.log(checkUserNiveau)
+    //           if (checkUserNiveau === 0) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //               "StatusDemandeV1": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 1) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 2) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV4": "En cours",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 4) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV4": "Approuvée",
+    //               "StatusDemandeV3": "***",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           }
+    //         }
+
+    //       } else {
+    //         console.log("test with approbateur 3")
+    //         if (this.state.checkRemplacant && this.state.condition === 2) {
+    //           const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
+    //           if (checkUserNiveau === 0) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //               "StatusDemandeV1": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 1) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 2) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "StatusDemandeV3": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 3) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV3": "Approuvée",
+    //               "StatusDemandeV4": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 4) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "DemandeurId": this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV3": "Approuvée",
+    //               "StatusDemandeV4": "Approuvée",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.demandeAffectation === "me" ? currentUser.Title : this.state.remplacantName,
+    //               "CentreDeGestion": this.state.demandeAffectation === "me" ? this.state.userRespCenter : this.state.RemplacantRespCenter,
+    //             }
+    //           }
+
+    //         } else if (this.state.checkRemplacant && this.state.condition === 1) {
+    //           const checkUserNiveau = getApprobateurNiveau(this.state.remplacantID, getProbateurs);
+    //           if (checkUserNiveau === 0) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //               "StatusDemandeV1": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 1) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 2) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "StatusDemandeV3": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 3) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV3": "Approuvée",
+    //               "StatusDemandeV4": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 4) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": this.state.remplacantID,
+    //               "DemandeurId": this.state.remplacantID,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV3": "Approuvée",
+    //               "StatusDemandeV4": "Approuvée",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": this.state.remplacantName,
+    //               "CentreDeGestion": this.state.RemplacantRespCenter,
+    //             }
+    //           }
+
+    //         } else {
+    //           const checkUserNiveau = getApprobateurNiveau(currentUser.Id, getProbateurs);
+    //           console.log(checkUserNiveau)
+    //           if (checkUserNiveau === 0) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV1,
+    //               "StatusDemandeV1": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 1) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV2,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 2) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV3,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "En cours",
+    //               "StatusDemandeV3": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 3) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "En cours de " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV3": "Approuvée",
+    //               "StatusDemandeV4": "En cours",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           } else if (checkUserNiveau === 4) {
+    //             formData = {
+    //               "StatusBeneficiaire": this.state.DisabledBenef.toString(),
+    //               "AuthorId": currentUser.Id,
+    //               "DemandeurId": currentUser.Id,
+    //               "EcoleId": getProbateurs[0].ID,
+    //               "FamilleProduit": data[0].FamilleSelected[0]?.text,
+    //               "FamilleProduitREF": data[0].FamilleSelected[0].key,
+    //               "Beneficiaire": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0]?.text : "",
+    //               "BeneficiaireID": data[0].BeneficiareSelected && data[0].BeneficiareSelected.length > 0 ? data[0].BeneficiareSelected[0].key : "",
+    //               "PrixTotal": prixTotal.toString(),
+    //               "DelaiLivraisionSouhaite": data[0].numberOfDays,
+    //               "Prix": "test ....",
+    //               "Quantite": "test ....",
+    //               "SousFamilleProduit": data[0].SousFamilleSelected[0]?.text,
+    //               "SousFamilleProduitREF": data[0].SousFamilleSelected[0].key,
+    //               "StatusDemande": "Approuvée par " + getProbateurs[0].UserDisplayNameV4,
+    //               "StatusDemandeV1": "Approuvée",
+    //               "StatusDemandeV2": "Approuvée",
+    //               "StatusDemandeV3": "Approuvée",
+    //               "StatusDemandeV4": "Approuvée",
+    //               "Produit": JSON.stringify(ArticleList),
+    //               "CreerPar": currentUser.Title,
+    //               "CentreDeGestion": this.state.userRespCenter,
+    //             }
+    //           }
+    //         }
+    //       }
+
+    //       const sendData: IItemAddResult = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.add(formData);
+    //       sendedData = sendData
+
+    //       // ArticleList.map(async articleData => {
+    //       //   await this.attachFileToItem(sendData.data.ID)
+    //       // })
+
+
+
+    //       console.log('testtt', getProbateurs)
+    //       if (getProbateurs[0].ApprobateurV3Id === null) {
+    //         const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
+
+    //         if (checkUserNiveau === 0) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV1 + " à partir du " + getCurrentDate()])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "En cours",
+    //               "StatusApprobateurV2": "",
+    //               "StatusApprobateurV4": "",
+    //               "StatusApprobateurV3": "***",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "CommentaireApprobateurV3": "***",
+    //               "Step": "one"
+    //             });
+    //           console.log(sendApprobateursData)
+
+
+    //         } else if (checkUserNiveau === 1) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation de " + getProbateurs[0].UserDisplayNameV2 + " à partir du " + getCurrentDate()])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "En cours",
+    //               "StatusApprobateurV4": "",
+    //               "StatusApprobateurV3": "***",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "CommentaireApprobateurV3": "***",
+    //               "Step": "two"
+    //             });
+    //           console.log(sendApprobateursData)
+
+
+
+    //         } else if (checkUserNiveau === 2) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation de " + getProbateurs[0].UserDisplayNameV4 + " à partir du " + getCurrentDate()])
+    //             });
+
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "Approuvée",
+    //               "StatusApprobateurV4": "En cours",
+    //               "StatusApprobateurV3": "***",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "CommentaireApprobateurV3": "***",
+    //               "Step": "four"
+    //             });
+    //           console.log(sendApprobateursData)
+
+
+
+    //         } else if (checkUserNiveau === 4) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande approuvée car le demandeur est un approbateur de niveau 3"])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "Approuvée",
+    //               "StatusApprobateurV4": "Approuvée",
+    //               "StatusApprobateurV3": "***",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "CommentaireApprobateurV3": "***",
+    //               "Step": "four"
+    //             });
+    //           console.log(sendApprobateursData)
+    //         }
+
+    //       } else {
+    //         console.log(getProbateurs)
+    //         const checkUserNiveau = getApprobateurNiveau(this.state.demandeAffectation === "me" ? currentUser.Id : this.state.remplacantID, getProbateurs);
+
+    //         if (checkUserNiveau === 0) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation de " + getProbateurs[0].UserDisplayNameV1 + " à partir du " + getCurrentDate()])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+    //             .lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "En cours",
+    //               "StatusApprobateurV2": "",
+    //               "StatusApprobateurV3": "",
+    //               "StatusApprobateurV4": "",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV3": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "Step": "one"
+    //             });
+
+    //           console.log(sendApprobateursData)
+    //         } else if (checkUserNiveau === 1) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV2 + " à partir du " + getCurrentDate()])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+    //             .lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "En cours",
+    //               "StatusApprobateurV3": "",
+    //               "StatusApprobateurV4": "",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV3": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "Step": "two"
+    //             });
+
+    //           console.log(sendApprobateursData)
+    //         } else if (checkUserNiveau === 2) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV3 + " à partir du " + getCurrentDate()])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+    //             .lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "Approuvée",
+    //               "StatusApprobateurV3": "En cours",
+    //               "StatusApprobateurV4": "",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV3": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "Step": "three"
+    //             });
+
+    //           console.log(sendApprobateursData)
+    //         } else if (checkUserNiveau === 3) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), "Demande en cours d'approbation chez " + getProbateurs[0].UserDisplayNameV4 + " à partir du " + getCurrentDate()])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+    //             .lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "Approuvée",
+    //               "StatusApprobateurV3": "Approuvée",
+    //               "StatusApprobateurV4": "En cours",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV3": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "Step": "four"
+    //             });
+
+    //           console.log(sendApprobateursData)
+    //         } else if (checkUserNiveau === 4) {
+    //           const sendHistoryActions: IItemAddResult = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "Actions": JSON.stringify(["Création de la demande le " + getCurrentDate(), " Demande approuvée car le demandeur est un approbateur de niveau 4"])
+    //             });
+
+    //           const sendApprobateursData: IItemAddResult = await Web(this.props.url)
+    //             .lists.getByTitle("WorkflowApprobation").items
+    //             .add({
+    //               "DemandeID": sendData.data.ID.toString(),
+    //               "ApprobateurV1Id": { results: getProbateurs[0].ApprobateurV1Id },
+    //               "ApprobateurV2Id": { results: getProbateurs[0].ApprobateurV2Id },
+    //               "ApprobateurV3Id": { results: getProbateurs[0].ApprobateurV3Id },
+    //               "ApprobateurV4Id": { results: getProbateurs[0].ApprobateurV4Id },
+    //               "StatusApprobateurV1": "Approuvée",
+    //               "StatusApprobateurV2": "Approuvée",
+    //               "StatusApprobateurV3": "Approuvée",
+    //               "StatusApprobateurV4": "Approuvée",
+    //               "CommentaireApprobateurV1": "",
+    //               "CommentaireApprobateurV2": "",
+    //               "CommentaireApprobateurV3": "",
+    //               "CommentaireApprobateurV4": "",
+    //               "Step": "five"
+    //             });
+
+    //           console.log(sendApprobateursData)
+    //         }
+
+    //       }
+    //     }
+
+    //     await Promise.all(
+    //       ArticleList.map(async articleData => {
+    //         await this.attachFileToItem(sendedData.data.ID);
+    //       })
+    //     );
+    //     this.setState({ showValidationPopUp: true, spinnerShow: false })
+    //   } else {
+    //     this.setState({ popUpApprobateurs: true })
+    //   }
+    // }
   }
 
 
@@ -2102,7 +3446,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
       const user = await this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
 
-      console.log(user);
+      console.log("USER: ", user);
 
       this.setState({
         userName: user["displayName"],
@@ -2193,7 +3537,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
         const now = new Date();
         now.setHours(0, 0, 0, 0); // Normalize to midnight
         const remplacantTest = await Web(this.props.url).lists.getByTitle('RemplacantsModuleAchat').items
-          .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} DemandeurId eq ${Approuver3} or DemandeurId eq ${Approuver4} and TypeRemplacement eq 'AP'`)
+          .filter(`DemandeurId eq ${Approuver1} or DemandeurId eq ${Approuver2} or DemandeurId eq ${Approuver3} or DemandeurId eq ${Approuver4} and TypeRemplacement eq 'AP'`)
           .orderBy('Created', false)
           .top(1)
           .select("Demandeur/Title", "Demandeur/EMail", "DemandeurId", "RemplacantId", "DateDeDebut", "DateDeFin")
@@ -2273,6 +3617,8 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
     // Get user info
     await this.loadUserInfo();
 
+
+
     if (APPROUVER_V4 === this.state.userRegistrationNumber) {
       window.location.href = REDIRECTION_URL;
     } else {
@@ -2323,6 +3669,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
           this.setState({ RemplacantRespCenter: RemplacantUserDataFromERP[0]['RespCenter'] })
 
           console.log(RemplacantUserDataFromERP[0]['RespCenter'])
+
         }
       } else {
         if (DemandeurAcces === 0) {
@@ -2363,13 +3710,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
   }
 
 
-
-
-
-
-
   public render(): React.ReactElement<IFormulaireDemandeurProps> {
-
     const dropdownStyles: Partial<IDropdownStyles> = {
       dropdown: { width: 300 },
       title: { backgroundColor: "white" },
@@ -2389,8 +3730,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
 
     // Created but not implemented
     var AllArticleData = getAllArticles(this.state.formData)
+    var AllArticleDataWithBenef = getAllArticlesWithBenef(this.state.formData)
     const uniqueArray = removeDuplicates2(AllArticleData);
+    const uniqueArrayForBenef = removeDuplicatesForArticlesWithBenef(AllArticleDataWithBenef);
     console.log(uniqueArray);
+    console.log(uniqueArrayForBenef)
 
 
 
@@ -2401,6 +3745,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
       >
         <div className={stylescustom.formulaireDemandeur}>
           <div className={stylescustom.DC}>
+            {console.log(this.state.userRespCenter)}
             <p className={stylescustom.datenow}>Date : <span className="date-time">{FormatDate(new Date())}</span></p>
             <div className={stylescustom.titleh1}>Demande d'achat </div>
             <div className={stylescustom.line}></div>
@@ -2462,17 +3807,22 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                   <div className={stylescustom.row}>
                     {!this.state.DisabledBenef && <div className={stylescustom.data}>
                       <p className={stylescustom.title}>Bénificaire / Déstinataire</p>
-                      <Dropdown
+                      <ComboBox
                         styles={dropdownStyles}
-                        defaultSelectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
-                        onChange={this.onSelectionChanged}
-                        onRenderTitle={this.onRenderTitle}
+                        selectedKey={this.state.formData[index - 1]["BeneficiareSelected"] && this.state.formData[index - 1]["BeneficiareSelected"][0] ? this.state.formData[index - 1]["BeneficiareSelected"][0].key : ""}
+                        // onChange={this.onSelectionChanged}
+                        // onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
-                        onRenderCaretDown={this.onRenderCaretDown}
+                        // onRenderCaretDown={this.onRenderCaretDown}
                         options={this.getBeneficaire()}
-                        onChanged={(value) => this.handleChangeDestinataireDropdown(value, index)}
+                        onChange={(event, option) => this.handleChangeDestinataireDropdown(option, index)}
                         style={{ width: '200px' }} // Specify the width you desire
+                        useComboBoxAsMenuWidth
+                        allowFreeform
+                        autoComplete="on"
                       />
+                      {this.state.formData[index - 1]['BeneficiareSelected'].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer le Bénificaire de la demande</span>}
+
                     </div>}
 
 
@@ -2480,53 +3830,64 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* Famille</p>
                       {index > 1 ? (
-                        <label className={stylescustom.btn} style={{ width: '180px' }}>{this.state.formData[0].FamilleSelected[0].text}</label>
+                        <label className={stylescustom.btn} style={{ width: '180px' }}>{this.state.formData[0].FamilleSelected[0]?.text}</label>
                       ) : (
-                        <Dropdown
-                          defaultValue={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
-                          styles={dropdownStylesFamilleDropdown}
-                          onRenderTitle={this.onRenderTitle}
-                          onRenderOption={this.onRenderOption}
-                          onRenderCaretDown={this.onRenderCaretDown}
-                          options={this.state.familyProducts}
-                          onChanged={(value) => this.handleChangeFamilleDropdown(value, index)}
-                          defaultSelectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
-                          style={{ width: '200px' }}
-                        />
+                        <>
+                          <ComboBox
+                            selectedKey={this.state.formData[index - 1]?.FamilleSelected?.[0]?.key || ""}
+                            styles={dropdownStylesFamilleDropdown}
+                            onRenderOption={this.onRenderOption}
+                            options={this.state.familyProducts}
+                            onChange={(event, option) => this.handleChangeFamilleDropdown(option, index)}
+                            style={{ width: '200px' }}
+                            useComboBoxAsMenuWidth
+                            allowFreeform
+                            autoComplete="on"
+                          />
+                          {this.state.formData[index - 1]['FamilleSelected'].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer la famille de la demande</span>}
+                        </>
                       )}
                     </div>
 
 
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* Sous famille</p>
-                      <Dropdown
+                      <ComboBox
                         defaultSelectedKey={this.state.formData[index - 1]['SousFamilleSelected'] && this.state.formData[index - 1]['SousFamilleSelected'][0] ? this.state.formData[index - 1]['SousFamilleSelected'][0].key : ""}
                         styles={dropdownStyles}
-                        onRenderTitle={this.onRenderTitle}
+                        // onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
-                        onRenderCaretDown={this.onRenderCaretDown}
+                        // onRenderCaretDown={this.onRenderCaretDown}
                         options={this.state.subFamilyProducts}
-                        onChanged={(value) => this.handleChangeSousFamilleDropdown(value, index)}
+                        onChange={(event, option) => this.handleChangeSousFamilleDropdown(option, index)}
                         style={{ width: '200px' }}
+                        useComboBoxAsMenuWidth
+                        allowFreeform
+                        autoComplete="on"
                       />
+                      {this.state.formData[index - 1]['SousFamilleSelected'].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer la  sous famille de la demande</span>}
                     </div>
 
 
 
                     <div className={stylescustom.data}>
                       <p className={stylescustom.title}>* Réference de l'article</p>
-                      <Dropdown
+                      <ComboBox
                         styles={dropdownStyles}
                         defaultValue={this.state.formData[index - 1]?.ArticleSelected?.[0]?.key || ""}
                         defaultSelectedKey={this.state.formData[index - 1]["ArticleSelected"] && this.state.formData[index - 1]["ArticleSelected"][0] ? this.state.formData[index - 1]["ArticleSelected"][0].key : ""}
-                        onChange={this.onSelectionChanged}
-                        onRenderTitle={this.onRenderTitle}
+                        // onChange={this.onSelectionChanged}
+                        // onRenderTitle={this.onRenderTitle}
                         onRenderOption={this.onRenderOption}
-                        onRenderCaretDown={this.onRenderCaretDown}
+                        // onRenderCaretDown={this.onRenderCaretDown}
                         options={this.state.formData[index - 1].AllArticleData}
-                        onChanged={(value) => this.handleChangeArticleDropdown(value, index)}
+                        onChange={(event, option) => this.handleChangeArticleDropdown(option, index)}
                         style={{ width: '200px' }} // Specify the width you desire
+                        useComboBoxAsMenuWidth
+                        allowFreeform
+                        autoComplete="on"
                       />
+                      {this.state.formData[index - 1]["ArticleSelected"].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer l'article de la demande</span>}
                     </div>
                   </div>
 
@@ -2537,10 +3898,12 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       <TextField
                         className={controlClass.TextField}
                         type='number'
+                        min={0.1}
+                        step="0.1" // Allows float values
                         onChange={(e) => this.handleChangeQuantity(e, index)}
-                        min={1}
                         value={this.state.formData[index - 1]["quantity"] && this.state.formData[index - 1]["quantity"] ? this.state.formData[index - 1]["quantity"] : ""}
                       />
+                      {this.state.formData[index - 1]["quantity"].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer la quantité de la demande</span>}
                     </div>
 
                     <div className={stylescustom.data}>
@@ -2553,17 +3916,19 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                         onChange={(e) => this.handleChangePrice(e, index)}
                         value={this.state.formData[index - 1]["price"]}
                       />
+                      {this.state.formData[index - 1]["price"].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer le prix unitaire estimatif de la demande</span>}
                     </div>
 
 
                     <div className={stylescustom.data}>
-                      <p className={stylescustom.title}>* Delai le livraison souhaité :</p>
+                      <p className={stylescustom.title}>* Delai le livraison souhaité (jour):</p>
                       <TextField
                         type='number'
                         min={0}
                         value={String(this.state.formData[index - 1]["numberOfDays"])}
                         onChange={(e) => this.handleInputChange(e, index)}
                       />
+                      {String(this.state.formData[index - 1]["numberOfDays"]).length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer le delai le livraison souhaité</span>}
                     </div>
                   </div>
 
@@ -2575,8 +3940,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                         className={controlClass.TextField}
                         value={this.state.formData[index - 1]["Comment"]}
                         multiline
+                        maxLength={200}
                         onChange={(e) => this.handleChangeComment(e, index)}
                       />
+                      {this.state.formData[index - 1]["Comment"].length === 0 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Entrer la description de la demande</span>}
+                      {this.state.formData[index - 1]["Comment"].length === 200 && <span style={{ color: "rgb(168, 0, 0)", fontSize: 12, fontWeight: 400 }}>Vous n'avez pas le droit de dépasser 200 caractères</span>}
                     </div>
                   </div>
                 </div>
@@ -2589,12 +3957,12 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
               !this.state.DisabledBenef
                 ? this.state.formData.map((article, index) => {
                   if (article.ArticleSelected.length > 0 && article) {
-                    console.log(parseFloat(article.price) * parseInt(article.quantity))
+                    console.log(parseFloat(article.price) * parseFloat(article.quantity))
                     console.log(article.ArticleSelected[0].BudgetAnnualAllocated)
-                    if ((parseFloat(article.price) * parseInt(article.quantity)) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
+                    if ((parseFloat(article.price) * parseFloat(article.quantity)) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
                       return (
                         <p key={index} className={stylescustom.indique}>
-                          - <b style={{ color: "#7d2935" }}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} pour le bénéficiaire {article.BeneficiareSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
+                          - <b style={{ color: "#7d2935" }}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0]?.text} pour le bénéficiaire {article.BeneficiareSelected[0]?.text} de votre demande dépasse la limite budgétaire fixée.
                         </p>
                       );
                     }
@@ -2603,11 +3971,11 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 })
                 : this.state.formData.map((article, index) => {
                   if (article.ArticleSelected.length > 0 && article) {
-                    if (parseFloat(article.price) * parseInt(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
+                    if (parseFloat(article.price) * parseFloat(article.quantity) > convertStringToNumber(article.ArticleSelected[0].BudgetAnnualRemaining)) {
                       return (
                         <div key={index}>
                           <p className={stylescustom.indique}>
-                            - <b style={{ color: "#7d2935" }}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0].text} de votre demande dépasse la limite budgétaire fixée.
+                            - <b style={{ color: "#7d2935" }}>Prévenez</b>, le coût de l'article {article.ArticleSelected[0]?.text} de votre demande dépasse la limite budgétaire fixée.
                           </p>
                         </div>
                       );
@@ -2645,18 +4013,18 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 {console.log(this.state.formData)}
                 {console.log(this.state.formData)}
                 {console.log(this.state.DisabledBenef)}
-                {(this.state.DisabledBenef === false) && this.state.formData.map((article, index) =>
+                {/* {(this.state.DisabledBenef === false) && this.state.formData.map((article, index) =>
                   article.ArticleSelected.length > 0 && article &&
                   <>
                     {console.log("Axe data:", this.state.axePerBuget)}
                     {console.log(article)}
                     <tr>
                       <td className={stylescustom.key}>- Déstinataire: </td>
-                      <td className={stylescustom.value}>{article.BeneficiareSelected.length > 0 && article.BeneficiareSelected[0].text}</td>
+                      <td className={stylescustom.value}>{article.BeneficiareSelected.length > 0 && article.BeneficiareSelected[0]?.text}</td>
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le budget de l'article: </td>
-                      <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].text}</td>
+                      <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0]?.text}</td>
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel alloué</td>
@@ -2671,6 +4039,32 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                       <td className={stylescustom.value}>{article.ArticleSelected.length > 0 && article.ArticleSelected[0].BudgetAnnualUsed}</td>
                     </tr>
                   </>
+                )} */}
+                {(this.state.DisabledBenef === false) && uniqueArrayForBenef.map((article, index) =>
+                  <>
+                    {console.log("Axe data:", this.state.axePerBuget)}
+                    {console.log(article)}
+                    <tr>
+                      <td className={stylescustom.key}>- Déstinataire: </td>
+                      <td className={stylescustom.value}>{article.Beneficiaire}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le budget de l'article: </td>
+                      <td className={stylescustom.value}>{article?.text}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel alloué</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualAllocated}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel restant</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualRemaining}</td>
+                    </tr>
+                    <tr>
+                      <td className={stylescustom.key}>Le montant du budget annuel utilisé</td>
+                      <td className={stylescustom.value}>{article.BudgetAnnualUsed}</td>
+                    </tr>
+                  </>
                 )}
                 {(this.state.DisabledBenef === true) && uniqueArray.map((article, index) =>
                   <>
@@ -2679,7 +4073,7 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                     {console.log(parseFloat(this.state.formData[this.state.counterProducts - 1].price))}
                     <tr>
                       <td className={stylescustom.key}>Le budget de l'article: </td>
-                      <td className={stylescustom.value}>{article.text}</td>
+                      <td className={stylescustom.value}>{article?.text}</td>
                     </tr>
                     <tr>
                       <td className={stylescustom.key}>Le montant du budget annuel alloué</td>
@@ -2800,6 +4194,24 @@ export default class FormulaireDemandeur extends React.Component<IFormulaireDema
                 </ul>
 
                 <p> =&gt; Veuillez fournir d'autres données.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {this.state.popUpMultiApprobateurs && (
+          <div className={styles.demandeurDashboard}>
+            <div className={styles.modal}>
+              <div className={styles.modalContent}>
+                <span className={styles.close} onClick={() => location.reload()}>&times;</span>
+                <h3>À noter</h3>
+                <ul>
+                  <li>
+                    Je vous prie de m’excuser, Monsieur/Madame. Votre demande ne peut pas être validée car elle contient plusieurs articles provenant de différentes listes d’approbateurs.
+                  </li>
+                </ul>
+
+                <p> =&gt; Veuillez modifier votre demande en conséquence ou contacter l’équipe support pour obtenir de l’aide.</p>
               </div>
             </div>
           </div>

@@ -18,3 +18,5 @@ export const EmployeeApprouverURL = "https://apiintra-test.universitecentrale.ne
 
 // GET CLOSED PURCHASE REQUESTS PREPROD ENV
 export const ClosedPurchaseOrderURL = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/ClosedPurchaseOrder";
+
+export const ApprouverOrderURL_PROD = "https://prod.universitecentrale.net:9076/UCG.svc/ApproverRequest";

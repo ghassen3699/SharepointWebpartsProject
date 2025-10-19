@@ -8,9 +8,13 @@ import "@pnp/sp/items";
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/site-users/web";
+import "@pnp/sp/site-groups/web";
+import "@pnp/sp/site-groups";
 import { IDashboardDemandeClotureesProps } from './IDashboardDemandeClotureesProps';
 import { getClosedPurchaseRequests } from '../../../services/getClosedPurchaseRequests';
 import { DatePicker, DayOfWeek, IDatePickerStrings } from 'office-ui-fabric-react/lib/DatePicker';
+import GraphService from '../../../services/GraphServices';
+import { DemandeurGroupId } from '../../../API_END_POINTS/AchatModuleEndPoints';
 
 const datepickerStrings: IDatePickerStrings = {
   months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
@@ -29,19 +33,31 @@ const datepickerStrings: IDatePickerStrings = {
 export default class DashboardDemandeCloturees extends React.Component<IDashboardDemandeClotureesProps, {}> {
   public state = {
     currentPage: 1,
-    itemsPerPage:5,
+    itemsPerPage: 5,
     dateDebutFilter: '',
     dateFinFilter: '',
     StatusFilter: '',
+    IdIntranetFilter: '',
+    referenceErpFilter: '',
 
     openDetailsDiv: false,
-    listDemandeData: [] as any, 
+    listDemandeData: [] as any,
     detailsListDemande: [] as any,
     cancelPopUp: false,
     isOpen: false,
-    currentAccordion : 0,
-    getDataClicked: false
-  }; 
+    currentAccordion: 0,
+    getDataClicked: false,
+    disabledFilters: true,
+    currentUserRole: "Demandeur",
+    multiUserRolesPopUp: false,
+    multiUserRoles: false,
+    employeeID: 0,
+    currentUserInGroup: false,
+    currentUserInGroupPopup: false
+  };
+
+  private _graphService = new GraphService(this.props.context);
+
 
   handleNextPage = () => {
     const { currentPage } = this.state;
@@ -59,14 +75,14 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
     }
   };
 
-  handlePageClick = (page:any) => {
+  handlePageClick = (page: any) => {
     this.setState({ currentPage: page });
   };
 
 
   handleDateDebutFilterChange = (date) => {
     console.log(date)
-    date = new Date(date) ;
+    date = new Date(date);
     const day = date.getDate();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
@@ -74,13 +90,13 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
     const formattedDay = day < 10 ? `0${day}` : day;
     const formattedMonth = month < 10 ? `0${month}` : month;
 
-    const formattedDate = `${formattedDay}/${formattedMonth}/${year}`; 
-    this.setState({ dateDebutFilter: formattedDate});
+    const formattedDate = `${formattedDay}/${formattedMonth}/${year}`;
+    this.setState({ dateDebutFilter: formattedDate });
   };
 
 
   private convertStringDateToNormalDate = (dateString) => {
-    if (dateString === "") return null ;
+    if (dateString === "") return null;
     const parts = dateString.split("/");
 
     const day = parseInt(parts[0], 10);
@@ -90,11 +106,11 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
     const date = new Date(year, month, day);
     return date
   }
- 
+
 
   handleDateFinFilterChange = (date) => {
     console.log(date)
-    date = new Date(date) ;
+    date = new Date(date);
     const day = date.getDate();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
@@ -102,17 +118,27 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
     const formattedDay = day < 10 ? `0${day}` : day;
     const formattedMonth = month < 10 ? `0${month}` : month;
 
-    const formattedDate = `${formattedDay}/${formattedMonth}/${year}`; 
-    this.setState({ dateFinFilter: formattedDate});
+    const formattedDate = `${formattedDay}/${formattedMonth}/${year}`;
+    this.setState({ dateFinFilter: formattedDate });
   };
 
 
-  private openDetailsDiv = async (index: any) => {
-    const listCommandeData = this.state.listDemandeData ;
-    if (listCommandeData.length > 0){
-      const selectedCommand = listCommandeData[index]
-      console.log(selectedCommand)
-      this.setState({openDetailsDiv: true, detailsListDemande:selectedCommand})
+  private openDetailsDiv = async (demande: any) => {
+    console.log(demande)
+    const listCommandeData = this.state.listDemandeData;
+    if (listCommandeData.length > 0) {
+      this.setState({ openDetailsDiv: true, detailsListDemande: demande })
+    }
+  }
+
+  private handleChangeUserRole(role) {
+    this.setState({ currentUserRole: role.key, currentPage: 1, listDemandeData: [], getDataClicked: false, disabledFilters: true, IdIntranetFilter: '', referenceErpFilter: '', dateDebutFilter: '', dateFinFilter: '' });
+    if (role.key === "Demandeur") {
+      // this.setState({ DemandeurFilter: '', StatusFilter: '' })
+      console.log('Demandeur')
+    } else if (role.key === "Approuver") {
+      // this.setState({ DemandeurFilter: '', StatusFilter: '' })
+      console.log('Approuver')
     }
   }
 
@@ -123,15 +149,18 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
   // }
 
 
-  private getCommandesListData = async() => {
-    const data = await getClosedPurchaseRequests(this.state.dateDebutFilter, this.state.dateFinFilter, this.state.StatusFilter) ;
+  private getCommandesListData = async () => {
+    console.log(
+      this.state.employeeID, this.state.currentUserRole, this.state.dateDebutFilter, this.state.dateFinFilter
+    )
+    const data = await getClosedPurchaseRequests(this.state.employeeID, this.state.currentUserRole, this.state.dateDebutFilter, this.state.dateFinFilter);
     console.log(data)
-    if (data.Status === "200"){
+    if (data.Status === "200") {
       console.log(200)
-      this.setState({listDemandeData:data.PurchaseOrders, getDataClicked: true})
-    }else {
+      this.setState({ listDemandeData: data.PurchaseOrders, getDataClicked: true, disabledFilters: false })
+    } else {
       console.log(400)
-      this.setState({listDemandeData:[], getDataClicked: true})
+      this.setState({ listDemandeData: [], getDataClicked: true })
     }
   }
 
@@ -203,61 +232,191 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
     {
       key: "CC",
       text: "CC",
-    },{
+    }, {
       key: "MSC",
       text: "MSC",
     }]
     return listBenef
   }
-  
+
 
   private clearFilterButton = () => {
-    this.setState({StatusFilter:'', dateDebutFilter: '',dateFinFilter: '', listDemandeData:[], getDataClicked:false});
+    this.setState({ IdIntranetFilter: '', referenceErpFilter: '', StatusFilter: '', dateDebutFilter: '', dateFinFilter: '', listDemandeData: [], getDataClicked: false, disabledFilters: true, currentPage: 1 });
   }
 
   toggleAccordion = (Accordionindex) => {
     var isStatePrev = this.state.isOpen
     console.log(Accordionindex)
 
-    this.setState({isOpen: !isStatePrev, currentAccordion:Accordionindex})
+    this.setState({ isOpen: !isStatePrev, currentAccordion: Accordionindex })
   };
 
+  private getAllApprouverListData = async () => {
+    const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
+    const DemandeIDs = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
+      .filter(`
+          ( 
+            (ApprobateurV1/Id eq ${currentUserID} and (StatusApprobateurV1 eq 'En cours' or StatusApprobateurV1 eq 'Approuvée' or StatusApprobateurV1 eq 'Rejetée' or StatusApprobateurV1 eq 'A modifier')) or 
+            (ApprobateurV2/Id eq ${currentUserID} and (StatusApprobateurV2 eq 'En cours' or StatusApprobateurV2 eq 'Approuvée' or StatusApprobateurV2 eq 'Rejetée' or StatusApprobateurV2 eq 'A modifier')) or 
+            (ApprobateurV3/Id eq ${currentUserID} and (StatusApprobateurV3 eq 'En cours' or StatusApprobateurV3 eq 'Approuvée' or StatusApprobateurV3 eq 'Rejetée' or StatusApprobateurV3 eq 'A modifier')) or
+            (ApprobateurV4/Id eq ${currentUserID} and (StatusApprobateurV4 eq 'En cours' or StatusApprobateurV4 eq 'Approuvée' or StatusApprobateurV4 eq 'Rejetée' or StatusApprobateurV4 eq 'A modifier'))
+          )
+      `)
+      .top(1000)
+      .orderBy("Created", false)
+      .select('DemandeID', 'StatusApprobateurV1', 'StatusApprobateurV2', 'StatusApprobateurV3', 'StatusApprobateurV4')
+      .get();
+    console.log(DemandeIDs)
+    const listDemandeDataPromises = DemandeIDs.map(async (demande) => {
+      return await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+        .top(1000)
+        .orderBy("Created", false)
+        .expand("Ecole")
+        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CentreDeGestion", "budgetSelected", "budgetSelectedID", "ReferenceDemande")
+        .getById(demande.DemandeID).get();
+    });
+
+    // Wait for all promises to resolve
+    const listDemandeData = await Promise.all(listDemandeDataPromises);
+    console.log(listDemandeData)
+    return listDemandeData
+    // this.setState({ listDemandeData })
+  }
+
+
+  // Get current user demandeur list
+  private getDemandeurListData = async () => {
+    const currentUserID = (await Web(this.props.url).currentUser.get()).Id;
+    const listDemandeData = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+      .filter(`DemandeurId eq ${currentUserID}`)
+      .orderBy('Created', false)
+      .top(100)
+      .get();
+
+    console.log(listDemandeData);
+    // this.setState({ listDemandeData });
+    return listDemandeData
+  }
+
+
+  // Get all users in a group
+  private getListUsersInGroup = async (groupId) => {
+    const group = await this._graphService.getGroupMembers(groupId);
+    return group
+  }
+
+
+  private checkIfCurrentUserInGroup = async () => {
+    try {
+      const usersInGroup = await this.getListUsersInGroup(DemandeurGroupId);
+      console.log(usersInGroup)
+      const currentUserEmail = this.props.context.pageContext.legacyPageContext["userPrincipalName"];
+      const userInGroup = usersInGroup.filter(user => user.mail && user.mail.toLowerCase() === currentUserEmail.toLowerCase());
+      if (userInGroup.length === 0) {
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.log(error)
+      return false
+    }
+
+  }
+
   async componentDidMount() {
-    // this.getDemandeListData() ;
-    // this.loadUserInfo() ;
+    const userInGroup = await this.checkIfCurrentUserInGroup();
+    console.log('user in group: ', userInGroup)
+    if (userInGroup) {
+      this.setState({ currentUserRole: "", employeeID: "", currentUserInGroup: true, currentUserInGroupPopup: true })
+
+    } else {
+      const demandeurListData = await this.getDemandeurListData();
+      const approuverListData = await this.getAllApprouverListData();
+      const user = await this._graphService.getUserId(this.props.context.pageContext.legacyPageContext["userPrincipalName"]);
+      // await this.getDemandeListDataForApprouverRole();
+
+      console.log('user info: ', user)
+      console.log(demandeurListData)
+      console.log(approuverListData)
+
+      if (demandeurListData.length > 0 && approuverListData.length > 0) {
+        console.log('Approbateur et Demandeur')
+        this.setState({ multiUserRoles: true, multiUserRolesPopUp: true, currentUserRole: "Demandeur", employeeID: user["employeeId"] })
+
+      } else if (demandeurListData.length > 0 && approuverListData.length === 0) {
+        console.log('Demandeur')
+        this.setState({ currentUserRole: "Demandeur", employeeID: user["employeeId"] })
+
+      } else if (demandeurListData.length === 0 && approuverListData.length > 0) {
+        console.log('Approbateur')
+        this.setState({ currentUserRole: "Approuver", employeeID: user["employeeId"] })
+      }
+
+      // this.setState({ employeeID: "1690" })
+    }
   }
 
   public render(): React.ReactElement<IDashboardDemandeClotureesProps> {
 
     const dropdownStyles: Partial<IDropdownStyles> = {
-      title: { backgroundColor: "white"}
+      title: { backgroundColor: "white" }
     };
     const controlClass = mergeStyleSets({
       TextField: { backgroundColor: "white", }
     });
-    const { currentPage, itemsPerPage, listDemandeData, dateDebutFilter, dateFinFilter ,StatusFilter } = this.state;
+    const { currentPage, itemsPerPage, listDemandeData, IdIntranetFilter, referenceErpFilter } = this.state;
 
-    // var filteredData
-    // if(dateDebutFilter.length > 0 || StatusFilter.length > 0 || dateFinFilter.length > 0){
-    //   console.log(dateDebutFilter)
-    //   console.log(dateFinFilter)
-    //   console.log(StatusFilter)
-    //   filteredData = listDemandeData.filter((item:any) => {
-    //     return item.FamilleProduit.toLowerCase().includes(dateDebutFilter.toLowerCase()) && item.statusDemande.toString().includes(StatusFilter);
-    //   }); 
-    // }else {
-    //   filteredData = listDemandeData
-    // }
+    var filteredData
+    if (IdIntranetFilter.length > 0 || referenceErpFilter.length > 0) {
+      console.log(IdIntranetFilter)
+      console.log(referenceErpFilter)
+      console.log(listDemandeData)
+      if (IdIntranetFilter.length === 0) {
+        filteredData = listDemandeData.filter((item: any) => {
+          return item.RéfRequestERP.toLowerCase().includes(referenceErpFilter.toLowerCase());
+        });
+      } else if (referenceErpFilter.length === 0) {
+        filteredData = listDemandeData.filter((item: any) => {
+          return item.IdRequestIntranet.toLowerCase().includes(IdIntranetFilter.toLowerCase());
+        });
+      } else {
+        filteredData = listDemandeData.filter((item: any) => {
+          return item.IdRequestIntranet.toLowerCase().includes(IdIntranetFilter.toLowerCase()) && item.RéfRequestERP.toLowerCase().includes(referenceErpFilter.toLowerCase());
+        });
+      }
+    } else {
+      filteredData = listDemandeData
+    }
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = listDemandeData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(listDemandeData.length / itemsPerPage);
+    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
     return (
       <div className={styles.dashboardDemandeCloturees}>
         <div className={styles.title}><strong>Filtres</strong></div>
         <div className={styles.filters}>
+
+          {this.state.multiUserRoles && <>
+            <label className={styles.title}>Rôle : </label>
+            <div className={styles.statusWrapper}>
+              <Dropdown
+                styles={dropdownStyles}
+                placeholder="Selectionner votre status"
+                options={[
+                  { key: 'Demandeur', text: 'Demandeur' },
+                  { key: 'Approbateur', text: 'Approbateur' },
+                ]}
+                defaultSelectedKey={this.state.currentUserRole}
+                style={{ width: '150px' }} // Specify the width you desire
+                onChanged={(value) => this.handleChangeUserRole(value)}
+              />
+            </div>
+          </>}
+
+
           <label className={styles.title}>Date debut : </label>
           <div className={styles.statusWrapper}>
             <DatePicker
@@ -280,15 +439,27 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
             />
           </div>
 
-          <label className={styles.title}>Centre de gestion : </label>
+          <label className={styles.title}>ID Intranet : </label>
           <div className={styles.statusWrapper}>
-            <Dropdown
-              styles={dropdownStyles}
-              placeholder="Selectionner votre status"
-              options={this.getBeneficaire()}
-              defaultSelectedKey={this.state.StatusFilter}
-              style={{ width: '189.84px' }} // Specify the width you desire
-              onChanged={(value) => this.setState({StatusFilter:value.key , currentPage: 1})}
+            <TextField
+              disabled={this.state.disabledFilters}
+              placeholder="Rechercher par ID Intranet"
+              value={this.state.IdIntranetFilter}
+              // value={this.state.FamilleFilter === 'TOUS' ? '' : this.state.FamilleFilter}
+              onChange={(e, newValue) => this.setState({ IdIntranetFilter: newValue, currentPage: 1 })}
+              style={{ width: '150px', fontSize: "12px" }}
+            />
+          </div>
+
+          <label className={styles.title}>Réference ERP : </label>
+          <div className={styles.statusWrapper}>
+            <TextField
+              disabled={this.state.disabledFilters}
+              placeholder="Rechercher par réference ERP"
+              value={this.state.referenceErpFilter}
+              // value={this.state.FamilleFilter === 'TOUS' ? '' : this.state.FamilleFilter}
+              onChange={(e, newValue) => this.setState({ referenceErpFilter: newValue, currentPage: 1 })}
+              style={{ width: '150px', fontSize: "12px" }}
             />
           </div>
           <button className={styles.btnRef} onClick={() => this.getCommandesListData()}>Obtenir des données</button>
@@ -298,212 +469,190 @@ export default class DashboardDemandeCloturees extends React.Component<IDashboar
           </div>
         </div>
 
-        
-        <div id="spListContainer"> 
+
+        <div id="spListContainer">
           {/* Error message when user didn't add any filter */}
           {
-            (this.state.StatusFilter === '' || this.state.dateDebutFilter === '' || this.state.dateFinFilter === '') && 
-            <div style={{textAlign:'center'}}><h4>Saisissez vos filtres pour obtenir les informations.</h4></div>
+            ((this.state.currentUserInGroup === false) && (this.state.currentUserRole === '' || this.state.employeeID === 0 || this.state.dateDebutFilter === '' || this.state.dateFinFilter === '')) &&
+            <div style={{ textAlign: 'center' }}><h4>Saisissez vos filtres pour obtenir les informations.</h4></div>
+          }
+
+          {
+            ((this.state.currentUserInGroup === true) && (this.state.dateDebutFilter === '' || this.state.dateFinFilter === '')) &&
+            <div style={{ textAlign: 'center' }}><h4>Saisissez vos filtres pour obtenir les informations.</h4></div>
           }
 
           {/* Error message when user add to startDate, endDate and Centre de gestion */}
           {
-            (this.state.StatusFilter !== '' && this.state.dateDebutFilter !== '' && this.state.dateFinFilter !== '' && !this.state.getDataClicked) &&
-            <div style={{textAlign:'center'}}><h4>Saisissez vos filtres pour obtenir les informations.</h4></div>
+            (this.state.currentUserRole !== '' && this.state.employeeID !== 0 && this.state.dateDebutFilter !== '' && this.state.dateFinFilter !== '' && !this.state.getDataClicked) &&
+            <div style={{ textAlign: 'center' }}><h4>Saisissez vos filtres pour obtenir les informations.</h4></div>
           }
 
           {/* Error message when data is empty */}
           {
-            (this.state.StatusFilter !== '' && this.state.dateDebutFilter !== '' && this.state.dateFinFilter !== '' && this.state.getDataClicked && currentItems.length === 0) &&
-            <div style={{textAlign:'center'}}><h4>Aucune données trouvées</h4></div>
+            (this.state.currentUserRole !== '' && this.state.employeeID !== 0 && this.state.dateDebutFilter !== '' && this.state.dateFinFilter !== '' && this.state.getDataClicked && currentItems.length === 0) &&
+            <div style={{ textAlign: 'center' }}><h4>Aucune données trouvées</h4></div>
           }
 
-          {/* Show data */}
+
           {currentItems.length > 0 &&
-            <table style={{borderCollapse: "collapse", width:"100%"}}>
-              <tr><th>№ de la commande</th><th>Date de la commande</th><th>Status de la commande</th><th>Centre de gestion</th><th>Détail</th></tr>
-              {currentItems.length > 0 && 
-                currentItems.map((demande:any, index:any) =>
-                  <tr>
-                    <td>{demande.PurchaseOrderNo}</td>
-                    <td>{demande.PurchaseOrderDate}</td>
-                    <td className={styles.statut}>
-                      {demande.StatusPurchaseRequest === "Lancée" && (
-                        <>
-                          <div className={styles.cercleBleu}></div>
-                          &nbsp;{demande.StatusPurchaseRequest}
-                        </>
-                      )}
-                      {demande.StatusPurchaseRequest === "Totalement réceptionnée" && (
-                        <>
-                          <div className={styles.cercleRouge}></div>
-                          &nbsp;{demande.StatusPurchaseRequest}
-                        </>
-                      )}
-                      {demande.StatusPurchaseRequest === "Partiellement réceptionnée" && (
-                        <>
-                          <div className={styles.cercleVert}></div>
-                          &nbsp;{demande.StatusPurchaseRequest}
-                        </>
-                      )}
-                      {demande.StatusPurchaseRequest === "clôturée" && (
-                        <>
-                          <div className={styles.cercleYellow}></div>
-                          &nbsp;{demande.StatusPurchaseRequest}
-                        </>
+            <table style={{ width: "112%", borderCollapse: "collapse", textAlign: "center" }}>
+              <thead>
+                <tr>
+                  <th style={{ backgroundColor: "#7d2935", color: "#fff", padding: "8px", border: "1px solid #ddd" }}>Demande Achat</th>
+                  <th style={{ backgroundColor: "#7d2935", color: "#fff", padding: "8px", border: "1px solid #ddd" }}>Dossier(s) Achat</th>
+                  <th style={{ backgroundColor: "#7d2935", color: "#fff", padding: "8px", border: "1px solid #ddd" }}>Commande(s)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((demande, demandeIndex) => (
+                  <tr key={demandeIndex}>
+                    {/* --- Demande Achat --- */}
+                    <td style={{ verticalAlign: "top", padding: "5px", border: "1px solid #ddd" }}>
+                      <table style={{ borderCollapse: "collapse", width: "100%", textAlign: "center" }}>
+                        <thead>
+                          <tr>
+                            <th style={{ backgroundColor: "#9b9a9a" }}>Centre de gestion</th>
+                            <th style={{ backgroundColor: "#9b9a9a" }}>Id Intranet</th>
+                            <th style={{ backgroundColor: "#9b9a9a" }}>Date création</th>
+                            <th style={{ backgroundColor: "#9b9a9a" }}>Réf ERP</th>
+                            <th style={{ backgroundColor: "#9b9a9a" }}>Date approbation</th>
+                            <th style={{ backgroundColor: "#9b9a9a" }}>Statut DA</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>{demande.RespCenter}</td>
+                            <td>{demande.IdRequestIntranet || "N/A"}</td>
+                            <td>{demande.CreatedDateIntranet}</td>
+                            <td>{demande.RéfRequestERP}</td>
+                            <td>{demande.DateApprovalIntranet?.split(" ")[0]}</td>
+                            <td>{demande.StatutDA}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+
+                    {/* --- Dossiers Achat --- */}
+                    <td style={{ verticalAlign: "top", padding: "5px", border: "1px solid #ddd" }}>
+                      {demande.DossiersAchats?.length > 0 ? (
+                        <table style={{ borderCollapse: "collapse", width: "100%", textAlign: "center" }}>
+                          <thead>
+                            <tr>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Réf dossier</th>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Date dossier</th>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Statut dossier</th>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Motif d'annulation</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {demande.DossiersAchats.map((dossier, dossierIndex) => (
+                              <tr key={dossierIndex}>
+                                <td>{dossier.RefDossierAchat}</td>
+                                <td>{dossier.DateDossierAchat?.split(" ")[0]}</td>
+                                <td>{dossier.StatutDossierAchat}</td>
+                                <td>{dossier.MotifSiAnnuler || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p style={{ fontStyle: "italic", color: "#777" }}>Aucun dossier</p>
                       )}
                     </td>
-                    <td>
-                      {demande.RespCenter}
-                    </td>
-                    <td>
-                      <span className={styles.icon}>
-                        <svg onClick={() => this.openDetailsDiv(index)} version="1.1" id="Capa_1"
-                          xmlns="http://www.w3.org/2000/svg"
-                          xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 512 512" style={{height:"16px",width:"16px"}} xmlSpace="preserve">
-                          <g>
-                            <g>
-                              <path d="M414.007,148.75c5.522,0,10-4.477,10-10V30c0-16.542-13.458-30-30-30h-364c-16.542,0-30,13.458-30,30v452
-                                c0,16.542,13.458,30,30,30h364c16.542,0,30-13.458,30-30v-73.672c0-5.523-4.478-10-10-10c-5.522,0-10,4.477-10,10V482
-                                c0,5.514-4.486,10-10,10h-364c-5.514,0-10-4.486-10-10V30c0-5.514,4.486-10,10-10h364c5.514,0,10,4.486,10,10v108.75
-                                C404.007,144.273,408.485,148.75,414.007,148.75z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M212.007,54c-50.729,0-92,41.271-92,92c0,26.317,11.11,50.085,28.882,66.869c0.333,0.356,0.687,0.693,1.074,1
-                                c16.371,14.979,38.158,24.13,62.043,24.13c23.885,0,45.672-9.152,62.043-24.13c0.387-0.307,0.741-0.645,1.074-1
-                                c17.774-16.784,28.884-40.552,28.884-66.869C304.007,95.271,262.736,54,212.007,54z M212.007,218
-                                c-16.329,0-31.399-5.472-43.491-14.668c8.789-15.585,25.19-25.332,43.491-25.332c18.301,0,34.702,9.747,43.491,25.332
-                                C243.405,212.528,228.336,218,212.007,218z M196.007,142v-6.5c0-8.822,7.178-16,16-16s16,7.178,16,16v6.5c0,8.822-7.178,16-16,16
-                                S196.007,150.822,196.007,142z M269.947,188.683c-7.375-10.938-17.596-19.445-29.463-24.697c4.71-6.087,7.523-13.712,7.523-21.986
-                                v-6.5c0-19.851-16.149-36-36-36s-36,16.149-36,36v6.5c0,8.274,2.813,15.899,7.523,21.986
-                                c-11.867,5.252-22.088,13.759-29.463,24.697c-8.829-11.953-14.06-26.716-14.06-42.683c0-39.701,32.299-72,72-72s72,32.299,72,72
-                                C284.007,161.967,278.776,176.73,269.947,188.683z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M266.007,438h-54c-5.522,0-10,4.477-10,10s4.478,10,10,10h54c5.522,0,10-4.477,10-10S271.529,438,266.007,438z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M266.007,382h-142c-5.522,0-10,4.477-10,10s4.478,10,10,10h142c5.522,0,10-4.477,10-10S271.529,382,266.007,382z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M266.007,326h-142c-5.522,0-10,4.477-10,10s4.478,10,10,10h142c5.522,0,10-4.477,10-10S271.529,326,266.007,326z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M88.366,272.93c-1.859-1.86-4.439-2.93-7.079-2.93c-2.631,0-5.211,1.07-7.07,2.93c-1.86,1.86-2.93,4.44-2.93,7.07
-                                s1.069,5.21,2.93,7.07c1.87,1.86,4.439,2.93,7.07,2.93c2.64,0,5.21-1.07,7.079-2.93c1.86-1.86,2.931-4.44,2.931-7.07
-                                S90.227,274.79,88.366,272.93z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M88.366,328.93c-1.869-1.86-4.439-2.93-7.079-2.93c-2.631,0-5.2,1.07-7.07,2.93c-1.86,1.86-2.93,4.44-2.93,7.07
-                                s1.069,5.21,2.93,7.07c1.87,1.86,4.439,2.93,7.07,2.93c2.64,0,5.21-1.07,7.079-2.93c1.86-1.86,2.931-4.44,2.931-7.07
-                                S90.227,330.79,88.366,328.93z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M88.366,384.93c-1.869-1.86-4.439-2.93-7.079-2.93c-2.631,0-5.2,1.07-7.07,2.93c-1.86,1.86-2.93,4.44-2.93,7.07
-                                s1.069,5.21,2.93,7.07c1.859,1.86,4.439,2.93,7.07,2.93c2.64,0,5.22-1.07,7.079-2.93c1.86-1.86,2.931-4.44,2.931-7.07
-                                S90.227,386.79,88.366,384.93z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M266.007,270h-142c-5.522,0-10,4.477-10,10s4.478,10,10,10h142c5.522,0,10-4.477,10-10S271.529,270,266.007,270z"/>
-                            </g>
-                          </g>
-                          <g>
-                            <g>
-                              <path d="M491.002,130.32c-9.715-5.609-21.033-7.099-31.871-4.196c-10.836,2.904-19.894,9.854-25.502,19.569L307.787,363.656
-                                c-0.689,1.195-1.125,2.52-1.278,3.891l-8.858,79.344c-0.44,3.948,1.498,7.783,4.938,9.77c1.553,0.896,3.278,1.34,4.999,1.34
-                                c2.092,0,4.176-0.655,5.931-1.948l64.284-47.344c1.111-0.818,2.041-1.857,2.73-3.052l125.841-217.963
-                                C517.954,167.638,511.058,141.9,491.002,130.32z M320.063,426.394l4.626-41.432l28.942,16.71L320.063,426.394z M368.213,386.996
-                                l-38.105-22l100.985-174.91l38.105,22L368.213,386.996z M489.054,177.693l-9.857,17.073l-38.105-22l9.857-17.073
-                                c2.938-5.089,7.682-8.729,13.358-10.25c5.678-1.522,11.606-0.74,16.694,2.198c5.089,2.938,8.729,7.682,10.25,13.358
-                                C492.772,166.675,491.992,172.604,489.054,177.693z"/>
-                            </g>
-                          </g>
-                        </svg>
-                      </span>
+
+                    {/* --- Commandes Achat --- */}
+                    <td style={{ verticalAlign: "top", padding: "5px", border: "1px solid #ddd" }}>
+                      {demande.DossiersAchats?.some(d => d.CommandesAchats?.length > 0) ? (
+                        <table style={{ borderCollapse: "collapse", width: "100%", textAlign: "center" }}>
+                          <thead>
+                            <tr>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Date commande</th>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Réf commande</th>
+                              <th style={{ backgroundColor: "#9b9a9a" }}>Statut commande</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {demande.DossiersAchats.map((dossier, dossierIndex) =>
+                              dossier.CommandesAchats?.map((commande, cmdIndex) => (
+                                <tr key={`${dossierIndex}-${cmdIndex}`}>
+                                  <td>{commande.DateCommande?.split(" ")[0]}</td>
+                                  <td>{commande.RefCommande}</td>
+                                  <td>{commande.StatutCommande}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p style={{ fontStyle: "italic", color: "#777" }}>Aucune commande</p>
+                      )}
                     </td>
                   </tr>
-                )
-              }
+                ))}
+              </tbody>
             </table>
+
+
+
+
           }
+
+
         </div>
 
-        {this.state.openDetailsDiv && <div className={styles.modal}>
-        <div className={styles.modalContent}>
-        <div className={styles.entete} > <span className={styles.titledetail}>Les demandes de cette commande :</span>
-            <span id="close" className={styles.close} onClick={() => this.setState({openDetailsDiv: false})}>&times;</span>
-            </div>
-            {/* <p className={styles.titleComment}>Détails :</p> */}
-        <div className={styles.contentmodal}>   <div className={styles.value}>
-                  {this.state.detailsListDemande.PurchaseOrderLines.map((produit, index) => <div className={styles.accordion}>
-                     {console.log(produit, index)}
-                      <button className={`${styles.accordionButton} ${this.state.isOpen ? styles.active : ''}`} onClick={() => this.toggleAccordion(index)}>
-                        <h4>Demande №{produit.PurchaseRequestNo}</h4>
-                      </button>
-                      <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Réference de la demandeur:</b> {produit.Demandeur}</p>
-                        <p className={styles.value}><b>Famille de la demande:</b> {produit.Family}</p>
-                        <p className={styles.value}><b>Description de l'article:</b> {produit.ItemDescription}</p>
-                        <p className={styles.value}><b>Date de la demande:</b> {produit.PurchaseDate}</p>
-                        <p className={styles.value}><b>№ de la demande:</b> {produit.PurchaseRequestNo}</p>
-                        <p className={styles.value}><b>Quantité dilevrer: </b>{produit.QuantityDelivered}</p>
-                        <p className={styles.value}><b>Quantité demandée: </b>{produit.QuantityRequested}</p>
-                      </div>
-                    </div>)}
-                  </div></div>
+        <div className={styles.paginations}>
+          <span
+            id="btn_prev"
+            className={styles.pagination}
+            onClick={this.handlePrevPage}>
+            Prev
+          </span>
+
+          <span id="page">
+            {(() => {
+              const pageButtons = [];
+              for (let page = 0; page < totalPages; page++) {
+                pageButtons.push(
+                  <span
+                    key={page + 1}
+                    onClick={() => this.handlePageClick(page + 1)}
+                    className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
+                  >
+                    {page + 1}
+                  </span>
+                );
+              }
+              return pageButtons;
+            })()
+            }
+          </span>
+
+          <span
+            id="btn_prev"
+            className={styles.pagination}
+            onClick={this.handleNextPage}>
+            Next
+          </span>
+        </div>
+
+        {this.state.currentUserInGroupPopup && <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <span className={styles.close} onClick={() => this.setState({ currentUserInGroupPopup: false })}>&times;</span>
+            <h3>À noter</h3>
+            <ul>
+              <li>
+                En tant que membre du groupe <strong>Dashboard Achat</strong>, vous avez accès à la
+                <strong>consultation des demandes clôturées</strong> uniquement.
+                <br />
+                Cette visibilité vous permet de suivre l’historique et l’état final des demandes.
+              </li>
+            </ul>
+            <p>=&gt; Vous pouvez donc visualiser toutes les demandes clôturées depuis votre tableau de bord.</p>
           </div>
         </div>}
 
-        <div className={styles.paginations}>
-            <span
-              id="btn_prev"
-              className={styles.pagination}
-              onClick={this.handlePrevPage}>
-              Prev
-            </span>
 
-            <span id="page">
-              {(() => {
-                  const pageButtons = [];
-                  for (let page = 0; page < totalPages; page++) {
-                    pageButtons.push(
-                      <span 
-                        key={page + 1} 
-                        onClick={() => this.handlePageClick(page + 1)} 
-                        className={currentPage === page + 1 ? styles.pagination2 : styles.pagination}
-                      >
-                        {page + 1}
-                      </span>
-                    );
-                  }
-                  return pageButtons;
-                })()
-              }
-            </span>
-
-            <span
-              id="btn_prev"
-              className={styles.pagination}
-              onClick={this.handleNextPage}>
-              Next
-            </span>
-          </div>
       </div>
     );
   }

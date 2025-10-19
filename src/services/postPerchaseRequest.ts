@@ -2,7 +2,7 @@ import { SEND_PURCHASE_PRODUCTS } from "../API_END_POINTS/AchatModuleEndPoints";
 
 
 // POST purshase request data to ERP
-export async function sendPerchaseRequest(MatDemandeur, NameDemandeur, RespCenter, IdFamily, PurchaseRequestLines, fileName, file) {
+export async function sendPerchaseRequest(MatDemandeur, NameDemandeur, RespCenter, IdFamily, Approbateur1, Approbateur2, Approbateur3, Approbateur4, IDRequestIntranet, CreatedDateIntranet, BudgetName, PurchaseRequestLines, fileName, file) {
     console.log(file)
     try {
         const response = await fetch(SEND_PURCHASE_PRODUCTS, {
@@ -13,6 +13,13 @@ export async function sendPerchaseRequest(MatDemandeur, NameDemandeur, RespCente
                 "NameDemandeur": NameDemandeur,
                 "RespCenter": RespCenter,
                 "IdFamily": IdFamily,
+                "Approbateur1": Approbateur1,
+                "Approbateur2": Approbateur2,
+                "Approbateur3": Approbateur3,
+                "Approbateur4": Approbateur4,
+                "IDRequestIntranet": IDRequestIntranet,
+                "CreatedDateIntranet": CreatedDateIntranet,
+                "BudgetName": BudgetName,
                 "PurchaseRequestLines": PurchaseRequestLines,
                 "fileName": fileName,
                 "file": file

@@ -420,8 +420,8 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
         .top(2000)
         .orderBy("Created", false)
         .expand("Ecole")
-        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CentreDeGestion")
-        .getById(demande.DemandeID)();
+        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CentreDeGestion", "budgetSelected", "budgetSelectedID", "ReferenceDemande")
+        .getById(demande.DemandeID).get();
     });
 
     // Wait for all promises to resolve
@@ -507,7 +507,7 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
     if (DemandeurFilter.length > 0 || StatusFilter.length > 0) {
       console.log(DemandeurFilter)
       console.log(StatusFilter)
-      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter);
+      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter, '');
       if (orderFilter === 1) {
         filteredData = listDemandeData
       } else if (orderFilter === 2) {
@@ -924,6 +924,18 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
             <table className={styles.table}>
               <tbody>
                 <tr>
+                  <td >Le demandeur :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.CreerPar}</td>
+                </tr>
+                <tr>
+                  <td >ID de la Demande :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.ID}</td>
+                </tr>
+                <tr>
+                  <td >Budget de la demande :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.budgetSelected}</td>
+                </tr>
+                <tr>
                   <td >Famille :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
                 </tr>
@@ -940,8 +952,10 @@ export default class DashboardConsultationDemandes extends React.Component<IDash
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
                         <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
+                        <p className={styles.value}><b>Budget:</b> {produit.budgetSelected}</p>
+                        <p className={styles.value}><b>Projet Capex:</b> {produit.CapexProjectSelected}</p>
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>

@@ -51,7 +51,7 @@
   .panel {
     padding: 0 18px;
     background-color: white;
-    display: none;
+    // display: none;
     overflow: hidden;
     transition: max-height 0.2s ease-out;
   }
@@ -116,7 +116,7 @@
       flex-direction: column;
       max-width: 750px;
  
-      min-height: 410px;
+      min-height: 180px;
       background-color: #fefefe;
       margin: 10% auto 0; /* 15% from the top and centered */
       padding: 0 20px 20px;
@@ -267,7 +267,7 @@
     flex-direction: column;
   }
   tr:nth-of-type(2n) {
-    font-size: 12px;
+    font-size: 14px;
     background-color: #f3f2f2;
     font-family: "Segoe UI";
   }
@@ -278,7 +278,7 @@
     border-bottom: 1px solid #ddd;
     font-family: "Segoe UI";
     text-align: left;
-    font-size: 12px;
+    font-size: 14px;
   }
   th {
     color: #ffffff;
@@ -310,14 +310,14 @@
   td {
     .title {
       color: #2e2d2c;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: bold;
       text-transform: capitalize;
     }
   }
 
   .filters {
-    width: 100%;
+    width: 112%;
     border-collapse: collapse;
     margin-bottom: 40px;
     display: flex;
@@ -327,7 +327,7 @@
     border-bottom: 1px solid #ddd;
     .title {
       color: #2e2d2c;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: bold;
       text-transform: capitalize;
       margin-bottom: 0;
@@ -346,11 +346,11 @@
   .btnw,
   select,
   input {
-    background-color: #f3f2f2;
+    background-color: white;
     border: 0;
     color: #2e2d2c;
     font-size: 10px;
-    text-transform: uppercase;
+    // text-transform: uppercase;
     padding: 8px 10px;
     cursor: pointer;
   }

@@ -12,12 +12,14 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import "@pnp/sp/site-groups/web";
-import { checkRemplacantByID, convertDateFormat, convertProductListSchema, exportJsonToExcel, getApprouverListOrder, getCurrentDate, getOrderFilter, updateString } from '../../../tools/FunctionTools';
+import { checkRemplacantByID, convertDateFormat, convertProductListSchema, exportJsonToExcel, getApprouverListOrder, getCurrentDate, getOrderFilter, toNumber, updateString } from '../../../tools/FunctionTools';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import SweetAlert2 from 'react-sweetalert2';
 import { sendPerchaseRequest } from '../../../services/postPerchaseRequest';
 import GraphService from '../../../services/GraphServices';
 import { getApprouverOrder } from '../../../services/getApprouverOrder';
+import { getProduct } from '../../../services/getProducts';
+import { getProductCapex } from '../../../services/getProductsCapex';
 var img = require('../../../image/UCT_image.png');
 
 
@@ -27,6 +29,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     itemsPerPage: 25,
     DemandeurFilter: '',
     StatusFilter: '',
+    descTechFilter: '',
     currentApprobateurOrder: 0,
 
     openDetailsDiv: false,
@@ -72,7 +75,15 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     userOrdersBySubFamilyForHichemAbdelkafi: false,
     testUserOrdersBySubFamilyForDevAlight: false,
     orderApprouverBySubFamily: [],
-    showReminderNotif: false
+    showReminderNotif: false,
+    openDetailsDivDescTech: false,
+    detailsListDemandeDescTech: [] as any,
+
+    listOfNewBudgetsAfterRefrech: [] as any,
+    isLoadingBudgetsAfterRefrech: false,
+    errorLoadingBudgetsAfterRefrech: false,
+    checkDepacement: false,
+    popUpApprobateursDepacementBudget: false
   };
 
   private _graphService = new GraphService(this.props.context);
@@ -615,6 +626,8 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
     const filenames = await this.getAttachementFileName(demandeID)
     this.setState({ openDetailsDiv: true, detailsListDemande: selectedDemande, historiqueDemande: historiqueActions, filenames: filenames })
+
+    this.refrechBudgetsData(selectedDemande)
   }
 
 
@@ -640,7 +653,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         .top(200)
         .orderBy("Created", false)
         .expand("Ecole")
-        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CentreDeGestion")
+        .select("Attachments", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "Title", "CentreDeGestion", "budgetSelected", "budgetSelectedID", "ReferenceDemande")
         .getById(demande.DemandeID)();
     });
 
@@ -717,7 +730,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
   // Clear button in filter
   private clearFilterButton = () => {
-    this.setState({ StatusFilter: '', DemandeurFilter: 'TOUS' });
+    this.setState({ StatusFilter: '', DemandeurFilter: 'TOUS', descTechFilter: '' });
   }
 
 
@@ -742,9 +755,90 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
   }
 
 
+  public refrechBudgetsData = async (demandeInfo) => {
+    this.setState({
+      listOfNewBudgetsAfterRefrech: [],
+      isLoadingBudgetsAfterRefrech: true,
+    });
+
+    try {
+      const produits = this.getDateFormListJSON(demandeInfo.Produit);
+      let checkDepacement = false;
+
+      const results = await Promise.all(
+        produits.map(async (produit) => {
+          console.log(produit);
+
+          const productsAfterRefrech = await getProductCapex(
+            produit.SousFamilleID,
+            produit.BeneficiaireID,
+            produit.budgetSelectedID,
+            produit.ArticleREF,
+            produit.CapexProjectSelectedID
+          );
+          console.log("product after refrech : ", productsAfterRefrech);
+
+          const budgetProductAfterRefrech = productsAfterRefrech?.Items?.find(
+            (prod) => prod.RefItem === produit.ArticleREF
+          );
+          console.log("budgetProductAfterRefrech : ", budgetProductAfterRefrech);
+
+          // Use produit.BudgetAnnualRemaining if undefined
+          const remaining = toNumber(
+            budgetProductAfterRefrech?.BudgetAnnualRemaining ?? produit.BudgetAnnualRemaining
+          );
+
+          const total = toNumber(produit["quantité"]) * toNumber(produit["Prix"]);
+
+          if (total > remaining) {
+            checkDepacement = true;
+          }
+
+          return budgetProductAfterRefrech || {};
+        })
+      );
+      console.log("All products after refrech: ", results);
+
+      this.setState({
+        listOfNewBudgetsAfterRefrech: results,
+        isLoadingBudgetsAfterRefrech: false,
+        checkDepacement,
+      });
+    } catch (error) {
+      console.error("Error while refreshing budgets data: ", error);
+      this.setState({
+        isLoadingBudgetsAfterRefrech: false,
+        errorLoadingBudgetsAfterRefrech: true,
+      });
+    }
+  };
+
+
+  // await getProduct(event.key, this.state.userRespCenter, this.state.BudgetID);
+
+
   // En cours
   private sendDemandeToErp = async (demandeID) => {
     const demande = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.select('*,Demandeur/Title,Demandeur/EMail').expand('Demandeur').filter(`ID eq ${demandeID}`).get();
+    const approuversData = await Web(this.props.url)
+      .lists.getByTitle("WorkflowApprobation")
+      .items.filter(`DemandeID eq ${demandeID}`)
+      .select(
+        "Id",
+        "ApprobateurV1/EMail",
+        "ApprobateurV2/EMail",
+        "ApprobateurV3/EMail",
+        "ApprobateurV4/EMail"
+      )
+      .expand("ApprobateurV1", "ApprobateurV2", "ApprobateurV3", "ApprobateurV4")
+      .get();
+
+    console.log(approuversData)
+    const approuver1 = await this._graphService.getUserId(approuversData?.[0]?.ApprobateurV1[0]?.EMail ?? "");
+    const approuver2 = await this._graphService.getUserId(approuversData?.[0]?.ApprobateurV2[0]?.EMail ?? "");
+    const approuver3 = await this._graphService.getUserId(approuversData?.[0]?.ApprobateurV3?.[0]?.EMail ?? "");
+    const approuver4 = await this._graphService.getUserId(approuversData?.[0]?.ApprobateurV4[0]?.EMail ?? "");
+
     const user = await this._graphService.getUserId(demande[0].Demandeur['EMail']);
     const ArticleFileName = JSON.parse(demande[0].Produit)[0].ArticleFileData.name;
 
@@ -754,17 +848,42 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     const fileName = hasFile ? ArticleFileName : "";
     const fileUrl = hasFile ? await this.getAttachementFileUrl(demandeID) : "";
 
+    console.log("DATA TO ERP SYSTEM :");
+    console.log("User ERP ID :", user?.["employeeId"] ?? "");
+    console.log("Demande Creer Par :", demande?.[0]?.CreerPar ?? "");
+    console.log("Centre De Gestion :", demande?.[0]?.CentreDeGestion ?? "");
+    console.log("Famille Produit REF :", demande?.[0]?.FamilleProduitREF ?? "");
+    console.log("Approbateur V1 ERP ID :", approuver1?.["employeeId"] ?? "");
+    console.log("Approbateur V2 ERP ID :", approuver2?.["employeeId"] ?? "");
+    console.log("Approbateur V3 ERP ID :", approuver3?.["employeeId"] ?? "");
+    console.log("Approbateur V4 ERP ID :", approuver4?.["employeeId"] ?? "");
+    console.log("Demande ID :", demande?.[0]?.ID ?? "");
+    console.log("Demande Created Date :", demande?.[0]?.Created ?? "");
+    console.log("Budget Selected ID :", demande?.[0]?.budgetSelectedID ?? "");
+    console.log("Product List :", convertProductListSchema(JSON.parse(demande?.[0]?.Produit ?? "[]")));
+    console.log("File Name :", fileName ?? "");
+    console.log("File URL :", fileUrl?.toString() ?? "");
+
+    // Send data to ERP system
+
     const dataFromERP = await sendPerchaseRequest(
-      user["employeeId"],
-      demande[0].CreerPar,
-      demande[0].CentreDeGestion,
-      demande[0].FamilleProduitREF,
-      convertProductListSchema(JSON.parse(demande[0].Produit)),
-      fileName,
-      fileUrl.toString()
+      user?.["employeeId"] ?? "",
+      demande?.[0]?.CreerPar ?? "",
+      demande?.[0]?.CentreDeGestion ?? "",
+      demande?.[0]?.FamilleProduitREF ?? "",
+      approuver1?.["employeeId"] ?? "",
+      approuver2?.["employeeId"] ?? "",
+      approuver3?.["employeeId"] ?? "",
+      approuver4?.["employeeId"] ?? "",
+      demande?.[0]?.ID?.toString() ?? "",
+      convertDateFormat(demande?.[0]?.Created ?? ""),
+      demande?.[0]?.budgetSelectedID ?? "",
+      convertProductListSchema(JSON.parse(demande?.[0]?.Produit ?? "[]")),
+      fileName ?? "",
+      fileUrl?.toString() ?? ""
     );
 
-    console.log(dataFromERP)
+    console.log("RETURN OF ERP SYSTEM :", dataFromERP)
 
 
     // if (demande[0].FileBase64 && demande[0].FileBase64.length > 0) {
@@ -806,9 +925,9 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     const Demande = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items
       .filter(`( (ApprobateurV1/Id eq ${currentUserID} and DemandeID eq ${DemandeID}) or (ApprobateurV2/Id eq ${currentUserID} and DemandeID eq ${DemandeID}) or (ApprobateurV3/Id eq ${currentUserID} and DemandeID eq ${DemandeID}) or (ApprobateurV4/Id eq ${currentUserID} and DemandeID eq ${DemandeID}) )`)
       .get();
-    console.log(Demande)
+    // console.log(Demande)
     const checkRemplacantReplicate = checkRemplacantByID(Demande[0].ApprobateurV1Id, Demande[0].ApprobateurV2Id, Demande[0].ApprobateurV3Id, Demande[0].ApprobateurV4Id, currentUserID)
-    console.log(checkRemplacantReplicate)
+    // console.log(checkRemplacantReplicate)
 
     if (Demande[0].ApprobateurV3Id === null) {
       if (Demande[0].ApprobateurV1Id.includes(currentUserID)) {
@@ -873,57 +992,123 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           this.setState({ showApprobationPopUp: true })
 
         } else if (checkRemplacantReplicate === 0) {
-          if (Demande[0].ApprobateurV2Id.length > 1) {
-            await Promise.all(
-              Demande[0].ApprobateurV2Id.map(async (approbateur) => {
-                try {
-                  const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
-                  const UserDisplayName2Title = user.Title;
 
-                  if (UserDisplayName2.length === 0) {
-                    UserDisplayName2 = UserDisplayName2Title;
-                  } else {
-                    UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+
+
+          console.log("APPROUVER 2 CHECK TEST", this.state.detailsListDemande)
+          if (parseFloat(this.state.detailsListDemande.PrixTotal) > 1000) {
+            if (Demande[0].ApprobateurV2Id.length > 1) {
+              await Promise.all(
+                Demande[0].ApprobateurV2Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayName2Title = user.Title;
+
+                    if (UserDisplayName2.length === 0) {
+                      UserDisplayName2 = UserDisplayName2Title;
+                    } else {
+                      UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
                   }
-                } catch (error) {
-                  console.error(`Error retrieving user information for ${approbateur}:`, error);
-                }
-              })
-            );
-          } else {
-            const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
-            UserDisplayName2 = user.Title;
-          }
-          const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
-            StatusDemande: "En cours de " + UserDisplayName2,
-            StatusDemandeV1: "Approuvée",
-            StatusDemandeV2: "En cours",
-            DateStatusDemandeV1: new Date(),
-          })
-          // Save historique block
-          const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
-
-          if (historyData.length > 0) {
-            var resultArray = JSON.parse(historyData[0].Actions);
-            if (this.state.remplacantName.length > 0) {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+                })
+              );
             } else {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV2Id[0]).get();
+              UserDisplayName2 = user.Title;
             }
-            resultArray.push("Demande en cours d'approbation chez " + UserDisplayName2 + " à partir du" + getCurrentDate());
-            const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
-              Actions: JSON.stringify(resultArray)
+
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
+              StatusDemande: "En cours de " + UserDisplayName2,
+              StatusDemandeV1: "Approuvée",
+              StatusDemandeV2: "En cours",
+              DateStatusDemandeV1: new Date(),
+            })
+            // Save historique block
+            const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+
+            if (historyData.length > 0) {
+              var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0) {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              } else {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              }
+              resultArray.push("Demande en cours d'approbation chez " + UserDisplayName2 + " à partir du" + getCurrentDate());
+              const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+                Actions: JSON.stringify(resultArray)
+              });
+            };
+
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+              StatusApprobateurV1: "Approuvée",
+              CommentaireApprobateurV1: this.state.commentAction,
+              StatusApprobateurV2: "En cours",
             });
-          };
 
-          const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
-            StatusApprobateurV1: "Approuvée",
-            CommentaireApprobateurV1: this.state.commentAction,
-            StatusApprobateurV2: "En cours",
-          });
+            this.setState({ spinnerAction: false })
+            this.setState({ showApprobationPopUp: true })
+          } else {
 
-          this.setState({ spinnerAction: false })
-          this.setState({ showApprobationPopUp: true })
+
+            if (Demande[0].ApprobateurV4Id.length > 1) {
+              await Promise.all(
+                Demande[0].ApprobateurV4Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayName2Title = user.Title;
+
+                    if (UserDisplayName2.length === 0) {
+                      UserDisplayName2 = UserDisplayName2Title;
+                    } else {
+                      UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
+                  }
+                })
+              );
+            } else {
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get();
+              UserDisplayName2 = user.Title;
+            }
+
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
+              StatusDemande: "En cours de " + UserDisplayName2,
+              StatusDemandeV1: "Approuvée",
+              StatusDemandeV2: "Approuvée",
+              StatusDemandeV4: "En cours",
+              DateStatusDemandeV1: new Date(),
+            })
+            // Save historique block
+            const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+
+            if (historyData.length > 0) {
+              var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0) {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              } else {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              }
+              resultArray.push("Demande en cours d'approbation chez " + UserDisplayName2 + " à partir du" + getCurrentDate());
+              const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+                Actions: JSON.stringify(resultArray)
+              });
+            };
+
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+              StatusApprobateurV1: "Approuvée",
+              CommentaireApprobateurV1: this.state.commentAction,
+              StatusApprobateurV2: "Approuvée",
+              StatusApprobateurV4: "En cours",
+            });
+
+            this.setState({ spinnerAction: false })
+            this.setState({ showApprobationPopUp: true })
+          }
+
+
 
         }
 
@@ -1036,50 +1221,58 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
 
       } else if (Demande[0].ApprobateurV4Id.includes(currentUserID)) {
-        const sendDemandeToErp = await this.sendDemandeToErp(DemandeID);
-        console.log(sendDemandeToErp)
-        if (sendDemandeToErp['Status'] === "200") {
-          const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
-          const savePurshaseRequestNumber = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-            ReferenceDemande: sendDemandeToErp['PurchaseRequestNo']
-          });
-
-          UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title;
-
-          const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
-            StatusDemande: "Approuvée par " + UserDisplayName,
-            StatusDemandeV4: "Approuvée",
-            StatusEquipeFinance: "En cours",
-            DateStatusDemandeV4: new Date(),
-          })
-          // Save historique block
-          const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
-
-          if (historyData.length > 0) {
-            var resultArray = JSON.parse(historyData[0].Actions);
-            if (this.state.remplacantName.length > 0) {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
-            } else {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
-            };
-            const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
-              Actions: JSON.stringify(resultArray)
+        if (this.state.checkDepacement === false) {
+          const sendDemandeToErp = await this.sendDemandeToErp(DemandeID);
+          console.log(sendDemandeToErp)
+          if (sendDemandeToErp['Status'] === "200") {
+            const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
+            const savePurshaseRequestNumber = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+              ReferenceDemande: sendDemandeToErp['PurchaseRequestNo']
             });
-          };
 
-          const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
-            StatusApprobateurV4: "Approuvée",
-            CommentaireApprobateurV4: this.state.commentAction,
-          });
+            UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title;
 
-          this.setState({ spinnerAction: false })
-          this.setState({ showApprobationPopUp: true })
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
+              StatusDemande: "Approuvée par " + UserDisplayName,
+              StatusDemandeV4: "Approuvée",
+              StatusEquipeFinance: "En cours",
+              DateStatusDemandeV4: new Date(),
+            })
+            // Save historique block
+            const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
 
+            if (historyData.length > 0) {
+              var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0) {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              } else {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              };
+              const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+                Actions: JSON.stringify(resultArray)
+              });
+            };
+
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+              StatusApprobateurV4: "Approuvée",
+              CommentaireApprobateurV4: this.state.commentAction,
+            });
+
+            this.setState({ spinnerAction: false })
+            this.setState({ showApprobationPopUp: true })
+
+          } else {
+            this.setState({ spinnerAction: false })
+            this.setState({ popUpApprobateurs: true })
+            this.setState({ disableAllActions: false })
+          }
         } else {
           this.setState({ spinnerAction: false })
-          this.setState({ popUpApprobateurs: true })
+          // this.setState({ popUpApprobateurs: true })
+          this.setState({ popUpApprobateursDepacementBudget: true })
           this.setState({ disableAllActions: false })
         }
+
 
       }
     } else {
@@ -1261,58 +1454,123 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
           this.setState({ spinnerAction: false })
           this.setState({ showApprobationPopUp: true })
         } else if (checkRemplacantReplicate === 0) {
-          if (Demande[0].ApprobateurV3Id.length > 1) {
-            await Promise.all(
-              Demande[0].ApprobateurV3Id.map(async (approbateur) => {
-                try {
-                  const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
-                  const UserDisplayName2Title = user.Title;
 
-                  if (UserDisplayName2.length === 0) {
-                    UserDisplayName2 = UserDisplayName2Title;
-                  } else {
-                    UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+          if (parseFloat(this.state.detailsListDemande.PrixTotal) > 1000) {
+            if (Demande[0].ApprobateurV3Id.length > 1) {
+              await Promise.all(
+                Demande[0].ApprobateurV3Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayName2Title = user.Title;
+
+                    if (UserDisplayName2.length === 0) {
+                      UserDisplayName2 = UserDisplayName2Title;
+                    } else {
+                      UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
                   }
-                } catch (error) {
-                  console.error(`Error retrieving user information for ${approbateur}:`, error);
-                }
-              })
-            );
+                })
+              );
+            } else {
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
+              UserDisplayName2 = user.Title;
+            }
+
+            console.log("APPROUVER 2 CHECK TEST", this.state.detailsListDemande)
+
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
+              StatusDemande: "En cours de " + UserDisplayName2,
+              StatusDemandeV2: "Approuvée",
+              StatusDemandeV3: "En cours",
+              DateStatusDemandeV2: new Date(),
+            })
+            // Save historique block
+            const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+
+            if (historyData.length > 0) {
+              var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0) {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              } else {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              };
+              resultArray.push("Demande en cours d'approbation chez " + UserDisplayName2 + " à partir du" + getCurrentDate());
+              const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+                Actions: JSON.stringify(resultArray)
+              });
+            };
+
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+              StatusApprobateurV2: "Approuvée",
+              CommentaireApprobateurV2: this.state.commentAction,
+              StatusApprobateurV3: "En cours"
+            });
+
+            this.setState({ spinnerAction: false })
+            this.setState({ showApprobationPopUp: true })
           } else {
-            const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV3Id[0]).get();
-            UserDisplayName2 = user.Title;
+
+
+            if (Demande[0].ApprobateurV4Id.length > 1) {
+              await Promise.all(
+                Demande[0].ApprobateurV4Id.map(async (approbateur) => {
+                  try {
+                    const user = await Web(this.props.url).siteUsers.getById(approbateur).get();
+                    const UserDisplayName2Title = user.Title;
+
+                    if (UserDisplayName2.length === 0) {
+                      UserDisplayName2 = UserDisplayName2Title;
+                    } else {
+                      UserDisplayName2 = UserDisplayName2 + " Ou " + UserDisplayName2Title;
+                    }
+                  } catch (error) {
+                    console.error(`Error retrieving user information for ${approbateur}:`, error);
+                  }
+                })
+              );
+            } else {
+              const user = await Web(this.props.url).siteUsers.getById(Demande[0].ApprobateurV4Id[0]).get();
+              UserDisplayName2 = user.Title;
+            }
+
+            console.log("APPROUVER 2 CHECK TEST", this.state.detailsListDemande)
+
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
+              StatusDemande: "En cours de " + UserDisplayName2,
+              StatusDemandeV2: "Approuvée",
+              StatusDemandeV3: "Approuvée",
+              StatusDemandeV4: "En cours",
+              DateStatusDemandeV2: new Date(),
+            })
+            // Save historique block
+            const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
+
+            if (historyData.length > 0) {
+              var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0) {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              } else {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              };
+              resultArray.push("Demande en cours d'approbation chez " + UserDisplayName2 + " à partir du" + getCurrentDate());
+              const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+                Actions: JSON.stringify(resultArray)
+              });
+            };
+
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+              StatusApprobateurV2: "Approuvée",
+              StatusApprobateurV3: "Approuvée",
+              CommentaireApprobateurV2: this.state.commentAction,
+              StatusApprobateurV4: "En cours"
+            });
+
+            this.setState({ spinnerAction: false })
+            this.setState({ showApprobationPopUp: true })
           }
 
-          const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
-            StatusDemande: "En cours de " + UserDisplayName2,
-            StatusDemandeV2: "Approuvée",
-            StatusDemandeV3: "En cours",
-            DateStatusDemandeV2: new Date(),
-          })
-          // Save historique block
-          const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
-
-          if (historyData.length > 0) {
-            var resultArray = JSON.parse(historyData[0].Actions);
-            if (this.state.remplacantName.length > 0) {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
-            } else {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
-            };
-            resultArray.push("Demande en cours d'approbation chez " + UserDisplayName2 + " à partir du" + getCurrentDate());
-            const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
-              Actions: JSON.stringify(resultArray)
-            });
-          };
-
-          const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
-            StatusApprobateurV2: "Approuvée",
-            CommentaireApprobateurV2: this.state.commentAction,
-            StatusApprobateurV3: "En cours"
-          });
-
-          this.setState({ spinnerAction: false })
-          this.setState({ showApprobationPopUp: true })
         }
 
 
@@ -1421,52 +1679,57 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
 
       } else if (Demande[0].ApprobateurV4Id.includes(currentUserID)) {
 
-        const sendDemandeToErp = await this.sendDemandeToErp(DemandeID);
-        console.log(sendDemandeToErp)
-        if (sendDemandeToErp['Status'] === "200") {
-          const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
-          const savePurshaseRequestNumber = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
-            ReferenceDemande: sendDemandeToErp['PurchaseRequestNo']
-          });
-
-          UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title;
-
-          const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
-            StatusDemande: "Approuvée par " + UserDisplayName,
-            StatusDemandeV4: "Approuvée",
-            DateStatusDemandeV4: new Date(),
-          })
-          // Save historique block
-          const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
-
-          if (historyData.length > 0) {
-            var resultArray = JSON.parse(historyData[0].Actions);
-            if (this.state.remplacantName.length > 0) {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
-            } else {
-              resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
-            };
-            const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
-              Actions: JSON.stringify(resultArray)
+        if (this.state.checkDepacement === false) {
+          const sendDemandeToErp = await this.sendDemandeToErp(DemandeID);
+          console.log(sendDemandeToErp)
+          if (sendDemandeToErp['Status'] === "200") {
+            const demandeData = await Web(this.props.url).lists.getByTitle('DemandeAchat').items.filter(`ID eq ${DemandeID}`).get();
+            const savePurshaseRequestNumber = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeData[0].ID).update({
+              ReferenceDemande: sendDemandeToErp['PurchaseRequestNo']
             });
-          };
 
-          const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
-            StatusApprobateurV4: "Approuvée",
-            CommentaireApprobateurV4: this.state.commentAction,
-          });
+            UserDisplayName = (await Web(this.props.url).siteUsers.getById(currentUserID).get()).Title;
 
-          this.setState({ spinnerAction: false })
-          this.setState({ showApprobationPopUp: true })
+            const updateDemandeAchat = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(DemandeID).update({
+              StatusDemande: "Approuvée par " + UserDisplayName,
+              StatusDemandeV4: "Approuvée",
+              DateStatusDemandeV4: new Date(),
+            })
+            // Save historique block
+            const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
 
+            if (historyData.length > 0) {
+              var resultArray = JSON.parse(historyData[0].Actions);
+              if (this.state.remplacantName.length > 0) {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " (remplaçant de " + this.state.remplacantName + ")" + " le " + getCurrentDate());
+              } else {
+                resultArray.push("Demande Approuvée par " + UserDisplayName + " le " + getCurrentDate());
+              };
+              const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
+                Actions: JSON.stringify(resultArray)
+              });
+            };
+
+            const updateWorkFlowApprobation = await Web(this.props.url).lists.getByTitle("WorkflowApprobation").items.getById(Demande[0].ID).update({
+              StatusApprobateurV4: "Approuvée",
+              CommentaireApprobateurV4: this.state.commentAction,
+            });
+
+            this.setState({ spinnerAction: false })
+            this.setState({ showApprobationPopUp: true })
+
+          } else {
+            console.log("ERP ERROR")
+            this.setState({ spinnerAction: false })
+            this.setState({ popUpApprobateurs: true })
+            this.setState({ disableAllActions: false })
+          }
         } else {
-          console.log("ERP ERROR")
           this.setState({ spinnerAction: false })
-          this.setState({ popUpApprobateurs: true })
+          // this.setState({ popUpApprobateurs: true })
+          this.setState({ popUpApprobateursDepacementBudget: true })
           this.setState({ disableAllActions: false })
         }
-
-
       }
     }
 
@@ -2255,6 +2518,12 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     }
   }
 
+  private openDetailsDivDescTech = async (demandeID: any) => {
+    const selectedDemande = await Web(this.props.url).lists.getByTitle("DemandeAchat").items.getById(demandeID).get();
+    console.log(selectedDemande)
+    this.setState({ openDetailsDivDescTech: true, detailsListDemandeDescTech: selectedDemande })
+  }
+
 
   // private async getApprobateurOrderBySubFamily() {
   //   const userOrder = await Web(this.props.url).lists.getByTitle("userOrderBySubFamily").items.get() ;
@@ -2307,26 +2576,55 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
     });
 
 
-    const { currentPage, itemsPerPage, listDemandeData, DemandeurFilter, StatusFilter } = this.state;
+    const { currentPage, itemsPerPage, listDemandeData, DemandeurFilter, StatusFilter, descTechFilter } = this.state;
     var filteredData
-    if (DemandeurFilter.length > 0 || StatusFilter.length > 0) {
+    if (DemandeurFilter.length > 0 || StatusFilter.length > 0 || descTechFilter.length > 0) {
       console.log(DemandeurFilter)
       console.log(StatusFilter)
-      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter);
+      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter, descTechFilter);
       if (orderFilter === 1) {
-        filteredData = listDemandeData
+        // no filters
+        filteredData = listDemandeData;
       } else if (orderFilter === 2) {
-        filteredData = listDemandeData.filter((item: any) => {
-          return item.StatusDemande.toString().includes(StatusFilter);
-        });
+        // only search
+        filteredData = listDemandeData.filter((item: any) =>
+          item.Produit.toLowerCase().includes(descTechFilter.toLowerCase()) // adapt field name
+        );
       } else if (orderFilter === 3) {
-        filteredData = listDemandeData.filter((item: any) => {
-          return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase());
-        });
+        // only Status
+        filteredData = listDemandeData.filter((item: any) =>
+          item.StatusDemande.toString().includes(StatusFilter)
+        );
+      } else if (orderFilter === 4) {
+        // Status + Search
+        filteredData = listDemandeData.filter((item: any) =>
+          item.StatusDemande.toString().includes(StatusFilter) &&
+          item.Produit.toLowerCase().includes(descTechFilter.toLowerCase())
+        );
+      } else if (orderFilter === 5) {
+        // only Demandeur
+        filteredData = listDemandeData.filter((item: any) =>
+          item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase())
+        );
+      } else if (orderFilter === 6) {
+        // Demandeur + Search
+        filteredData = listDemandeData.filter((item: any) =>
+          item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) &&
+          item.Produit.toLowerCase().includes(descTechFilter.toLowerCase())
+        );
+      } else if (orderFilter === 7) {
+        // Demandeur + Status
+        filteredData = listDemandeData.filter((item: any) =>
+          item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) &&
+          item.StatusDemande.toString().includes(StatusFilter)
+        );
       } else {
-        filteredData = listDemandeData.filter((item: any) => {
-          return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
-        });
+        // Demandeur + Status + Search
+        filteredData = listDemandeData.filter((item: any) =>
+          item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) &&
+          item.StatusDemande.toString().includes(StatusFilter) &&
+          item.Produit.toLowerCase().includes(descTechFilter.toLowerCase())
+        );
       }
     } else {
       filteredData = listDemandeData
@@ -2376,6 +2674,17 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
               autoComplete="on"
             />
           </div>
+          <label className={styles.title}>Recherche : </label>
+          <div className={styles.statusWrapper}>
+            <TextField
+              className={controlClass.TextField}
+              placeholder="Rechercher par objet"
+              value={this.state.descTechFilter}
+              // value={this.state.FamilleFilter === 'TOUS' ? '' : this.state.FamilleFilter}
+              onChange={(e, newValue) => this.setState({ descTechFilter: newValue, currentPage: 1 })}
+              style={{ width: '194.49px' }}
+            />
+          </div>
           <div className={styles.statusWrapper}>
             <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
             &nbsp;
@@ -2398,11 +2707,11 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
         {(listDemandeData.length === 0 && !this.state.showSpinner) && <div style={{ textAlign: 'center' }}><h4>Aucune données trouvées</h4></div>}
         {(listDemandeData.length > 0 && !this.state.showSpinner) &&
           <div id="spListContainer">
-            <table style={{ borderCollapse: "collapse", width: "100%" }}>
-              <tr><th className={styles.textCenter}>#</th> <th>№</th> <th>Demandeur</th> <th>Centre de gestion</th> <th>Date de la Demande</th><th>Status de la demande</th><th>Détail</th></tr>
+            <table style={{ borderCollapse: "collapse", width: "105%" }}>
+              <tr><th className={styles.textCenter}>#</th> <th>№</th> <th>Demandeur</th> <th>Centre de gestion</th> <th>Date de la Demande</th><th>Status de la demande</th><th>Desc/Tech</th><th>Détail</th></tr>
               {currentItems.map((demande: any) =>
                 <tr>
-                  {console.log(demande)}
+
                   <td>
                     {demande.Attachments && <svg onClick={() => this.openAttachementFile(demande.ID)} version="1.1" className="icon_03c0be98" id="file162" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 512 512" style={{ "height": "14px", "cursor": "pointer" }} xmlSpace="preserve">
                       <g>
@@ -2422,53 +2731,14 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   <td>{demande.Id}</td>
                   <td>{demande.CreerPar}</td>
                   <td>{demande.CentreDeGestion}</td>
-                  {console.log(demande)}
-                  {console.log(this.state.listDemandeDataForCurrentUser)}
+
+                  {/* {console.log(this.state.listDemandeDataForCurrentUser)} */}
                   <td>{convertDateFormat(demande.Created)}</td>
                   <td className={styles.statut}>
 
-                    {/* If the current user (Dev Alight) is Multi Order in approuvement
-                    {this.state.testUserOrdersBySubFamilyForDevAlight && checkUserOrdersForTestDevAlight(demande.SousFamilleProduitREF).length > 0 &&
-                      <>
-                        {checkUserOrdersForTestDevAlight(demande.SousFamilleProduitREF)[0].order === "1and2" &&
-                          <>
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV1)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                          </>
-                        }
-                      </>
-                    } */}
 
                     {/* ORDER 0 */}
-                    {
+                    {console.log(getApprouverListOrder(demande.SousFamilleProduitREF, demande.Beneficiaire !== null ? demande.Beneficiaire : demande.CentreDeGestion, this.state.orderApprouverBySubFamily)[0])}                    {
                       (getApprouverListOrder(demande.SousFamilleProduitREF, demande.Beneficiaire !== null ? demande.Beneficiaire : demande.CentreDeGestion, this.state.orderApprouverBySubFamily)[0] === 0 &&
                         <>
                           <div className={styles.cercleBleu}></div>
@@ -2624,381 +2894,15 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                           )}
                         </>
                       )}
-
-
-
-                    {/* If the current user (Mariem Somai) is Multi Order in approuvement
-                    {this.state.userOrdersBySubFamilyForMariemSomaiUser && checkUserOrdersForMariemUser(demande.SousFamilleProduitREF).length > 0 &&
-                      <>
-                        {checkUserOrdersForMariemUser(demande.SousFamilleProduitREF)[0].order === "1and2" &&
-                          <>
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV1)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                          </>
-                        }
-
-                        {checkUserOrdersForMariemUser(demande.SousFamilleProduitREF)[0].order === "2and3" &&
-                          <>
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV2)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                          </>
-                        }
-                      </>
-                    } */}
-
-                    {/* If the current user (Hichem Abdelkafi) is Multi Order in approuvement
-                    {this.state.userOrdersBySubFamilyForHichemAbdelkafi && checkUserOrdersForHichemUser(demande.SousFamilleProduitREF).length > 0 &&
-                      <>
-                        {checkUserOrdersForHichemUser(demande.SousFamilleProduitREF)[0].order === "1and2" &&
-                          <>
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV1)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                          </>
-                        }
-                      </>
-                    } */}
-
-                    {/* If the current user is Multi Order in approuvement
-                    {this.state.userOrdersBySubFamily && checkUserOrders(demande.SousFamilleProduitREF).length > 0 &&
-                      <>
-                        {(parseInt(checkUserOrders(demande.SousFamilleProduitREF)[0].order) === 1) &&
-                          <>
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV1)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                          </>
-                        }
-                      </>
-                    } */}
-
-                    {/* {this.state.userOrdersBySubFamily && checkUserOrders(demande.SousFamilleProduitREF).length === 0 &&
-                      <>
-                        {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("En cours") && (
-                          <>
-                            <div className={styles.cercleBleu}></div>
-                            &nbsp;{demande.StatusDemandeV2}
-                          </>
-                        )}
-                        {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("Rejetée") && (
-                          <>
-                            <div className={styles.cercleRouge}></div>
-                            &nbsp;{demande.StatusDemandeV2}
-                          </>
-                        )}
-                        {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("Annuler") && (
-                          <>
-                            <div className={styles.cercleRouge}></div>
-                            &nbsp;{updateString(demande.StatusDemandeV2)} par le demandeur
-                          </>
-                        )}
-                        {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("A modifier") && (
-                          <>
-                            <div className={styles.cercleVert}></div>
-                            &nbsp;{demande.StatusDemandeV2}
-                          </>
-                        )}
-                        {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("Approuvée") && (
-                          <>
-                            <div className={styles.cercleYellow}></div>
-                            &nbsp;{demande.StatusDemandeV2}
-                          </>
-                        )}
-                      </>
-                    } */}
-
-
-                    {/* if the current user is not multi order */}
-                    {/* {!this.state.listDemandeDataForRemplacant.includes(demande.Id) && !this.state.userOrdersBySubFamily && !this.state.userOrdersBySubFamilyForMariemSomaiUser && !this.state.userOrdersBySubFamilyForHichemAbdelkafi && !this.state.testUserOrdersBySubFamilyForDevAlight ? (
-                      <>
-                        {(this.state.currentApprobateurOrder === 1 && demande.StatusDemandeV1 !== null) &&
-                          <>
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV1)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                            {demande.StatusDemandeV1 !== null && demande.StatusDemandeV1.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV1}
-                              </>
-                            )}
-                          </>
-                        }
-
-                        {(this.state.currentApprobateurOrder === 2 && demande.StatusDemandeV2 !== null) &&
-                          <>
-                            {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                            {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                            {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV2)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                            {demande.StatusDemandeV2 !== null && demande.StatusDemandeV2.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV2}
-                              </>
-                            )}
-                          </>
-                        }
-
-                        {(this.state.currentApprobateurOrder === 3 && demande.StatusDemandeV3 !== null) &&
-                          <>
-                            {demande.StatusDemandeV3 !== null && demande.StatusDemandeV3.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV3}
-                              </>
-                            )}
-                            {demande.StatusDemandeV3 !== null && demande.StatusDemandeV3.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV3}
-                              </>
-                            )}
-                            {demande.StatusDemandeV3 !== null && demande.StatusDemandeV3.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV3)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV3 !== null && demande.StatusDemandeV3.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV3}
-                              </>
-                            )}
-                            {demande.StatusDemandeV3 !== null && demande.StatusDemandeV3.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV3}
-                              </>
-                            )}
-                          </>
-                        }
-
-                        {(this.state.currentApprobateurOrder === 4 && demande.StatusDemandeV4 !== null) &&
-                          <>
-                            {demande.StatusDemandeV4 !== null && demande.StatusDemandeV4.includes("En cours") && (
-                              <>
-                                <div className={styles.cercleBleu}></div>
-                                &nbsp;{demande.StatusDemandeV4}
-                              </>
-                            )}
-                            {demande.StatusDemandeV4 !== null && demande.StatusDemandeV4.includes("Rejetée") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{demande.StatusDemandeV4}
-                              </>
-                            )}
-                            {demande.StatusDemandeV4 !== null && demande.StatusDemandeV4.includes("Annuler") && (
-                              <>
-                                <div className={styles.cercleRouge}></div>
-                                &nbsp;{updateString(demande.StatusDemandeV4)} par le demandeur
-                              </>
-                            )}
-                            {demande.StatusDemandeV4 !== null && demande.StatusDemandeV4.includes("A modifier") && (
-                              <>
-                                <div className={styles.cercleVert}></div>
-                                &nbsp;{demande.StatusDemandeV4}
-                              </>
-                            )}
-                            {demande.StatusDemandeV4 !== null && demande.StatusDemandeV4.includes("Approuvée") && (
-                              <>
-                                <div className={styles.cercleYellow}></div>
-                                &nbsp;{demande.StatusDemandeV4}
-                              </>
-                            )}
-                          </>
-                        }
-                      </>)
-                      : (
-                        <>
-                          {!this.state.userOrdersBySubFamily && !this.state.userOrdersBySubFamilyForMariemSomaiUser && !this.state.userOrdersBySubFamilyForHichemAbdelkafi && !this.state.testUserOrdersBySubFamilyForDevAlight &&
-                            <>
-                              {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`] !== null && demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("En cours") && (
-                                <>
-                                  <div className={styles.cercleBleu}></div>
-                                  &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                                </>
-                              )}
-                              {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`] !== null && demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Rejetée") && (
-                                <>
-                                  <div className={styles.cercleRouge}></div>
-                                  &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                                </>
-                              )}
-                              {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`] !== null && demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Annuler") && (
-                                <>
-                                  <div className={styles.cercleRouge}></div>
-                                  &nbsp;{updateString(demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`])} par le demandeur
-                                </>
-                              )}
-                              {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`] !== null && demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("A modifier") && (
-                                <>
-                                  <div className={styles.cercleVert}></div>
-                                  &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                                </>
-                              )}
-                              {demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`] !== null && demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`].includes("Approuvée") && (
-                                <>
-                                  <div className={styles.cercleYellow}></div>
-                                  &nbsp;{demande[`StatusDemandeV${this.state.remplacantOrder.toString()}`]}
-                                </>
-                              )}
-                            </>
-                          }
-                        </>
-                      )} */}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <span className={styles.icon} style={{ cursor: "pointer" }} title="Voir la déscription technique des articles">
+                      <svg
+                        onClick={() => this.openDetailsDivDescTech(demande.ID)}
+                        xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="16px" height="16px" viewBox="0 0 50 50">
+                        <path d="M 25 2 C 12.309295 2 2 12.309295 2 25 C 2 37.690705 12.309295 48 25 48 C 37.690705 48 48 37.690705 48 25 C 48 12.309295 37.690705 2 25 2 z M 25 4 C 36.609824 4 46 13.390176 46 25 C 46 36.609824 36.609824 46 25 46 C 13.390176 46 4 36.609824 4 25 C 4 13.390176 13.390176 4 25 4 z M 25 11 A 3 3 0 0 0 22 14 A 3 3 0 0 0 25 17 A 3 3 0 0 0 28 14 A 3 3 0 0 0 25 11 z M 21 21 L 21 23 L 22 23 L 23 23 L 23 36 L 22 36 L 21 36 L 21 38 L 22 38 L 23 38 L 27 38 L 28 38 L 29 38 L 29 36 L 28 36 L 27 36 L 27 21 L 26 21 L 22 21 L 21 21 z"></path>
+                      </svg>
+                    </span>
                   </td>
                   <td>
                     <span className={styles.icon}>
@@ -3095,9 +2999,22 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
               </div>
             }
             <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDiv: false, isOpen: false, currentAccordion: 0 })}>&times;</span>
-            {/* <p className={styles.titleComment}>Détails :</p> */}
+            {console.log(this.state.checkDepacement)}
+            {this.state.checkDepacement && <p style={{ color: "red", fontSize: "16px" }}><b>Avertissement !</b>, Un dépassement de budget a été détecté pour cette demande.</p>}
             <table className={styles.table}>
               <tbody>
+                <tr>
+                  <td >Le demandeur :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.CreerPar}</td>
+                </tr>
+                <tr>
+                  <td >ID de la Demande :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.ID}</td>
+                </tr>
+                <tr>
+                  <td >Budget de la demande :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.budgetSelected}</td>
+                </tr>
                 <tr>
                   <td >Famille :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
@@ -3106,6 +3023,7 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                   <td >Centre de Gestion :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.CentreDeGestion}</td>
                 </tr>
+                {console.log(parseFloat(this.state.detailsListDemande.PrixTotal), parseFloat(this.state.detailsListDemande.PrixTotal) > 1000)}
                 <tr>
                   <td >Article :</td>
                   <td className={styles.value}>
@@ -3115,14 +3033,25 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                         <h4>{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
                         <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
+                        <p className={styles.value}><b>Budget:</b> {produit.budgetSelected}</p>
+                        <p className={styles.value}><b>Projet Capex:</b> {produit.CapexProjectSelected}</p>
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
                         <p className={styles.value}><b>Prix total: </b>{(parseFloat(produit.quantité) * parseFloat(produit.Prix)).toFixed(2).toString()} DT</p>
                         <p className={styles.value}><b>Délais de livraison souhaité : </b>{produit.DelaiLivraisionSouhaite} Jours</p>
-                        <p className={styles.value}><b>Budget annuel restant : </b>{produit.BudgetAnnualRemaining} DT</p>
+                        <p className={styles.value}>
+                          <b>Budget annuel restant : </b>
+                          {(this.state.isLoadingBudgetsAfterRefrech && !this.state.errorLoadingBudgetsAfterRefrech)
+                            ? "Chargement ..."
+                            : `${this.state.listOfNewBudgetsAfterRefrech?.[index]?.BudgetAnnualRemaining ?? produit.BudgetAnnualRemaining} DT`}
+                        </p>
+
+                        {/* Error message for getting data */}
+                        {this.state.errorLoadingBudgetsAfterRefrech && <p style={{ color: "red" }}>Erreur lors du chargement du budget</p>}
+                        {/* {produit.BudgetAnnualRemaining} DT</p> */}
                       </div>
                     </div>)}
                   </td>
@@ -3266,6 +3195,26 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
                     <button style={{ backgroundColor: !this.state.disableRemplacantButtonLoader ? "#7d2935" : "gray", textAlign: "center" }} disabled={this.state.disableRemplacantButtonLoader} className={styles.btnRef} onClick={() => this.ajouterAutreApprobateur()}>
                       Envoyer
                     </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>}
+        {this.state.openDetailsDivDescTech && <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDivDescTech: false })}>&times;</span>
+            {/* <p className={styles.titleComment}>Détails :</p> */}
+            <table className={styles.table}>
+              <tbody>
+                <tr>
+                  <td >Article(s) :</td>
+                  <td className={styles.value}>
+                    {this.getDateFormListJSON(this.state.detailsListDemandeDescTech.Produit).map((produit, index) =>
+                      <div className={styles.panelOpen}>
+                        <p className={styles.value}><b>Description Technique de l'article N°{index + 1}:</b> {produit.comment}</p>
+                        {console.log(produit, index)}
+                      </div>)}
                   </td>
                 </tr>
               </tbody>
@@ -3452,6 +3401,30 @@ export default class ApprobateurDashboard extends React.Component<IApprobateurDa
             </div>
           </div>
         )}
+
+        {this.state.popUpApprobateursDepacementBudget && (
+          <div className={styles2.demandeurDashboard}>
+            <div className={styles2.modal}>
+              <div className={styles2.modalContent}>
+                <span
+                  className={styles2.close}
+                  onClick={() => this.setState({ popUpApprobateursDepacementBudget: false })}
+                >
+                  &times;
+                </span>
+                <h3>À noter</h3>
+                <ul>
+                  <li>
+                    Nous vous prions de nous excuser.
+                    La demande n'a pas pu être transmise à l'ERP, car le prix total dépasse le budget restant.
+                  </li>
+                </ul>
+                <p>=&gt; Erreur au niveau de la demande.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {/* {this.state.popupRemplaçantApprobateurError && (
           <div className={styles2.demandeurDashboard}>

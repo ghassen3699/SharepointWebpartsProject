@@ -1,0 +1,399 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.dashboardDemandeCloturees {
+  .title {
+    color: #7d2935;
+    font-size: 16px;
+    font-family: "Segoe UI";
+    margin-bottom: 20px;
+  }
+
+  .loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid;
+    border-color:#7d2935 transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+    position: absolute;
+  }
+  
+  @keyframes rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  } 
+
+  .accordion {
+    margin-bottom: 10px;
+  }
+  
+  .accordionButton {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    border: none;
+    outline: none;
+    transition: 0.4s;
+  }
+  
+  .active, .accordionButton:hover {
+    background-color: #ccc;
+  }
+  
+  .panel {
+    padding: 0 18px;
+    background-color: white;
+    display: none;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+  }
+  
+  .panelOpen {
+    display: block;
+    text-align: left;
+  }
+  
+
+  
+  .paginations {
+    text-align: center;
+    margin-top: 30px;
+    .pagination {
+      padding: 4px 12px;
+      border: 1px solid #700d1f;
+      margin-right: 6px;
+      display: inline-block;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .pagination2 {
+      padding: 4px 12px;
+      border: 1px solid #700d1f;
+      margin-right: 6px;
+      display: inline-block;
+      cursor: pointer;
+      font-size: 16px;
+      background-color: #7d2935;
+      color: white;
+    }
+  }
+
+  .modal {
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0, 0, 0); /* Fallback color */
+    background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+    text-align: center;
+    .entete{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top:30px
+    }
+    .titledetail{
+      font-weight: 600;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    /* Modal Content/Box */
+    .modalContent {
+      width: 100%;
+      direction: flex;
+      flex-direction: column;
+      max-width: 750px;
+ 
+      min-height: 410px;
+      background-color: #fefefe;
+      margin: 10% auto 0; /* 15% from the top and centered */
+      padding: 0 20px 20px;
+      border: 1px solid #888;
+      // max-width: 1000px; /* Could be more or less, depending on screen size */
+      display: inline-block;
+
+      /* The Close Button */
+      .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        height: 68px;
+      }
+
+      .close:hover,
+      .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .table {
+        border: 0px;
+        border-collapse: collapse;
+        width: auto;
+        display: block;
+        tr {
+          background-color: #fff;
+        }
+        .value {
+          font-weight: normal;
+          word-break: break-all;
+          span {
+            border: 0;
+            font-size: 14px;
+            padding: 4px 10px;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+          }
+          .btnApprove {
+            background-color: #15aa2d;
+            margin-right: 10px;
+          }
+          .btnRefuse {
+            background-color: #bf1111;
+          }
+        }
+        td {
+          font-weight: bold;
+          padding: 6px;
+          font-size: 16px;
+          min-width: 200px;
+          text-align: left !important;
+          border: 0;
+          white-space: nowrap;
+        }
+      }
+
+      
+    }
+  }
+
+  .modalAlert {
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0, 0, 0); /* Fallback color */
+    background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+    text-align: center;
+
+    /* Modal Content/Box */
+    .modalContent {
+      background-color: #fefefe;
+      margin: 10% auto 0; /* 15% from the top and centered */
+      padding: 0 20px 20px;
+      border: 1px solid #888;
+      // max-width: 1000px; /* Could be more or less, depending on screen size */
+      display: inline-block;
+
+      /* The Close Button */
+      .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+      }
+
+      .close:hover,
+      .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .table {
+        border: 0px;
+        border-collapse: collapse;
+        width: auto;
+        display: block;
+        tr {
+          background-color: #fff;
+        }
+        .value {
+          font-weight: normal;
+          word-break: break-all;
+          span {
+            border: 0;
+            font-size: 14px;
+            padding: 4px 10px;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+          }
+          .btnApprove {
+            background-color: #15aa2d;
+            margin-right: 10px;
+          }
+          .btnRefuse {
+            background-color: #bf1111;
+          }
+        }
+        td {
+          font-weight: bold;
+          padding: 6px;
+          font-size: 16px;
+          min-width: 200px;
+          text-align: left !important;
+          border: 0;
+          white-space: nowrap;
+        }
+      }
+
+      
+    }
+  }
+  .contentmodal{
+    overflow-y: auto;
+    max-height: 47vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  tr:nth-of-type(2n) {
+    font-size: 12px;
+    background-color: #f3f2f2;
+    font-family: "Segoe UI";
+  }
+
+  th,
+  td {
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+    font-family: "Segoe UI";
+    text-align: left;
+    font-size: 12px;
+  }
+  th {
+    color: #ffffff;
+    background-color: #7d2935;
+  }
+  .btn {
+    background-color: #7d2935;
+    border: 0;
+    color: #fff;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+
+  .btnRef {
+    background-color: #7d2935;
+    border: 0;
+    color: #fff;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    margin-left: auto;
+  }
+
+  td {
+    .title {
+      color: #2e2d2c;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: capitalize;
+    }
+  }
+
+  .filters {
+    width: 112%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ddd;
+    .title {
+      color: #2e2d2c;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: capitalize;
+      margin-bottom: 0;
+      margin-left: 20px;
+    }
+  }
+
+  .statusWrapper {
+    display: inline-block;
+    margin-left: 6px;
+  }
+  .startDate {
+    margin-left: 6px;
+  }
+
+  .btnw,
+  select,
+  input {
+    background-color: white;
+    border: 0;
+    color: #2e2d2c;
+    font-size: 10px;
+    // text-transform: uppercase;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+  .cercleBleu {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 0;
+    background-color: blue;
+  }
+  .cercleYellow {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 0;
+    background-color: #FFC514;
+  }
+  .cercleRouge {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 0;
+    background-color: red;
+  }
+  .cercleVert {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 0;
+    background-color: green;
+  }
+  .statut {
+    text-align: left !important;
+    white-space: nowrap;
+  }
+  .textCenter {
+    text-align: center;
+  }
+  .icon {
+    cursor: pointer;
+  }
+}

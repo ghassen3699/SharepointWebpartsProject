@@ -19,4 +19,17 @@ export const EmployeeApprouverURL = "https://apiintra-test.universitecentrale.ne
 // GET CLOSED PURCHASE REQUESTS PREPROD ENV
 export const ClosedPurchaseOrderURL = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/ClosedPurchaseOrder";
 
+// APPROVE PURCHASE REQUEST PREPROD ENV (POST Method)
 export const ApprouverOrderURL_PROD = "https://prod.universitecentrale.net:9076/UCG.svc/ApproverRequest";
+
+// APPROVE PURCHASE REQUEST PREPROD ENV (POST Method)
+export const ApprouverOrderURL_PREPROD = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/GetPurchaseUserRequest";
+
+// GET BUDGET ACTIV PREPROD ENV (POST Method)
+export const GetBudgetActiv = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/GetBudgetActiv";
+
+// GET PROJECT CAPEX PREPROD ENV (POST Method)
+export const GetProjectCapex = "https://apiintra-test.universitecentrale.net:8282/UCG.svc/GetProjectCapex";
+
+// Demandeur SharePoint ('Dashboard Achat') Group ID
+export const DemandeurGroupId = "c695f762-6855-4841-8f3c-1026f90e43c5";

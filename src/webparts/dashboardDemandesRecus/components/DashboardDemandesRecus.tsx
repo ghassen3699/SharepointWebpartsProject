@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styles from './DashboardDemandesRecus.module.scss';
 import { IDashboardDemandesRecusProps } from './IDashboardDemandesRecusProps';
-import {Dropdown, IDropdownStyles, mergeStyleSets, mergeStyles, DatePicker, TextField } from 'office-ui-fabric-react';
+import { Dropdown, IDropdownStyles, mergeStyleSets, mergeStyles, DatePicker, TextField } from 'office-ui-fabric-react';
 import { Web } from '@pnp/sp/webs';
 import "@pnp/sp/webs";
 import "@pnp/sp/lists";
@@ -11,7 +11,7 @@ import "@pnp/sp/lists/web";
 import "@pnp/sp/attachments";
 import "@pnp/sp/site-users/web";
 import GraphService from '../../../services/GraphServices';
-import { convertDateFormat, getMatchingIndices, getOrderFilter } from '../../../tools/FunctionTools';
+import { convertDateFormat, exportJsonToExcel, getMatchingIndices, getOrderFilter } from '../../../tools/FunctionTools';
 
 
 export default class DashboardDemandesRecus extends React.Component<IDashboardDemandesRecusProps, {}> {
@@ -90,7 +90,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   };
 
 
-  handlePageClick = (page:any) => {
+  handlePageClick = (page: any) => {
     this.setState({ currentPage: page });
   };
 
@@ -104,7 +104,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
   private getNumberOfDaysFromDateAction = (articleIndex) => {
     var listNumberOfDaysData = []
-    const listIndexs = getMatchingIndices(this.state.historiqueDemande) ;
+    const listIndexs = getMatchingIndices(this.state.historiqueDemande);
     listIndexs.map(historyIndex => {
       listNumberOfDaysData.push(this.state.historiqueDemande[historyIndex])
     })
@@ -128,16 +128,16 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     }));
 
 
-    if (finalResult.length === 0){
+    if (finalResult.length === 0) {
       return "0"
-    }else {
+    } else {
       const dateSouhaiteSaved = finalResult.filter(dates => dates.idArticle === (articleIndex + 1))
-      if (dateSouhaiteSaved.length > 0){
+      if (dateSouhaiteSaved.length > 0) {
         return dateSouhaiteSaved[0].days
-      }else return "0"
-  
+      } else return "0"
+
     }
-    
+
   }
 
 
@@ -150,18 +150,18 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
 
   // En cours
-  private submitUpdatesDateSouhaiter = async() => {
+  private submitUpdatesDateSouhaiter = async () => {
 
     console.log(this.state.articlesChangeDateSouhaiter)
-    this.setState({disableButtonSaveUpdateDate: true})
+    this.setState({ disableButtonSaveUpdateDate: true })
     var DemandeID = this.state.detailsListDemande.ID
     const historyData = await Web(this.props.url).lists.getByTitle('HistoriqueDemande').items.filter(`DemandeID eq ${DemandeID}`).get();
     var resultArray = JSON.parse(historyData[0].Actions);
     this.state.articlesChangeDateSouhaiter.map(articleDate => {
       const date = articleDate.newDateSouhaiter.toString()
-      if (parseInt(date) <= 1 ){
+      if (parseInt(date) <= 1) {
         resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${articleDate.articleIndex + 1} aprés ${date} jour`);
-      }else {
+      } else {
         resultArray.push(`L'équipe finance a modifié la date souhaitée de l'article ${articleDate.articleIndex + 1} aprés ${date} jours`);
       }
     })
@@ -169,7 +169,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     console.log(resultArray)
     const saveHistorique = await Web(this.props.url).lists.getByTitle("HistoriqueDemande").items.getById(historyData[0].ID).update({
       Actions: JSON.stringify(resultArray),
-      DelaiLivraisionSouhaite:"Y"
+      DelaiLivraisionSouhaite: "Y"
     });
     window.location.reload();
 
@@ -215,33 +215,33 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
   //       });
   //       window.location.reload();
   //     }
-      
+
   //   };
   // }
 
-  private updateDateSouhaite = async(articleIndex) => {
+  private updateDateSouhaite = async (articleIndex) => {
     console.log('test')
     var newArticlesChangeDateSouhaiter = []
     const date = this.state.DateAction[articleIndex]
-    console.log(articleIndex) ;
-    const prevArticlesChangeDateSouhaiter = [...this.state.articlesChangeDateSouhaiter] ;
-    if (prevArticlesChangeDateSouhaiter.length === 0){
+    console.log(articleIndex);
+    const prevArticlesChangeDateSouhaiter = [...this.state.articlesChangeDateSouhaiter];
+    if (prevArticlesChangeDateSouhaiter.length === 0) {
       newArticlesChangeDateSouhaiter.push({
         articleIndex: articleIndex,
         newDateSouhaiter: date
       })
-      console.log("1",newArticlesChangeDateSouhaiter)
-      this.setState({articlesChangeDateSouhaiter:newArticlesChangeDateSouhaiter})
-    }else {
+      console.log("1", newArticlesChangeDateSouhaiter)
+      this.setState({ articlesChangeDateSouhaiter: newArticlesChangeDateSouhaiter })
+    } else {
       const updatedUsers = prevArticlesChangeDateSouhaiter.some(
         (article) => article.articleIndex === articleIndex) ? prevArticlesChangeDateSouhaiter.map((article) =>
           article.articleIndex === articleIndex ? { ...article, newDateSouhaiter: date } : article)
         : [...prevArticlesChangeDateSouhaiter, { articleIndex: articleIndex, newDateSouhaiter: date }];
-      console.log("2",updatedUsers)
-      this.setState({articlesChangeDateSouhaiter:updatedUsers})
+      console.log("2", updatedUsers)
+      this.setState({ articlesChangeDateSouhaiter: updatedUsers })
     }
 
-    this.setState({disableButtonUpdateDate: !this.state.disableButtonUpdateDate, disableButtonSaveUpdateDate: false})
+    this.setState({ disableButtonUpdateDate: !this.state.disableButtonUpdateDate, disableButtonSaveUpdateDate: false })
   }
 
 
@@ -268,7 +268,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         .filter(`
           ((StatusDemandeV1 eq 'Approuvée') and (StatusDemandeV2 eq 'Approuvée') and (StatusDemandeV4 eq 'Approuvée') and ((StatusDemandeV3 eq 'Approuvée') or (StatusDemandeV3 eq '***')))
         `)
-        .select("Attachments", "Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar", "ReferenceDemande","CentreDeGestion")
+        .select("Attachments", "Created", "AuthorId", "DelaiLivraisionSouhaite", "DemandeurId", "DemandeurStringId", "DescriptionTechnique", "Ecole/Title", "Ecole/Ecole", "FamilleProduit", "ID", "Prix", "PrixTotal", "Produit", "Quantite", "SousFamilleProduit", "StatusDemande", "StatusDemandeV1", "StatusDemandeV2", "StatusDemandeV3", "StatusDemandeV4", "Title", "CreerPar", "ReferenceDemande", "CentreDeGestion", "budgetSelected", "budgetSelectedID")
         .get();
       this.setState({ listDemandeData });
     } catch (error) {
@@ -346,16 +346,16 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
           .select("AttachmentFiles")
           .expand("AttachmentFiles")
           .get();
-  
+
         const attachmentFiles = itemData.AttachmentFiles;
-  
+
         if (attachmentFiles.length > 0) {
           const attachmentUrl = attachmentFiles[index].ServerRelativeUrl;
           const currentURL = this.props.url;
           const tenantUrl = currentURL.split("/sites/")[0];
-  
+
           const absoluteUrl = `${tenantUrl}${attachmentUrl}`;
-  
+
           // Create a hidden link to trigger the download
           const downloadLink = document.createElement("a");
           downloadLink.href = absoluteUrl;
@@ -372,42 +372,42 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
   private async getAllDemandeurs() {
     try {
-        const demandes = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
-            .select("Demandeur/Id", "Demandeur/Title") // Select the fields from the "Demandeur" lookup field
-            .expand("Demandeur") // Expand the "Demandeur" lookup field
-            .getAll();
+      const demandes = await Web(this.props.url).lists.getByTitle("DemandeAchat").items
+        .select("Demandeur/Id", "Demandeur/Title") // Select the fields from the "Demandeur" lookup field
+        .expand("Demandeur") // Expand the "Demandeur" lookup field
+        .getAll();
 
-        console.log(demandes);
+      console.log(demandes);
 
-         // Group demands by DemandeurID
-         const groupedDemandes = {};
-         demandes.forEach(demande => {
-             const demandeur = demande.Demandeur;
-             const demandeurID = demandeur.Id;
-             const demandeurName = demandeur.Title;
- 
-             if (!groupedDemandes[demandeurID]) {
-                groupedDemandes[demandeurID] = { key: demandeurID.toString(), text: demandeurName };
-             }
-         });
- 
-         // Convert groupedDemandes object into array of objects
-         const result = [];
-         for (const key in groupedDemandes) {
-          if (groupedDemandes.hasOwnProperty(key)) {
-            result.push(groupedDemandes[key]);
-          }
-         }
+      // Group demands by DemandeurID
+      const groupedDemandes = {};
+      demandes.forEach(demande => {
+        const demandeur = demande.Demandeur;
+        const demandeurID = demandeur.Id;
+        const demandeurName = demandeur.Title;
 
-         if (result.length > 0){
-          result.unshift({ key: "Tous", text: "Tous" });
-         }
- 
-         // Now 'result' holds the demands grouped by DemandeurID
-         console.log(result);
-         return result;
+        if (!groupedDemandes[demandeurID]) {
+          groupedDemandes[demandeurID] = { key: demandeurID.toString(), text: demandeurName };
+        }
+      });
+
+      // Convert groupedDemandes object into array of objects
+      const result = [];
+      for (const key in groupedDemandes) {
+        if (groupedDemandes.hasOwnProperty(key)) {
+          result.push(groupedDemandes[key]);
+        }
+      }
+
+      if (result.length > 0) {
+        result.unshift({ key: "Tous", text: "Tous" });
+      }
+
+      // Now 'result' holds the demands grouped by DemandeurID
+      console.log(result);
+      return result;
     } catch (error) {
-        console.error("Error fetching demandes:", error);
+      console.error("Error fetching demandes:", error);
     }
   }
 
@@ -416,7 +416,7 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
     const demandeurs = await this.getAllDemandeurs()
     console.log(demandeurs)
-    this.setState({demandeurs})
+    this.setState({ demandeurs })
 
 
     setTimeout(() => {
@@ -433,31 +433,31 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     const controlClass = mergeStyleSets({
       TextField: { backgroundColor: "white" }
     });
-    const rootClass = mergeStyles({ backgroundColor:"white" });
+    const rootClass = mergeStyles({ backgroundColor: "white" });
 
 
     const { currentPage, itemsPerPage, listDemandeData, DemandeurFilter, StatusFilter } = this.state;
     var filteredData
-    if (DemandeurFilter.length > 0 || StatusFilter.length > 0){
+    if (DemandeurFilter.length > 0 || StatusFilter.length > 0) {
       console.log(DemandeurFilter)
-      console.log(StatusFilter) 
-      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter) ;
-      if(orderFilter === 1){
+      console.log(StatusFilter)
+      const orderFilter = getOrderFilter(DemandeurFilter, StatusFilter, '');
+      if (orderFilter === 1) {
         filteredData = listDemandeData
-      }else if (orderFilter === 2){
-        filteredData = listDemandeData.filter((item:any) => {
+      } else if (orderFilter === 2) {
+        filteredData = listDemandeData.filter((item: any) => {
           return item.StatusDemande.toString().includes(StatusFilter);
-        }); 
-      }else if (orderFilter === 3){
-        filteredData = listDemandeData.filter((item:any) => {
+        });
+      } else if (orderFilter === 3) {
+        filteredData = listDemandeData.filter((item: any) => {
           return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase());
-        }); 
-      }else{
-        filteredData = listDemandeData.filter((item:any) => {
+        });
+      } else {
+        filteredData = listDemandeData.filter((item: any) => {
           return item.DemandeurId.toString().toLowerCase().includes(DemandeurFilter.toLowerCase()) && item.StatusDemande.toString().includes(StatusFilter);
-        }); 
+        });
       }
-    }else {
+    } else {
       filteredData = listDemandeData
     }
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -466,21 +466,21 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
-    
 
-    
+
+
     return (
       <div className={styles.dashboardDemandesRecus}>
         <div className={styles.title}><strong>Filtres</strong></div>
         <div className={styles.filters}>
           <label className={styles.title}>Demandeur : </label>
           <div className={styles.statusWrapper}>
-          <Dropdown
+            <Dropdown
               styles={dropdownStyles}
               placeholder="Selectionner votre demandeur"
               options={this.state.demandeurs}
               defaultSelectedKey={this.state.DemandeurFilter}
-              onChanged={(value) => this.setState({DemandeurFilter:value.key, currentPage: 1})}
+              onChanged={(value) => this.setState({ DemandeurFilter: value.key, currentPage: 1 })}
               style={{ width: '224.45px' }} // Specify the width you desire
             />
           </div>
@@ -501,7 +501,31 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
               onChanged={(value) => this.setState({ StatusFilter: value.key, currentPage: 1 })}
             />
           </div>
-          <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
+          {/* <button
+            className={styles.btnRef}
+            // onClick={() => exportJsonToExcel(filteredData, "dashboard-approbateur-module-achat.xlsx", "Approbateur")}
+            onClick={() => exportJsonToExcel(filteredData, "dashboard-demande-recus-module-achat.xlsx")}
+            title="Exporter les données au format Excel"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="16" height="16" viewBox="0 0 50 50">
+              <path d="M 28.8125 0.03125 L 0.8125 5.34375 C 0.339844 5.433594 0 5.863281 0 6.34375 L 0 43.65625 C 0 44.136719 0.339844 44.566406 0.8125 44.65625 L 28.8125 49.96875 C 28.875 49.980469 28.9375 50 29 50 C 29.230469 50 29.445313 49.929688 29.625 49.78125 C 29.855469 49.589844 30 49.296875 30 49 L 30 1 C 30 0.703125 29.855469 0.410156 29.625 0.21875 C 29.394531 0.0273438 29.105469 -0.0234375 28.8125 0.03125 Z M 32 6 L 32 13 L 34 13 L 34 15 L 32 15 L 32 20 L 34 20 L 34 22 L 32 22 L 32 27 L 34 27 L 34 29 L 32 29 L 32 35 L 34 35 L 34 37 L 32 37 L 32 44 L 47 44 C 48.101563 44 49 43.101563 49 42 L 49 8 C 49 6.898438 48.101563 6 47 6 Z M 36 13 L 44 13 L 44 15 L 36 15 Z M 6.6875 15.6875 L 11.8125 15.6875 L 14.5 21.28125 C 14.710938 21.722656 14.898438 22.265625 15.0625 22.875 L 15.09375 22.875 C 15.199219 22.511719 15.402344 21.941406 15.6875 21.21875 L 18.65625 15.6875 L 23.34375 15.6875 L 17.75 24.9375 L 23.5 34.375 L 18.53125 34.375 L 15.28125 28.28125 C 15.160156 28.054688 15.035156 27.636719 14.90625 27.03125 L 14.875 27.03125 C 14.8125 27.316406 14.664063 27.761719 14.4375 28.34375 L 11.1875 34.375 L 6.1875 34.375 L 12.15625 25.03125 Z M 36 20 L 44 20 L 44 22 L 36 22 Z M 36 27 L 44 27 L 44 29 L 36 29 Z M 36 35 L 44 35 L 44 37 L 36 37 Z"></path>
+            </svg>
+          </button>
+          <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button> */}
+          <div className={styles.statusWrapper}>
+            <button className={styles.btnRef} onClick={() => this.clearFilterButton()}>Rafraichir</button>
+            &nbsp;
+            <button
+              className={styles.btnRef}
+              // onClick={() => exportJsonToExcel(filteredData, "dashboard-approbateur-module-achat.xlsx", "Approbateur")}
+              onClick={() => exportJsonToExcel(filteredData, "dashboard-demandes-reçus-module-achat.xlsx")}
+              title="Exporter les données au format Excel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="16" height="16" viewBox="0 0 50 50">
+                <path d="M 28.8125 0.03125 L 0.8125 5.34375 C 0.339844 5.433594 0 5.863281 0 6.34375 L 0 43.65625 C 0 44.136719 0.339844 44.566406 0.8125 44.65625 L 28.8125 49.96875 C 28.875 49.980469 28.9375 50 29 50 C 29.230469 50 29.445313 49.929688 29.625 49.78125 C 29.855469 49.589844 30 49.296875 30 49 L 30 1 C 30 0.703125 29.855469 0.410156 29.625 0.21875 C 29.394531 0.0273438 29.105469 -0.0234375 28.8125 0.03125 Z M 32 6 L 32 13 L 34 13 L 34 15 L 32 15 L 32 20 L 34 20 L 34 22 L 32 22 L 32 27 L 34 27 L 34 29 L 32 29 L 32 35 L 34 35 L 34 37 L 32 37 L 32 44 L 47 44 C 48.101563 44 49 43.101563 49 42 L 49 8 C 49 6.898438 48.101563 6 47 6 Z M 36 13 L 44 13 L 44 15 L 36 15 Z M 6.6875 15.6875 L 11.8125 15.6875 L 14.5 21.28125 C 14.710938 21.722656 14.898438 22.265625 15.0625 22.875 L 15.09375 22.875 C 15.199219 22.511719 15.402344 21.941406 15.6875 21.21875 L 18.65625 15.6875 L 23.34375 15.6875 L 17.75 24.9375 L 23.5 34.375 L 18.53125 34.375 L 15.28125 28.28125 C 15.160156 28.054688 15.035156 27.636719 14.90625 27.03125 L 14.875 27.03125 C 14.8125 27.316406 14.664063 27.761719 14.4375 28.34375 L 11.1875 34.375 L 6.1875 34.375 L 12.15625 25.03125 Z M 36 20 L 44 20 L 44 22 L 36 22 Z M 36 27 L 44 27 L 44 29 L 36 29 Z M 36 35 L 44 35 L 44 37 L 36 37 Z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
         <div className={styles.paginations} style={{ textAlign: 'center' }}>
           {this.state.showSpinner && <span className={styles.loader}></span>}
@@ -628,11 +652,23 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
         }
 
         {this.state.openDetailsDiv && <div className={styles.modal}>
-          <div className={styles.modalContent} style={{margin:"5% auto 0"}}>
-            <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDiv: false, articlesChangeDateSouhaiter:[] })}>&times;</span>
+          <div className={styles.modalContent} style={{ margin: "5% auto 0" }}>
+            <span id="close" className={styles.close} onClick={() => this.setState({ openDetailsDiv: false, articlesChangeDateSouhaiter: [] })}>&times;</span>
             {/* <p className={styles.titleComment}>Détails :</p> */}
             <table className={styles.table}>
               <tbody>
+                <tr>
+                  <td >Le demandeur :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.CreerPar}</td>
+                </tr>
+                <tr>
+                  <td >ID de la Demande :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.ID}</td>
+                </tr>
+                <tr>
+                  <td >Budget de la demande :</td>
+                  <td className={styles.value}>{this.state.detailsListDemande.budgetSelected}</td>
+                </tr>
                 <tr>
                   <td >Famille :</td>
                   <td className={styles.value}>{this.state.detailsListDemande.FamilleProduit}</td>
@@ -645,8 +681,10 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                         <h4>{index + 1}-{produit.DescriptionTechnique}</h4>
                       </button>
                       <div className={`${styles.panel} ${(this.state.isOpen && (this.state.currentAccordion === index)) ? styles.panelOpen : ''}`}>
-                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
                         <p className={styles.value}><b>Beneficiaire:</b> {produit.Beneficiaire}</p>
+                        <p className={styles.value}><b>Budget:</b> {produit.budgetSelected}</p>
+                        <p className={styles.value}><b>Projet Capex:</b> {produit.CapexProjectSelected}</p>
+                        <p className={styles.value}><b>Sous Famille:</b> {produit.SousFamille}</p>
                         <p className={styles.value}><b>Description Technique:</b> {produit.comment}</p>
                         <p className={styles.value}><b>Prix: </b>{produit.Prix} DT</p>
                         <p className={styles.value}><b>Quantité: </b>{produit.quantité}</p>
@@ -657,9 +695,9 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                         </p>
                         <p className={styles.value}>
                           {console.log(index)}
-                          <div style={{display:"inline", float:"left"}}>
+                          <div style={{ display: "inline", float: "left" }}>
                             <b>
-                            {/* <DatePicker
+                              {/* <DatePicker
                               style={{ width: '250px' }}
                               allowTextInput={true}
                               value={this.state.DateAction[index] ? new Date(this.state.DateAction[index]) : new Date()}
@@ -667,19 +705,19 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                             /> */}
                               {/* {console.log(this.getNumberOfDaysFromDateAction(index))} */}
 
-                              <TextField 
+                              <TextField
                                 type='number'
                                 min={0}
-                                style={{ width: '250px', backgroundColor:"white", fontSize:"15px" }}
-                                className={controlClass.TextField} 
+                                style={{ width: '250px', backgroundColor: "white", fontSize: "15px" }}
+                                className={controlClass.TextField}
                                 defaultValue={this.getNumberOfDaysFromDateAction(index)}
-                                value={this.state.DateAction[index]} 
+                                value={this.state.DateAction[index]}
                                 onChange={(e) => { this.handleChangeDate(e, index) }}
                               />
                               {console.log(this.state.DateAction[index])}
                             </b>
                           </div>
-                          <div style={{display:"inline", float:"right"}}>
+                          <div style={{ display: "inline", float: "right" }}>
                             <button
                               style={{
                                 backgroundColor: this.state.disableButtonUpdateDate ? "gray" : "#7d2935",
@@ -702,16 +740,16 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                 <tr>
                   <td>Envoyer votre Changement :</td>
                   <td className={styles.value}>
-                  <button
-                    style={{
-                      backgroundColor: this.state.disableButtonSaveUpdateDate ? "gray" : "#7d2935",
-                    }}
-                    className={styles.btnRef}
-                    disabled={this.state.disableButtonSaveUpdateDate}
-                    onClick={() => this.submitUpdatesDateSouhaiter()}
+                    <button
+                      style={{
+                        backgroundColor: this.state.disableButtonSaveUpdateDate ? "gray" : "#7d2935",
+                      }}
+                      className={styles.btnRef}
+                      disabled={this.state.disableButtonSaveUpdateDate}
+                      onClick={() => this.submitUpdatesDateSouhaiter()}
                     >
-                    Valider
-                  </button>
+                      Valider
+                    </button>
                   </td>
                 </tr>
                 <tr>
@@ -720,12 +758,12 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
                 </tr>
                 <tr>
                   <td >Piéce jointe :</td>
-                  <td className={styles.value} > 
+                  <td className={styles.value} >
                     {this.state.filenames.map((file, index) => (
-                        <span key={file} style={{ cursor: 'pointer', color:"black" }} onClick={()=>this.downloadAttachmentFile(this.state.detailsListDemande.ID, index)}>
-                          - {file}
-                        </span>
-                      ))}                  
+                      <span key={file} style={{ cursor: 'pointer', color: "black" }} onClick={() => this.downloadAttachmentFile(this.state.detailsListDemande.ID, index)}>
+                        - {file}
+                      </span>
+                    ))}
                   </td>
                 </tr>
                 <tr>
@@ -759,58 +797,58 @@ export default class DashboardDemandesRecus extends React.Component<IDashboardDe
 
         {!this.state.showSpinner &&
           <div className={styles.paginations}>
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handlePrevPage}>
-            Prev
-          </span>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handlePrevPage}>
+              Prev
+            </span>
 
-          <span id="page">
-            {pageNumbers[0] > 1 && (
-              <>
+            <span id="page">
+              {pageNumbers[0] > 1 && (
+                <>
+                  <span
+                    onClick={() => this.handlePageClick(1)}
+                    className={currentPage === 1 ? styles.pagination2 : styles.pagination}
+                  >
+                    1
+                  </span>
+                  {pageNumbers[0] > 2 && <span className={styles.pagination}>...</span>}
+                </>
+              )}
+
+              {pageNumbers.map((page) => (
                 <span
-                  onClick={() => this.handlePageClick(1)}
-                  className={currentPage === 1 ? styles.pagination2 : styles.pagination}
+                  key={page}
+                  onClick={() => this.handlePageClick(page)}
+                  className={currentPage === page ? styles.pagination2 : styles.pagination}
                 >
-                1
+                  {page}
                 </span>
-                {pageNumbers[0] > 2 && <span className={styles.pagination}>...</span>}
-              </>
-            )}
+              ))}
 
-            {pageNumbers.map((page) => (
-              <span
-                key={page}
-                onClick={() => this.handlePageClick(page)}
-                className={currentPage === page ? styles.pagination2 : styles.pagination}
-              >
-                {page}
-              </span>
-            ))}
+              {pageNumbers[pageNumbers.length - 1] < totalPages && (
+                <>
+                  {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
+                    <span className={styles.pagination}>...</span>
+                  )}
+                  <span
+                    onClick={() => this.handlePageClick(totalPages)}
+                    className={currentPage === totalPages ? styles.pagination2 : styles.pagination}
+                  >
+                    {totalPages}
+                  </span>
+                </>
+              )}
+            </span>
 
-            {pageNumbers[pageNumbers.length - 1] < totalPages && (
-              <>
-                {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
-                  <span className={styles.pagination}>...</span>
-                )}
-                <span
-                  onClick={() => this.handlePageClick(totalPages)}
-                  className={currentPage === totalPages ? styles.pagination2 : styles.pagination}
-                >
-                  {totalPages}
-                </span>
-              </>
-            )}
-          </span>
-
-          <span
-            id="btn_prev"
-            className={styles.pagination}
-            onClick={this.handleNextPage}>
-            Next
-          </span>
-        </div>
+            <span
+              id="btn_prev"
+              className={styles.pagination}
+              onClick={this.handleNextPage}>
+              Next
+            </span>
+          </div>
         }
       </div>
     );

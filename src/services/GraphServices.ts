@@ -41,16 +41,16 @@ export default class GraphService {
     // Get user info by her ID
     public async getUserId(userUPN: string): Promise<string> {
         try {
-          const client = await this.context.msGraphClientFactory.getClient("3");
-          const res = await client
-            .api(`users/${userUPN}`)
-            .version("beta")
-            .get();
-            
-          // Assuming 'res' is a string containing presence data
-          return res;
+            const client = await this.context.msGraphClientFactory.getClient("3");
+            const res = await client
+                .api(`users/${userUPN}`)
+                .version("beta")
+                .get();
+
+            // Assuming 'res' is a string containing presence data
+            return res;
         } catch (error) {
-          throw error; // Re-throw the error
+            throw error; // Re-throw the error
         }
     }
 
@@ -58,14 +58,14 @@ export default class GraphService {
     public async getUserEmailByDisplayName(displayName: string): Promise<string> {
         try {
             const client = await this.context.msGraphClientFactory.getClient("3");
-            
+
             // Filter query to search for the user by display name
             const res = await client
                 .api('/users')
                 .filter(`displayName eq '${displayName}'`)
                 .version('beta')
                 .get();
-            
+
             // Assuming 'res' contains the user details
             if (res && res.value && res.value.length > 0) {
                 return res.value[0].mail; // Assuming 'mail' is the property containing the user's email address
@@ -74,6 +74,21 @@ export default class GraphService {
             }
         } catch (error) {
             throw error; // Re-throw the error
+        }
+    }
+
+    public async getGroupMembers(groupId: string): Promise<any[]> {
+        try {
+            const client = await this.context.msGraphClientFactory.getClient("3");
+
+            const res = await client
+                .api(`/groups/${groupId}/members`)
+                .version("v1.0")
+                .get();
+
+            return res.value || [];
+        } catch (error) {
+            throw error;
         }
     }
 }
